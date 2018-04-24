@@ -1,0 +1,13 @@
+--- linux/fs/fat/file.c.orig	Thu Jan  7 18:38:59 1999
++++ linux/fs/fat/file.c	Thu Jan  7 19:17:40 1999
+@@ -442,6 +442,10 @@
+ 	/* Why no return value?  Surely the disk could fail... */
+ 	if (IS_IMMUTABLE(inode))
+ 		return /* -EPERM */;
++	if(inode->i_sb->s_flags&MS_RDONLY) {
++		printk("FAT: fat_truncate called though fs is read-only, uhh...\n");
++		return /* -EROFS */;
++	}
+ 	cluster = SECTOR_SIZE*MSDOS_SB(inode->i_sb)->cluster_size;
+ 	(void) fat_free(inode,(inode->i_size+(cluster-1))/cluster);
+ 	MSDOS_I(inode)->i_attrs |= ATTR_ARCH;

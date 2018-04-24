@@ -1,0 +1,563 @@
+/*
+dblspace_fileops.c-2.1.80
+
+DMSDOS CVF-FAT module: file operation routines (for kernel>=2.1.80).
+
+******************************************************************************
+DMSDOS (compressed MSDOS filesystem support) for Linux
+written 1995-1998 by Frank Gockel and Pavel Pisa
+
+    (C) Copyright 1995-1998 by Frank Gockel
+    (C) Copyright 1996-1998 by Pavel Pisa
+
+Some code of dmsdos has been copied from the msdos filesystem
+so there are the following additional copyrights:
+
+    (C) Copyright 1992,1993 by Werner Almesberger (msdos filesystem)
+    (C) Copyright 1994,1995 by Jacques Gelinas (mmap code)
+    (C) Copyright 1992-1995 by Linus Torvalds
+
+DMSDOS was inspired by the THS filesystem (a simple doublespace
+DS-0-2 compressed read-only filesystem) written 1994 by Thomas Scheuermann.
+
+The DMSDOS code is distributed under the Gnu General Public Licence.
+See file COPYING for details.
+******************************************************************************
+
+*/
+
+#include <linux/sched.h>
+#include <linux/ctype.h>
+#include <linux/major.h>
+#include <linux/blkdev.h>
+#include <linux/fs.h>
+#include <linux/stat.h>
+#include <linux/locks.h>
+#include <asm/segment.h>
+#include <linux/mm.h>
+#include <linux/malloc.h>
+#include <linux/string.h>
+#include <linux/msdos_fs.h>
+#include <linux/errno.h>
+#include <linux/kernel.h>
+#include <linux/shm.h>
+#include <linux/mman.h>
+#include <asm/system.h>
+#include "dmsdos.h"
+
+extern unsigned long dmsdos_speedup;
+
+#define MIN(x,y) (   ( (x)<(y) ) ? (x) : (y)   )
+
+void do_cluster_reada(struct super_block*sb,int clusternr)
+{ /* read one cluster ahead without waiting for the data */
+  int nextclust;
+
+  nextclust=dbl_fat_nextcluster(sb,clusternr,NULL);
+  if(nextclust>0)
+  { /* no need to read-ahead if it is in cache */
+    /* for a simple search for existence we needn't lock the cache */
+    if(find_in_ccache(sb,nextclust,NULL,NULL)==NULL)
+                          dmsdos_read_cluster(sb,NULL,nextclust);
+  }
+}
+
+int dblspace_file_read(
+        struct file *filp,
+        char *buf,
+        size_t count,
+        loff_t *ppos)
+{      
+        int clusternr;
+        /*unsigned char*clusterd;*/
+        int offset;
+        int bytes_read;
+        int membytes;
+        int membytes_bits;
+        int ret;
+        char * b;
+        int toread;
+        Cluster_head*ch;
+        struct inode *inode;
+        struct super_block*sb;
+        Dblsb*dblsb;
+
+        LOG_FS("DMSDOS: file_read start...\n");
+
+        inode = filp->f_dentry->d_inode;
+        LOG_FS("DMSDOS: file_read: got inode\n");
+        sb=inode->i_sb;
+        LOG_FS("DMSDOS: file_read: got sb\n");
+        dblsb=MSDOS_SB(sb)->private_data;
+        LOG_FS("DMSDOS: file_read: got dblsb\n");
+        
+	if (!inode) {
+		printk(KERN_ERR "DMSDOS: file_read: inode = NULL, rejected.\n");
+		return -EINVAL;
+	}
+	/* S_ISLNK allows for UMSDOS. Should never happen for normal MSDOS */
+	if (!S_ISREG(inode->i_mode) && !S_ISLNK(inode->i_mode)) {
+		printk(KERN_ERR "DMSDOS: file_read: mode = %07o, rejected.\n",inode->i_mode);
+		return -EINVAL;
+	}
+
+        LOG_FS("DMSDOS: file_read init complete...\n");
+
+        if(count<=0)return 0;
+        
+        if(*ppos>=inode->i_size)return 0;
+        
+        if(*ppos+count>inode->i_size)count=inode->i_size-*ppos;
+        
+        ret=verify_area(VERIFY_WRITE, buf, count);
+        if(ret<0)return ret;
+        ret=0;
+
+        membytes=SECTOR_SIZE*dblsb->s_sectperclust;
+        membytes_bits=SECTOR_BITS+dblsb->s_spc_bits;
+        
+        /* calculate clusternr for cluster to read */
+        offset=*ppos&(membytes-1);
+        LOG_CLUST("DMSDOS: file_read: get_cluster...\n");
+        clusternr=get_cluster(inode,*ppos>>membytes_bits);
+        if(clusternr<=0)
+        {  printk(KERN_ERR "DMSDOS: file_readx: FAT mismatches file size for ino=%ld\n",
+                   inode->i_ino);
+           return 0;        
+        }
+        
+        bytes_read=0;
+        b=buf;
+        
+        do
+        {  LOG_CLUST("DMSDOS: file_read: calling ch_read...\n");
+           ch=ch_read(sb,clusternr,0);
+           LOG_CLUST("DMSDOS: file_read: after ch_read\n");
+           ret=(ch==NULL)?-EIO:0;
+           if(ret>=0)
+           { if(count>READA_THRESHOLD&&(dmsdos_speedup&SP_USE_READ_AHEAD)!=0)
+                             do_cluster_reada(inode->i_sb,clusternr);
+             toread=(membytes-offset>count) ? count : membytes-offset;
+             /*printk("DMSDOS file_readx: memcpy_tofs(0x%08x,0x%08x,0x%08x)\n",
+                     b,clusterd+offset,toread);*/
+             memcpy_tofs(b,ch->c_data+offset,toread);
+             bytes_read+=toread;
+             *ppos+=toread;
+             count-=toread;
+             ch_free(ch);
+             if(count>0)
+             { b+=toread;
+               offset=0;
+               LOG_CLUST("DMSDOS: file_read: get_cluster...\n");
+               clusternr=get_cluster(inode,*ppos>>membytes_bits);
+               if(*ppos&(membytes-1))
+                 panic("DMSDOS: read_file bug: f_pos not cluster-aligned");
+               if(clusternr<=0)
+               { ret=-EIO;
+                 printk(KERN_ERR "DMSDOS: file_readx: FAT mismatches file size for ino=%ld\n",
+                         inode->i_ino);
+               }
+             }
+           }
+        }
+        while(count>0&&ret>=0);
+        
+        return (bytes_read==0&&ret<0)?ret:bytes_read;
+}
+
+int dblspace_file_write(
+        struct file *filp,
+        const char *buf,
+        size_t count,
+        loff_t *ppos)
+{
+        int cluster;
+        int ret=0;
+        unsigned int offset;
+        const unsigned char *b;
+        int canwrite;
+        int written;
+        int clustersize;
+        int clustersize_bits;
+        int uc;
+        Cluster_head*ch;
+        struct inode *inode = filp->f_dentry->d_inode;
+        struct super_block*sb=inode->i_sb;
+        Dblsb*dblsb=MSDOS_SB(sb)->private_data;
+        
+	if (!inode) {
+		printk(KERN_ERR "dmsdos_file_write: inode = NULL\n");
+		return -EINVAL;
+	}
+	/* S_ISLNK allows for UMSDOS. Should never happen for normal MSDOS */
+	if (!S_ISREG(inode->i_mode) && !S_ISLNK(inode->i_mode)) {
+		printk(KERN_ERR "dmsdos_file_write: mode = %07o\n",inode->i_mode);
+		return -EINVAL;
+	}
+/*
+ * ok, append may not work when many processes are writing at the same time
+ * but so what. That way leads to madness anyway.
+ */
+        if(sb->s_flags&MS_RDONLY)
+        { printk(KERN_ERR "DMSDOS: file_write: READ-ONLY filesystem\n");
+          return -EROFS;
+        }
+        
+        if(dblsb->s_comp==READ_ONLY)return -EPERM;
+ 
+	if (filp->f_flags & O_APPEND) *ppos = inode->i_size;
+	if (count <= 0) return 0;
+
+        ret=verify_area(VERIFY_READ, buf, count);
+        if(ret<0)return ret;
+        ret=0;
+	
+	clustersize=dblsb->s_sectperclust*SECTOR_SIZE;
+	clustersize_bits=dblsb->s_spc_bits+SECTOR_BITS;
+	
+	uc=0;
+   #if 0
+	if(dmsdos_speedup&SP_NO_EMD_COMPR)
+	  uc=(MSDOS_I(inode)->i_binary>1)?1:0; /* uncompressed forced */
+   #endif
+   #warning Umsdos EMD speedup is not implemented
+	
+	offset=*ppos&(clustersize-1);
+	do
+	{ cluster=get_cluster(inode,*ppos>>clustersize_bits);
+	  if(cluster>0)break;
+          if(dblsb->s_full==2)
+          { printk(KERN_ERR "DMSDOS: write_file: CVF full (full flag set)\n");
+            return -ENOSPC;
+          }
+          if(dblsb->s_free_sectors<MIN_FREE_SECTORS)
+          { printk(KERN_ERR "DMSDOS: write_file: CVF full (free sector count too low)\n");
+            return -ENOSPC;
+          }
+	  if(fat_add_cluster(inode)<0)
+	  { printk(KERN_ERR "DMSDOS: write_file: fat_add_cluster failed\n");
+	    return -ENOSPC;
+	  }
+	}
+	while(cluster<=0);
+	
+	LOG_CLUST("DMSDOS: file_write: beginning with cluster %d\n",
+	       cluster);
+
+        b=buf;
+        written=0;
+        
+        while(count>0)
+        {
+	  if(offset>0||count<clustersize)
+	  { /* cluster must be read because it will only partially overwritten */
+	    LOG_CLUST("DMSDOS: write_file: reading cluster %d...\n",cluster);
+	    ch=ch_read(sb,cluster,C_KEEP_LOCK);
+	    if(ch==NULL)
+	    { printk(KERN_ERR "DMSDOS: write_file: read_cluster failed!\n");
+	      ret=-EIO;
+	      break;                          
+	    }
+            /*lock_ch(ch); we call with KEEP_LOCK above */
+          }
+          else 
+          { /* cluster will be fully overwritten, don't read it */
+            ch=ch_read(sb,cluster,C_KEEP_LOCK|C_NO_READ);
+            if(ch==NULL)
+            { printk(KERN_ERR "DMSDOS: write_file: ch_noread failed!\n");
+              ret=-EIO;
+              break;
+            }
+            /*lock_ch(ch); we call with KEEP_LOCK above */
+            ch->c_length= (count+offset<clustersize) ?
+                                                  count+offset : clustersize;
+	  }
+	  canwrite=MIN(clustersize-offset,count);
+	  memcpy_fromfs(&(ch->c_data[offset]),b,canwrite);
+	             
+	  /* did cluster grow ? */
+	  if(canwrite+offset>ch->c_length)
+	  { /*printk(KERN_ERR "DMSDOS: write_file: write beyond logical cluster end, appending.\n");
+	    */
+	    ch->c_length=canwrite+offset;
+	  }
+	  if(ch->c_length>clustersize)
+	  { printk(KERN_ERR "DMSDOS: write_file: length>clustersize ??? bug !!!\n");
+	    ch->c_length=clustersize; 
+	  }
+
+	  /*unlock_ch(ch); no not here*/ 
+
+	  LOG_CLUST("DMSDOS: write_file: writing cluster %d...\n",cluster);
+
+          /* ch_dirty_locked unlocks the cluster */
+	  if(ch_dirty_locked(ch,0,uc)<0)
+	  { printk(KERN_ERR "DMSDOS: write_file: ch_dirty failed!\n");
+	    ch_free(ch);
+	    ch=NULL;
+	    ret=-EIO;
+	    break;
+	  }
+	  ch_free(ch);
+	  ch=NULL;
+	                                                 
+	  offset=0;
+	  b+=canwrite;
+	  *ppos+=canwrite;
+	  written+=canwrite;
+	  count-=canwrite;
+	  
+	  if(count==0)break; /* braucht keinen neuen cluster mehr*/
+	  
+	  /* next cluster ? */
+	  cluster=get_cluster(inode,*ppos>>clustersize_bits);
+	  if(cluster<=0)
+	  { LOG_CLUST("DMSDOS: write_file: write_loop: allocating new cluster\n");
+            if(dblsb->s_full==2)
+            { printk(KERN_ERR "DMSDOS: write_file: CVF full (full flag set)\n");
+              ret=-ENOSPC;
+              break;
+            }
+            if(dblsb->s_free_sectors<MIN_FREE_SECTORS)
+            { printk(KERN_ERR "DMSDOS: write_file: CVF full (free sector count too low)\n");
+              ret=-ENOSPC;
+              break;
+            }
+	    if(fat_add_cluster(inode)<0)
+	    { printk(KERN_ERR "DMSDOS: write_file: fat_add_cluster failed\n");
+	      ret=-ENOSPC;
+	      break;
+	    }
+	    cluster=get_cluster(inode,*ppos>>clustersize_bits);
+	    if(cluster<=0)
+	    { printk(KERN_ERR "DMSDOS: write_file: something's wrong, cannot happen\n");
+	      ret=-EIO;
+	      break;
+	    }
+	  }
+	}
+	
+	if(*ppos>inode->i_size)
+	{ inode->i_size=*ppos;
+	  /*inode->i_dirt=1; .... HMMM .... */
+          mark_inode_dirty(inode);
+	}
+	
+	return (written==0)?ret:written;
+}
+
+
+/* Grmpf.... partially untested code. Don't know an application that does
+   writable mmaps, but it would be needed for testing this piece of code */
+   
+/* idea: kernel does buffer reads with bmap calculated buffers - impossible
+         for dmsdos. (see kernel mmap code).
+         kernel emulates writable mmap by calling file_write when no buffers
+         are present - should work for dmsdos.
+         so we do file_read-emulated readable mmaps here though the
+         generic_mmap function is used.
+*/
+
+#ifdef DMSDOS_USE_READPAGE   
+int read_the_page(unsigned long address, unsigned long pos,
+                   struct inode*inode)
+{
+	unsigned int clear;
+	long gap;	/* distance from eof to pos */
+	
+	LOG_FS("DMSDOS: read_the_page\n");
+
+	address &= PAGE_MASK;
+
+	clear = 0;
+	gap = inode->i_size - pos;
+	if (gap <= 0){
+		/* mmaping beyond end of file */
+		clear = PAGE_SIZE;
+	}else{
+		int cur_read;
+		int need_read;
+		struct file filp;
+		if (gap < PAGE_SIZE){
+			clear = PAGE_SIZE - gap;
+		}
+		filp.f_reada = 0;
+		filp.f_pos = pos;
+		need_read = PAGE_SIZE - clear;
+		{       mm_segment_t cur_fs = get_fs();
+                        filp.f_dentry=kmalloc(sizeof(struct dentry),GFP_KERNEL);
+                        if(filp.f_dentry==NULL)
+                        { printk(KERN_ERR "DMSDOS: read_the_page: no memory!\n");
+                          return -1;
+                        }
+                        filp.f_dentry->d_inode=inode;
+			
+			set_fs (KERNEL_DS);
+                        LOG_FS("DMSDOS: read_the_page: calling file_read...\n");  
+			cur_read = dblspace_file_read (&filp,
+			                               (char*)address,
+			                               need_read,
+                                                       &(filp.f_pos));
+			set_fs (cur_fs);
+                        kfree(filp.f_dentry);
+		}
+		if (cur_read != need_read){
+			printk ("DMSDOS: Error while reading an mmap file %d <> %d\n"
+				,cur_read,need_read);
+			return -1;
+		}
+	}
+	if (clear > 0){
+		memset ((char*)address+PAGE_SIZE-clear,0,clear);
+	}
+	return 0;
+}
+
+#ifndef READPAGE_DENTRY
+int dblspace_readpage(struct file *file, struct page *page)
+#else
+int dblspace_readpage(struct dentry*dentry, struct page *page)
+#endif
+{  unsigned long   address;
+   int             error = -1;
+  #ifndef READPAGE_DENTRY
+   struct dentry * dentry = file->f_dentry;
+  #endif
+   struct inode * inode = dentry->d_inode;
+
+   LOG_FS("DMSDOS: readpage %08lx\n", page_address(page));
+   
+   address = page_address(page);
+   atomic_inc(&page->count);
+   set_bit(PG_locked, &page->flags);
+                   
+   /* now read the data */
+#ifndef __FOR_KERNEL_2_3_30
+   error=read_the_page(address,page->offset,inode);
+#else  /* __FOR_KERNEL_2_3_30 */
+   error=read_the_page(address,page->index<<PAGE_CACHE_SHIFT,inode);
+#endif /* __FOR_KERNEL_2_3_30 */
+
+   LOG_FS("DMSDOS: readpage: read_the_page returned %d\n",error);
+
+   if(error==0)set_bit(PG_uptodate, &page->flags);
+                   
+   clear_bit(PG_locked, &page->flags);
+   wake_up(&page->wait);
+                                                                                       
+   free_page(address);
+   return error;
+}
+
+#else /* from: ifdef DMSDOS_USE_READPAGE */
+
+/* this is supposed to be obsolete stuff for older kernels... */
+
+#if LINUX_VERSION_CODE >= LVC(2,1,90)
+#error kernel >=2.1.90 requires readpage interface, rerun dmsdos configuration
+#endif
+
+/*
+ * Fill in the supplied page for mmap
+ */
+static unsigned long dblspace_file_mmap_nopage(
+	struct vm_area_struct * area,
+	unsigned long address,
+	int error_code)
+{
+	struct inode * inode = area->vm_dentry->d_inode;
+	unsigned long page;
+	unsigned int clear;
+	int pos;
+	long gap;	/* distance from eof to pos */
+	
+	LOG_FS("DMSDOS: file_mmap_nopage\n");
+        page = __get_free_page(GFP_KERNEL);
+        if (!page)return page;
+        LOG_FS("DMSDOS: file_mmap_nopage: got page\n");
+                                
+	address &= PAGE_MASK;
+	pos = address - area->vm_start + area->vm_offset;
+
+	clear = 0;
+	gap = inode->i_size - pos;
+	if (gap <= 0){
+		/* mmaping beyond end of file */
+		clear = PAGE_SIZE;
+	}else{
+		int cur_read;
+		int need_read;
+		struct file filp;
+		if (gap < PAGE_SIZE){
+			clear = PAGE_SIZE - gap;
+		}
+		filp.f_reada = 0;
+		filp.f_pos = pos;
+		need_read = PAGE_SIZE - clear;
+		{       mm_segment_t cur_fs = get_fs();
+                        filp.f_dentry=kmalloc(sizeof(struct dentry),GFP_KERNEL);
+                        if(filp.f_dentry==NULL)
+                        { printk(KERN_ERR "DMSDOS: file_mmap_nopage: no memory!\n");
+                          return -1;
+                        }
+                        filp.f_dentry->d_inode=inode;
+			
+                        set_fs (KERNEL_DS);
+                        LOG_FS("DMSDOS: file_mmap_nopage: calling file_read...\n");
+			cur_read = dblspace_file_read (&filp,(char*)page,
+				        need_read,&filp.f_pos);
+                        LOG_FS("DMSDOS: file_mmap_nopage: file_read returned\n");
+			set_fs (cur_fs);
+                        kfree(filp.f_dentry);
+		}
+		if (cur_read != need_read){
+			printk ("DMSDOS: Error while reading an mmap file %d <> %d\n"
+				,cur_read,need_read);
+		}
+	}
+	if (clear > 0){
+		memset ((char*)page+PAGE_SIZE-clear,0,clear);
+	}
+        LOG_FS("DMSDOS: file_mmap_nopage: end\n");
+	return page;
+}
+
+struct vm_operations_struct dblspace_file_mmap = {
+	NULL,			/* open */
+	NULL,			/* close */
+	NULL,			/* unmap */
+	NULL,			/* protect */
+	NULL,			/* sync */
+	NULL,			/* advise */
+	dblspace_file_mmap_nopage,	/* nopage */
+	NULL,			/* wppage */
+	NULL,			/* swapout */
+	NULL,			/* swapin */
+};
+
+/*
+ * This is used for a general mmap of a dmsdos file
+ * Returns 0 if ok, or a negative error code if not.
+ */
+int dblspace_mmap(struct file*file,struct vm_area_struct*vma)
+{       struct inode *inode = file->f_dentry->d_inode;
+	LOG_FS("DMSDOS: mmap ino=%ld\n",inode->i_ino);
+	if (vma->vm_flags & VM_SHARED)	/* only PAGE_COW or read-only supported now */
+		return -EINVAL;
+	if (vma->vm_offset & (inode->i_sb->s_blocksize - 1))
+		return -EINVAL;
+	if (!inode->i_sb || !S_ISREG(inode->i_mode))
+		return -EACCES;
+	if (!IS_RDONLY(inode)) {
+		inode->i_atime = CURRENT_TIME;
+		/*inode->i_dirt = 1;*/
+                mark_inode_dirty(inode);
+	}
+
+        vma->vm_dentry = dget(file->f_dentry);
+	vma->vm_ops = &dblspace_file_mmap;
+	return 0;
+}
+
+#endif /* from: else / ifdef DMSDOS_USE_READPAGE */
+

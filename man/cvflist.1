@@ -1,0 +1,24 @@
+.TH cvflist 1 "10 Oct 1998" "dmsdos 0.9.2.0" "dmsdos CVF list tool"
+.SH NAME
+cvflist \- lists names of CVFs in a raw FAT12 or FAT16 partition
+.SH SYNOPSIS
+
+.BI cvflist " raw_device"
+
+.SH DESCRIPTION
+.I cvflist 
+tries to find out whether the raw partition in raw_device contains
+CVFs. If so, their file names are printed. The raw partition must be in
+FAT12 or FAT16 format.
+
+The advantage of this program is that it works without mounting the
+partition.
+
+.SH BUGS
+.I cvflist
+may react unexpectedly on partitions that are not FAT12 or
+FAT16 (e.g. list some garbage).
+
+.SH SEE ALSO
+
+Refer to the dmsdos main documentation for further information.

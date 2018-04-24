@@ -1,0 +1,27 @@
+#!/bin/sh
+
+TARGET_DIR=/tmp/dmsdos/dos8.3/src
+mkdir -p $TARGET_DIR
+
+if [ -f dmsdos-config.h ];
+then
+	sh putdos dmsdos-config.h $TARGET_DIR
+else
+	sh putdos dmsdos-config.h.default $TARGET_DIR
+fi
+sh putdos dmsdos.h $TARGET_DIR
+sh putdos lib_interface.h $TARGET_DIR
+sh putdos lib_interface.c $TARGET_DIR
+sh putdos dblspace_interface.c $TARGET_DIR
+sh putdos dblspace_dec.c $TARGET_DIR
+sh putdos dblspace_compr.c $TARGET_DIR
+sh putdos dblspace_methsq.c $TARGET_DIR
+sh putdos dblspace_alloc.c $TARGET_DIR
+sh putdos dblspace_chk.c $TARGET_DIR
+sh putdos dblspace_tables.c $TARGET_DIR
+sh putdos dstacker_compr.c $TARGET_DIR
+sh putdos dstacker_dec.c $TARGET_DIR
+sh putdos dstacker_alloc.c $TARGET_DIR
+sh putdos dcread.c $TARGET_DIR
+sh putdos mcdmsdos.c $TARGET_DIR
+sh putdos dmsdosfsck.c $TARGET_DIR

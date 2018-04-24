@@ -1,0 +1,54 @@
+#
+# Makefile for dmsdos support.
+#
+# Note! Dependencies are done automagically by 'make dep', which also
+# removes any old dependencies. DON'T put your own dependencies here
+# unless it's something special (ie not a .c file).
+#
+# Note 2! The CFLAGS definitions are now in the main makefile...
+
+ifeq ($(CONFIG_M386),y)
+CPUFLAGS= -DUSE_ASM
+endif
+ifeq ($(CONFIG_M486),y)
+CPUFLAGS= -DUSE_ASM
+endif
+ifeq ($(CONFIG_M586),y)
+CPUFLAGS= -DUSE_ASM
+endif
+ifeq ($(CONFIG_M686),y)
+CPUFLAGS= -DUSE_ASM
+endif
+
+########################################################################
+# *** User Config Section ***
+# Here you can look for settings to change if the code refuses to compile
+# out of the box. There are so many different systems. So many versions
+# of compilers. So many different bugs. :(
+#
+# If cpu specific optimization fails, uncomment the next line to switch it
+# off - there are some gas versions around that don't like the cpu specific
+# asm instructions in dmsdos...
+# CPUFLAGS=
+#
+# Some gnu assembler versions have a bug in the syntax for the xlat 
+# instruction. This enables a workaround. It should only be needed for very
+# old binutils versions. I don't know for which ones :(
+# CPUFLAGS+= -DGAS_XLAT_BUG
+#
+# Okay, that's the end of the User Config Section.
+##########################################################################
+
+CFLAGS+= $(CPUFLAGS)
+
+O_TARGET := dmsdos.o
+O_OBJS   := dblspace_compr.o dblspace_tables.o \
+            dblspace_alloc.o dblspace_dec.o dblspace_virtual.o \
+            dblspace_buffer.o dblspace_methsq.o \
+            dblspace_chk.o dblspace_interface.o \
+            dstacker_alloc.o dstacker_compr.o dstacker_dec.o \
+            dblspace_fileops.o dblspace_ioctl.o
+OX_OBJS  :=
+M_OBJS   := $(O_TARGET)
+
+include $(TOPDIR)/Rules.make

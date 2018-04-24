@@ -1,0 +1,15 @@
+--- linux/fs/vfat/namei.c.orig	Fri Feb 26 14:42:54 1999
++++ linux/fs/vfat/namei.c	Fri Feb 26 14:43:28 1999
+@@ -506,10 +506,10 @@
+ 			continue;
+ 		if (memcmp(de->name,name,MSDOS_NAME))
+ 			continue;
+-		brelse(bh);
++		fat_brelse(dir->i_sb,bh);
+ 		return 0;
+ 	}
+-	brelse(bh);
++	fat_brelse(dir->i_sb,bh);
+ 	return -ENOENT;
+ }
+ 

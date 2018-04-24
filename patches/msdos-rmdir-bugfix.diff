@@ -1,0 +1,19 @@
+--- linux.vanilla/fs/msdos/namei.c      Sun Jun 21 18:40:55 1998
++++ linux/fs/msdos/namei.c      Fri Sep 11 04:07:28 1998
+@@ -369,7 +369,7 @@
+ 		if (MSDOS_I(dir)->i_start) { /* may be zero in mkdir */
+ 		pos = 0;
+ 		bh = NULL;
+-		while (fat_get_entry(dir,&pos,&bh,&de) > -1)
++		while (fat_get_entry(dir,&pos,&bh,&de) > -1) {
+ 			/* Ignore vfat longname entries */
+ 			if (de->attr == ATTR_EXT)
+ 				continue;
+@@ -379,6 +379,7 @@
+ 				fat_brelse(sb, bh);
+ 				return -ENOTEMPTY;
+ 			}
++		}
+ 		if (bh)
+ 			fat_brelse(sb, bh);
+ 	}

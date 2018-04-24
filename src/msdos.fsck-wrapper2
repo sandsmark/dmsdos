@@ -1,0 +1,101 @@
+#!/bin/sh
+
+# This is an example shell script that can be used as a wrapper for a
+# msdos.fsck (called by the generic fsck frontend).
+#
+# This script is the second version. It uses a new feature of libdmsdos,
+# the built-in direct translation that can access a CVF even if the host
+# filesystem is not mounted. This is now the preferred way.
+#
+# The script accepts a standard fsck command line and decides upon the
+# the raw filesystem data whether it is a CVF or not. If it is a CVF then
+# dmsdosfsck is invoked.
+#
+# The case when it is not a CVF but an uncompressed msdos partition is a bit
+# more complex. First, dosfsck is invoked to check that dos partition. Then
+# the script scans its root directory for CVFs. If there are CVFs it tries 
+# to check them, too, by calling dmsdosfsck on them. If the -r option is 
+# present in the fsck command line, some questions are asked.
+#
+# Note that this script needs a helper program that finds out whether a 
+# file is a CVF or not. If you have added the file(1) magics for CVFs to
+# /etc/magic (see the dmsdos installation instructions) you can use a
+# combination of file and grep (for example) for that purpose. I think this
+# is a standard way. If you still prefer the older method (by calling the
+# helper program cvftest) just compile cvftest ('make cvftest') and change 
+# one lines below (I've commented out the cvftest call and placed a
+# file command in the next line).
+
+###########################################################################
+
+# where to find the different filesystem checker utilities
+DMSDOSFSCK="dmsdosfsck"
+DOSFSCK="dosfsck"
+CVFLIST="cvflist"
+
+ARGS="$@"
+FILE=""
+ASK=n
+
+while [ "$1" != "" ];
+do
+	case "$1" in
+	-u) 	shift
+		shift ;;
+	-d)	shift
+		shift ;;
+	-r)	ASK=y
+		shift ;;
+	-*)	shift ;;
+	*)	FILE="$1" 
+		shift ;;
+	esac;
+done
+
+#echo "ARGS=$ARGS"
+#echo "FILE=$FILE"
+
+#if cvftest $FILE ;
+if [ ! -z "`file $FILE | grep CVF`" ];
+then
+	echo "CVF detected, calling dmsdosfsck ..."
+	$DMSDOSFSCK $ARGS
+	CODE="$?"
+else
+	echo "no CVF found, calling dosfsck ..."
+	$DOSFSCK $ARGS
+	CODE="$?"
+	if [ "$CODE" != "0" ];
+	then
+		exit $CODE
+	fi
+	if [ $ASK = y ];
+	then
+		echo -n "search $FILE for CVFs in it and check them, too?"
+		read ANS JUNK
+		if [ "$ANS" != "y" -a "$ANS" != "Y" ];
+		then
+			exit 0
+		fi
+	fi
+        CVFS=`$CVFLIST $FILE`
+        if [ -z "$CVFS" ];
+        then
+		echo "no CVFs found."
+		exit 0
+	fi
+
+	CODE="0"
+	for I in $CVFS
+	do
+		I=`echo $I | cut -f2 -d.`
+		echo "checking CVF with ext $I ..."
+		$DMSDOSFSCK $ARGS $FILE:$I
+		if [ "$?" != "0" ];
+		then
+			CODE="$?"
+		fi
+	done
+fi
+
+exit $CODE

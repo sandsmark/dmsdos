@@ -1,0 +1,284 @@
+diff -u -r linux-2.3.30-6-orig/fs/fat/cvf.c linux-2.3.30-6-new1/fs/fat/cvf.c
+--- linux-2.3.30-6-orig/fs/fat/cvf.c	Mon Aug  9 18:43:49 1999
++++ linux-2.3.30-6-new1/fs/fat/cvf.c	Wed Nov  3 00:28:53 1999
+@@ -53,49 +53,55 @@
+ 	loff_t *ppos);
+ 
+ struct cvf_format default_cvf = {
+-	0,	/* version - who cares? */	
+-	"plain",
+-	0,	/* flags - who cares? */
+-	NULL,
+-	NULL,
+-	NULL,
+-	default_fat_bread,
+-	default_fat_getblk,
+-	default_fat_brelse,
+-	default_fat_mark_buffer_dirty,
+-	default_fat_set_uptodate,
+-	default_fat_is_uptodate,
+-	default_fat_ll_rw_block,
+-	default_fat_access,
+-	NULL,
+-	default_fat_bmap,
+-	generic_file_read,
+-	default_fat_file_write,
+-	NULL,
+-	NULL
++	0,		/* cvf unique version number - 0 for fat internal CVF */
++	"plain",	/* cvf version name */
++	0,		/* flags - capabilities, ex. CVF_USE_READPAGE */
++	NULL,			/* detect_cvf */
++	NULL,			/* mount_cvf */
++	NULL,			/* unmount_cvf */
++	default_fat_bread,	/* cvf_bread */
++	default_fat_getblk,	/* cvf_getblk */
++	default_fat_brelse,	/* cvf_brelse */
++	default_fat_mark_buffer_dirty, /* cvf_mark_buffer_dirty */
++	default_fat_set_uptodate, /* cvf_set_uptodate */
++	default_fat_is_uptodate,  /* cvf_is_uptodate */
++	default_fat_ll_rw_block,  /* cvf_ll_rw_block */
++	default_fat_access,	/* fat_access */
++	NULL,			/* cvf_statfs */
++	default_fat_bmap,	/* cvf_bmap */
++	generic_file_read,	/* cvf_file_read */
++	default_fat_file_write,	/* cvf_file_write */
++	NULL,			/* cvf_mmap */
++	block_read_full_page,	/* cvf_readpage */
++	NULL,			/* cvf_writepage */
++	NULL,			/* cvf_dir_ioctl */
++	NULL			/* zero_out_cluster */
+ };
+ 
+ struct cvf_format bigblock_cvf = {
+-	0,	/* version - who cares? */	
+-	"big_blocks",
+-	0,	/* flags - who cares? */
+-	NULL,
+-	NULL,
+-	NULL,
+-	bigblock_fat_bread,
+-	bigblock_fat_bread,
+-	bigblock_fat_brelse,
+-	bigblock_fat_mark_buffer_dirty,
+-	bigblock_fat_set_uptodate,
+-	bigblock_fat_is_uptodate,
+-	bigblock_fat_ll_rw_block,
+-	default_fat_access,
+-	NULL,
+-	default_fat_bmap,
+-	NULL,
+-	default_fat_file_write,
+-	NULL,
+-	NULL
++	0,		/* cvf unique version number - 0 for fat internal CVF */
++	"big_blocks",	/* cvf version name */
++	0,		/* flags - capabilities, ex. CVF_USE_READPAGE */
++	NULL,			/* detect_cvf */
++	NULL,			/* mount_cvf */
++	NULL,			/* unmount_cvf */
++	bigblock_fat_bread,	/* cvf_bread */
++	bigblock_fat_bread,	/* cvf_getblk */
++	bigblock_fat_brelse,	/* cvf_brelse */
++	bigblock_fat_mark_buffer_dirty, /* cvf_mark_buffer_dirty */
++	bigblock_fat_set_uptodate, /* cvf_set_uptodate */
++	bigblock_fat_is_uptodate,  /* cvf_is_uptodate */
++	bigblock_fat_ll_rw_block,  /* cvf_ll_rw_block */
++	default_fat_access,	/* fat_access */
++	NULL,			/* cvf_statfs */
++	default_fat_bmap,	/* cvf_bmap */
++	NULL,	/* ?????? */	/* cvf_file_read */
++	default_fat_file_write,	/* cvf_file_write */
++	NULL,			/* cvf_mmap */
++	block_read_full_page,	/* cvf_readpage */
++	NULL,			/* cvf_writepage */
++	NULL,			/* cvf_dir_ioctl */
++	NULL			/* zero_out_cluster */
+ };
+ 
+ struct cvf_format *cvf_formats[MAX_CVF_FORMATS]={NULL,NULL,NULL};
+diff -u -r linux-2.3.30-6-orig/fs/fat/fatfs_syms.c linux-2.3.30-6-new1/fs/fat/fatfs_syms.c
+--- linux-2.3.30-6-orig/fs/fat/fatfs_syms.c	Tue Oct 26 18:21:46 1999
++++ linux-2.3.30-6-new1/fs/fat/fatfs_syms.c	Mon Nov  1 22:29:25 1999
+@@ -17,6 +17,7 @@
+ 
+ extern struct file_operations fat_dir_operations;
+ 
++EXPORT_SYMBOL(fat_add_cluster);
+ EXPORT_SYMBOL(fat_new_dir);
+ EXPORT_SYMBOL(fat_bmap);
+ EXPORT_SYMBOL(fat_get_block);
+@@ -55,6 +56,12 @@
+ EXPORT_SYMBOL(fat_dir_ioctl);
+ EXPORT_SYMBOL(fat_add_entries);
+ EXPORT_SYMBOL(fat_dir_empty);
++
++#if 0	/* will be reenabled again for CVF mmap support */
++EXPORT_SYMBOL(fat_mmap);
++EXPORT_SYMBOL(fat_readpage);
++EXPORT_SYMBOL(fat_writepage);
++#endif
+ 
+ int init_fat_fs(void)
+ {
+diff -u -r linux-2.3.30-6-orig/fs/fat/inode.c linux-2.3.30-6-new1/fs/fat/inode.c
+--- linux-2.3.30-6-orig/fs/fat/inode.c	Sat Nov  6 00:27:28 1999
++++ linux-2.3.30-6-new1/fs/fat/inode.c	Sun Dec  5 01:16:44 1999
+@@ -434,12 +434,15 @@
+ 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+ 	char *p;
+ 	int data_sectors,logical_sector_size,sector_mult,fat_clusters=0;
+-	int debug,error,fat,cp;
++	int debug;
++	int error = 0;
++	int fat,cp;
+ 	int blksize = 512;
+ 	int fat32;
+ 	struct fat_mount_options opts;
+ 	char buf[50];
+-	int i;
++	int cvf_index=-1;
++	/* int i; */
+ 	char cvf_format[21];
+ 	char cvf_options[101];
+ 
+@@ -514,14 +517,15 @@
+ 	sbi->cluster_size = b->cluster_size*sector_mult;
+ 	if (!sbi->cluster_size || (sbi->cluster_size & (sbi->cluster_size-1))) {
+ 		printk("fatfs: bogus cluster size\n");
+-		brelse(bh);
+-		goto out_invalid;
++		error = 1;
++		/* brelse(bh);goto out_invalid; */
++	}else{
++		for (sbi->cluster_bits=0;
++		     1<<sbi->cluster_bits<sbi->cluster_size;
++		     sbi->cluster_bits++)
++			;
++		sbi->cluster_bits += SECTOR_BITS;
+ 	}
+-	for (sbi->cluster_bits=0;
+-	     1<<sbi->cluster_bits<sbi->cluster_size;
+-	     sbi->cluster_bits++)
+-		;
+-	sbi->cluster_bits += SECTOR_BITS;
+ 	sbi->fats = b->fats;
+ 	sbi->fat_start = CF_LE_W(b->reserved)*sector_mult;
+ 	if (!b->fat_length && b->fat32_length) {
+@@ -573,7 +577,7 @@
+ 		data_sectors = CF_LE_L(b->total_sect);
+ 	}
+ 	data_sectors = data_sectors * sector_mult - sbi->data_start;
+-	error = !b->cluster_size || !sector_mult;
++	error |= !sector_mult;
+ 	if (!error) {
+ 		sbi->clusters = b->cluster_size ? data_sectors/
+ 		    b->cluster_size/sector_mult : 0;
+@@ -599,11 +603,14 @@
+ 				/* on odd sectors. */
+ 	sb->s_blocksize_bits = blksize == 512 ? 9 : (blksize == 1024 ? 10 : 11);
+ 	if (!strcmp(cvf_format,"none"))
+-		i = -1;
++		cvf_index = -1;
+ 	else
+-		i = detect_cvf(sb,cvf_format);
+-	if (i >= 0)
+-		error = cvf_formats[i]->mount_cvf(sb,cvf_options);
++		cvf_index = detect_cvf(sb,cvf_format);
++	if (cvf_index >= 0) {
++		++cvf_format_use_count[cvf_index];
++		sbi->cvf_format = cvf_formats[cvf_index];
++ 		error = cvf_formats[cvf_index]->mount_cvf(sb,cvf_options);
++	}
+ 	else if (sb->s_blocksize == 512)
+ 		sbi->cvf_format = &default_cvf;
+ 	else
+@@ -627,7 +634,7 @@
+ 		       sbi->root_cluster,sbi->free_clusters);
+ 		printk ("Transaction block size = %d\n",blksize);
+ 	}
+-	if (i<0) if (sbi->clusters+2 > fat_clusters)
++	if (cvf_index<0) if (sbi->clusters+2 > fat_clusters)
+ 		sbi->clusters = fat_clusters-2;
+ 	if (error)
+ 		goto out_invalid;
+@@ -672,10 +679,6 @@
+ 	sb->s_root = d_alloc_root(root_inode);
+ 	if (!sb->s_root)
+ 		goto out_no_root;
+-	if(i>=0) {
+-		sbi->cvf_format = cvf_formats[i];
+-		++cvf_format_use_count[i];
+-	}
+ 	return sb;
+ 
+ out_no_root:
+@@ -687,6 +690,8 @@
+ 	unload_nls(sbi->nls_disk);
+ 	goto out_fail;
+ out_invalid:
++	if(cvf_index>=0)
++		--cvf_format_use_count[cvf_index];
+ 	if (!silent)
+ 		printk("VFS: Can't find a valid MSDOS filesystem on dev %s.\n",
+ 			kdevname(sb->s_dev));
+diff -u -r linux-2.3.30-6-orig/fs/fat/misc.c linux-2.3.30-6-new1/fs/fat/misc.c
+--- linux-2.3.30-6-orig/fs/fat/misc.c	Mon Aug 30 17:23:14 1999
++++ linux-2.3.30-6-new1/fs/fat/misc.c	Sun Dec  5 03:11:47 1999
+@@ -209,8 +209,16 @@
+ 	int cluster_size = MSDOS_SB(sb)->cluster_size;
+ 
+ 	if (MSDOS_SB(sb)->fat_bits != 32) {
+-		if (inode->i_ino == MSDOS_ROOT_INO) return res;
++		if (inode->i_ino == MSDOS_ROOT_INO){
++#ifdef DEBUG
++printk("FAT extend dir called for root\n");
++#endif
++			return res;
++		}
+ 	}
++#ifdef DEBUG
++printk("FAT extend dir called for NON-root\n");
++#endif
+ 	if (!MSDOS_SB(sb)->free_clusters) return res;
+ 	lock_fat(sb);
+ 	limit = MSDOS_SB(sb)->clusters;
+@@ -279,9 +287,11 @@
+ 	sector = MSDOS_SB(sb)->data_start+(nr-2)*cluster_size;
+ 	last_sector = sector + cluster_size;
+ 	if (MSDOS_SB(sb)->cvf_format &&
+-	    MSDOS_SB(sb)->cvf_format->zero_out_cluster)
++	    MSDOS_SB(sb)->cvf_format->zero_out_cluster){
++		/* CVF zeroes full cluster only */
+ 		MSDOS_SB(sb)->cvf_format->zero_out_cluster(inode,nr);
+-	else
++		res=fat_bread(sb,fat_bmap(inode,inode->i_blocks));
++	}else
+ 	for ( ; sector < last_sector; sector++) {
+ 		#ifdef DEBUG
+ 			printk("zeroing sector %d\n",sector);
+diff -u -r linux-2.3.30-6-orig/include/linux/fat_cvf.h linux-2.3.30-6-new1/include/linux/fat_cvf.h
+--- linux-2.3.30-6-orig/include/linux/fat_cvf.h	Mon Aug  9 18:43:49 1999
++++ linux-2.3.30-6-new1/include/linux/fat_cvf.h	Sat Dec  4 23:25:26 1999
+@@ -30,8 +30,8 @@
+   ssize_t (*cvf_file_read) ( struct file *, char *, size_t, loff_t *);
+   ssize_t (*cvf_file_write) ( struct file *, const char *, size_t, loff_t *);
+   int (*cvf_mmap) (struct file *, struct vm_area_struct *);
+-  int (*cvf_readpage) (struct inode *, struct page *);
+-  int (*cvf_writepage) (struct inode *, struct page *);
++  int (*cvf_readpage) (struct dentry *, struct page *);
++  int (*cvf_writepage) (struct dentry *, struct page *);
+   int (*cvf_dir_ioctl) (struct inode * inode, struct file * filp,
+                         unsigned int cmd, unsigned long arg);
+   void (*zero_out_cluster) (struct inode*, int clusternr);
+diff -u -r linux-2.3.30-6-orig/include/linux/msdos_fs.h linux-2.3.30-6-new1/include/linux/msdos_fs.h
+--- linux-2.3.30-6-orig/include/linux/msdos_fs.h	Wed Oct 27 23:19:11 1999
++++ linux-2.3.30-6-new1/include/linux/msdos_fs.h	Wed Nov 24 22:25:31 1999
+@@ -274,6 +274,7 @@
+ /* mmap.c */
+ extern int fat_mmap(struct file *, struct vm_area_struct *);
+ extern int fat_readpage(struct file *, struct page *);
++extern int fat_writepage(struct file *, struct page *);
+ 
+ 
+ /* vfat.c */

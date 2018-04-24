@@ -1,0 +1,175 @@
+.TH dutil 1 "16 Jun 1998" "dmsdos 0.9.1.3" "dmsdos utilities"
+.SH NAME
+dutil \- dmsdos hacker's utility
+.SH SYNOPSIS
+
+.BI dutil " directory [command [options ...]]"
+
+.SH DESCRIPTION
+Perform 
+.I command
+on the CVF that is mounted under
+.I directory.
+In fact,
+.I directory
+may be also a subdirectory of the mountpoint.
+
+If no
+.I command
+is given, general information about the CVF is printed.
+
+
+.B List of commands
+
+
+.B cluster \- print cluster information
+
+.B sector \- read raw sector from disk and hexdump it
+
+.B rrawcluster \- read raw cluster from disk and hexdump it
+
+.B rcluster \- read and decompress cluster and hexdump it
+
+.B bitfat \- print bitfat content
+
+.B setcomp \- change compression format
+
+.B setcf \- change compression level
+
+.B dumpcache \- dump cache information to syslog
+
+.B synccache \- write dirty clusters to disk immediately
+
+.B logstat \- dump statistics to syslog
+
+.B checkfs \- check filesystem tables
+
+.B setloglevel \- change dmsdos log level
+
+.B setspeedup \- change dmsdos speedup flags
+
+.B memory \- report dmsdos memory usage for caching
+
+
+.B The commands in detail
+
+
+.B dutil directory cluster 
+.I clusternr
+
+Print information about cluster
+.I clusternr.
+
+.B dutil directory sector
+.I sectornr [file]
+
+Read raw sector
+.I sectornr
+from disk and print it as hexdump. If
+.I file
+is given, it is written to a binary file (raw, not as hexdump).
+
+.B dutil directory rrawcluster
+.I clusternr [file]
+
+Read raw cluster data from cluster
+.I clusternr
+from disk and print it as hexdump. If
+.I file
+is given, it is written to a binary file (raw, not as hexdump).
+The cluster data are not decompressed. This command does not work for
+fragmented or suballocated clusters and may return complete garbage
+in these cases.
+
+.B dutil directory rcluster
+.I clusternr [file]
+
+Read and decompress cluster
+.I clusternr
+from disk and print it as hexdump. If
+.I file
+is given, it is written to a binary file (raw, not as hexdump).
+
+.B dutil directory bitfat
+.I sectornr
+
+Read bitfat allocation information of sector
+.I sectornr
+from disk and print it.
+
+.B dutil directory setcomp
+.I value
+
+Set compression scheme for write access.
+.I value 
+must be one out of
+.B guess ds00 ds01 ds02 jm00 jm01 sq00 sd3 sd4 .
+See the dmsdos driver documentation about compression schemes.
+
+.B dutil directory setcf
+.I value
+
+Set compression level for write access.
+.I value 
+must be one out of the range
+.BR 1 " - " 12.
+A higher level means better but slower compression.
+
+.B dutil directory dumpcache
+
+Dump dmsdos cache information to syslog.
+
+.B dutil directory synccache
+.I [value]
+
+Write dirty clusters back to disk immediately. If
+.I value 
+is given and not zero, the data may be passed to the compression
+daemon instead of written directly to disk. Otherwise the command
+waits until the data are compressed and written. If you want to ensure
+physical write access to disk also 
+.BR sync(1) 
+the buffer cache.
+
+.B dutil directory logstat
+
+Write dmsdos statistics to syslog.
+
+.B dutil directory checkfs
+.I [value]
+
+Check the CVF internal tables for inconsistencies. If
+.I value 
+is given and not zero, try to repair errors.
+
+.B dutil directory setloglevel
+.I value
+
+Set the dmsdos driver log level.
+.I value 
+must be a decimal or a 0x prefixed hexadecimal number.
+See the dmsdos driver documentation for details about log levels.
+
+.B dutil directory setspeedup
+.I value
+
+Set the dmsdos driver speedup flags.
+.I value 
+must be a decimal or a 0x prefixed hexadecimal number.
+See the dmsdos driver documentation for details about the speedup flags.
+
+.B dutil directory memory
+
+Report how much memory the dmsdos driver currently uses for caching.
+
+.SH BUGS
+
+The dutil commands for reading data from disk operate at a lower level than
+the dmsdos cluster cache.
+.I You must disable dmsdos write-back caching or sync the dmsdos cluster 
+.I cache before each operation to get correct results in all cases.
+
+
+.SH SEE ALSO
+
+Refer to the dmsdos main documentation for further information.

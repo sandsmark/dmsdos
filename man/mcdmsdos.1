@@ -1,0 +1,47 @@
+.TH dmsdosd 1 "10 Oct 1998" "dmsdos 0.9.2.0" "dmsdos MC external fs tool"
+.SH NAME
+mcdmsdos \- dmsdos tool for Midnight Commander external filesystem
+.SH SYNOPSIS
+
+.BI mcdmsdos " mc-extfs-command args ..."
+
+i.e.
+
+.BI mcdmsdos " list <CVF_name> "
+
+.BI mcdmsdos " copyout <CVF_name> <path/name_in_CVF> <outfile> "
+
+.BI mcdmsdos " copyin <CVF_name> <path/name_in_CVF> <infile> "
+
+.SH DESCRIPTION
+.I mcdmsdos
+represents an interface for Midnight Commander 
+.I mc(1)
+according to the documentation of 3.0 version for external filesystems.
+See the Midnight Commander documentation for more information about
+external filesystems.
+
+.I mc-extfs-command
+can be:
+
+.B list: 
+lists the contents of a CVF (recursively) i.e. the names of all files
+in the CVF are printed.
+
+.B copyout:
+extracts a file from the CVF.
+
+.B copyin:
+stores a file in the CVF. This is currently not yet implemented and results
+in an error message.
+
+.SH BUGS
+.I mcdmsdos
+can interfere with mounted CVFs. You should not use mcdmsdos on a CVF that
+is currently mounted by dmsdos. This would not make any sense either.
+
+.SH SEE ALSO
+
+Refer to the dmsdos main documentation for further information.
+See the Midnight Commander documentation for more information about
+its external filesystem interface.

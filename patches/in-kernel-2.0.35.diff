@@ -1,0 +1,62 @@
+--- linux-orig/fs/Makefile	Thu Jun 11 14:23:31 1998
++++ linux/fs/Makefile	Sun Aug 23 14:23:39 1998
+@@ -18,7 +18,7 @@
+ 
+ MOD_LIST_NAME := FS_MODULES
+ ALL_SUB_DIRS = minix ext ext2 fat msdos vfat proc isofs nfs xiafs umsdos \
+-		hpfs sysv smbfs ncpfs ufs affs autofs
++		hpfs sysv smbfs ncpfs ufs affs autofs dmsdos
+ 
+ ifeq ($(CONFIG_QUOTA),y)
+ O_OBJS += dquot.o
+@@ -55,6 +55,14 @@
+ else
+   ifeq ($(CONFIG_FAT_FS),m)
+   MOD_SUB_DIRS += fat
++  endif
++endif
++
++ifeq ($(CONFIG_DMSDOS_FS),y)
++SUB_DIRS += dmsdos
++else
++  ifeq ($(CONFIG_DMSDOS_FS),m)
++  MOD_SUB_DIRS += dmsdos
+   endif
+ endif
+ 
+--- linux-orig/fs/Config.in	Sat Jul 18 00:31:37 1998
++++ linux/fs/Config.in	Sun Aug 23 14:33:10 1998
+@@ -16,6 +16,10 @@
+ 
+   # msdos filesystems
+   dep_tristate 'DOS FAT fs support' CONFIG_FAT_FS $CONFIG_NLS
++  dep_tristate 'DMSDOS (dblspace/drvspace/stacker) support' CONFIG_DMSDOS_FS $CONFIG_FAT_FS
++  if [ "$CONFIG_DMSDOS_FS" = "y" -o "$CONFIG_DMSDOS_FS" = "m" ]; then
++    source fs/dmsdos/Config.in
++  fi
+   dep_tristate 'MSDOS fs support' CONFIG_MSDOS_FS $CONFIG_FAT_FS
+   dep_tristate 'umsdos: Unix like fs on top of std MSDOS FAT fs' CONFIG_UMSDOS_FS $CONFIG_MSDOS_FS
+   dep_tristate 'VFAT (Windows-95) fs support' CONFIG_VFAT_FS $CONFIG_FAT_FS
+--- linux-orig/fs/filesystems.c	Thu Jun 11 14:23:32 1998
++++ linux/fs/filesystems.c	Sun Aug 23 14:54:27 1998
+@@ -32,6 +32,9 @@
+ 
+ extern void device_setup(void);
+ extern void binfmt_setup(void);
++#ifdef CONFIG_DMSDOS_FS
++extern int init_dmsdos(void);
++#endif
+ 
+ /* This may be used only once, enforced by 'static int callable' */
+ asmlinkage int sys_setup(void)
+@@ -72,6 +75,10 @@
+ 
+ #ifdef CONFIG_FAT_FS
+ 	init_fat_fs();
++#endif
++
++#ifdef CONFIG_DMSDOS_FS
++	init_dmsdos();
+ #endif
+ 
+ #ifdef CONFIG_MSDOS_FS

@@ -1,0 +1,18 @@
+New in this release (since dmsdos 0.9.2.1):
+
+* THIS RELEASE IS EXPERIMENTAL AND ITS USAGE WITH 2.3.x
+  is DANGEROUS.
+
+* Experimental WIP to support 2.3.x kernels. It is DANGEROUS, because
+  mmap support is missing for 2.3.x. Basic functionality for 2.3.30
+  was obtained.
+  Found bug and provided patch to solve write after end of file or dir
+  cluster allocations fails in newer 2.2.x kernels (2.2.13 tested).
+
+New in this release (since dmsdos 0.9.2.0):
+
+* Small changes for dmsdos to compile under 2.2.x kernels. WARNING: A serious
+  bug in the vfat filesystem can hang the system when using dmsdos under 
+  Linux kernel version 2.2.0, 2.2.1 and 2.2.2. This bug is triggered by
+  dmsdos. At the time of writing, 2.2.3 has not been released yet. 
+  See file INSTALL.TXT how to fix this bug.

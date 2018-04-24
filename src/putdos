@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# create temporary command
+
+FILTER=`sh putdos_helper < putdos.cfg`
+
+#echo "FILTER=$FILTER"
+
+echo "#!/bin/sh" > filter.sh
+echo "$FILTER" >> filter.sh
+
+RFN=`echo $1 | sh filter.sh`
+
+echo "translating $1 to $2/$RFN ..."
+
+cat $1 | sh filter.sh > $2/$RFN
+
+rm filter.sh

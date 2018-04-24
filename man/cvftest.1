@@ -1,0 +1,45 @@
+.TH cvftest 1 "10 Oct 1998" "dmsdos 0.9.2.0" "dmsdos CVF identification tool"
+.SH NAME
+cvftest \- dmsdos CVF identification tool
+.SH SYNOPSIS
+
+.BI cvftest " filename [-v]"
+
+.SH DESCRIPTION
+.I cvftest 
+tries to find out whether the file (or device)
+.I filename
+is a CVF. It does so by reading the first 512 bytes from
+.I filename
+and checking for certain strings.
+
+If
+.I filename
+is just a minus sign (-) the data are read from standard input.
+
+If the switch
+.I -v
+is given the result of the test is printed to standard output including
+a description about what kind of CVF was detected.
+
+.SH RETURN VALUES
+.I cvftest 
+returns zero (i.e. true) if 
+.I filename
+has been recognized as a CVF. Otherwise it returns 1. A value >1
+indicates an error (e.g. 
+.I filename
+does not exist or cannot be read).
+
+.SH BUGS
+This program is so simple that it could be a shell script. But I'm not a shell
+hacker, so it's C.
+
+The test is not idiot-proof. As it just checks for some magic values, it
+might eventually misidentify other files as CVFs. These cases are supposed
+to be extremely unlikely, though, and have never been reported yet. But if
+you take a look at the source you easily find a way to fool the program :-)
+
+.SH SEE ALSO
+
+Refer to the dmsdos main documentation for further information.

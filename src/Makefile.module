@@ -1,0 +1,28 @@
+# Where to look for kernel
+KERNEL_LOCATION=/usr/src/linux
+# Target object file if any
+O_TARGET := dmsdos.o
+# Regular object files
+O_OBJS       =	dblspace_compr.o dblspace_tables.o \
+		dblspace_alloc.o dblspace_dec.o dblspace_virtual.o \
+		dblspace_buffer.o dblspace_methsq.o \
+		dblspace_chk.o dblspace_interface.o \
+		dstacker_alloc.o dstacker_compr.o dstacker_dec.o \
+		dblspace_fileops.o dblspace_ioctl.o
+# Objects with exported symbols (-DEXPORT_SYMTAB)
+OX_OBJS      =
+# Module objects 
+M_OBJS       = $(O_TARGET)
+# Module only objects with exported symbols (-DEXPORT_SYMTAB)
+MX_OBJS      = 
+# Kernel only objects 
+L_OBJS       =	
+# Kernel only objects with exported symbols (-DEXPORT_SYMTAB)
+LX_OBJS      = 
+# Additional CFLAGS
+EXTRA_CFLAGS = -DUSE_ASM 
+
+my_modules:
+	DIR=`pwd`; (cd $(KERNEL_LOCATION); make SUBDIRS=$$DIR modules)
+
+include $(KERNEL_LOCATION)/Rules.make

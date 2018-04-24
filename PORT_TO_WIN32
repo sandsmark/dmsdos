@@ -1,0 +1,113 @@
+Porting dmsdos to Win32
+-----------------------
+
+If you want to use dmsdos under a 32 bit Microsoft Windows system such as
+Win95/98 or Win NT 4.0 there are two possibilities: try it at user level
+(easy) or at driver level (difficult but more interesting).
+
+Don't try a 16 bit environment. You won't get it work as dmsdos needs more
+than 1MB of temporary memory. Buy the appropriate MS-DOS or Stacker version 
+instead. They're also faster because they are said to contain hand-optimized
+assembler code.
+
+At least, there's no Win NT version of Doublespace, Drivespace or Stacker.
+This makes dmsdos somewhat interesting for Win32 :)
+
+Well you can also try a 32 bit extended Dos environment such as DJGPP.
+
+
+A. User Level
+-------------
+
+I tried, and I found Win32 programming is not fun. At least if you are
+used to programming in a Unix environment.
+
+It _should_ be easy to compile libdmsdos and, for example, dcread under any 
+32 bit environment. Well, I tried Win NT 4.0 with Cygnus' Win32 B19 version 
+of gcc, but almost nothing worked. The configure script, which runs under
+pure bash, didn't run with the bash found in that package. So what, I then
+configured dmsdos under Linux and copied the config files. With a lot of
+hacking, I finally managed to compile libdmsdos, but it was of no use.
+Whatever I did, when linking any dmsdos utility against the library I just 
+managed to crash the linker :(( 
+I have really no idea what stupid things I may have done...
+Looks like this gcc port is not yet ready for daily use. Sigh. Though it's 
+really an impressive work: all gnu tools under NT...
+
+Okay, now Cygnus have released B20 version of their Win32 gcc port, and -
+guess what - it _worked_, almost out of the box. Even the Configure script
+runs correctly now. There is a special Makefile, Makefile.cygwinb20,
+that should be used for this compiler. One thing, though, is bad: the
+compiler does neither support Unix flock nor Win32 sopen. This means the
+generated code does not do file locking. Be sure that there is never
+more than one process that is using a CVF through libdmsdos.
+
+The next chance I gave to Microsoft Visual C++ 5.0. Again almost nothing
+worked (and yes, the IDE also crashed awaking Dr. Watson when I just clicked
+around in the help in order to learn how to use the IDE...). No need to say
+that I had to configure dmsdos under Linux. The complete Makefile was even
+rejected by nmake. So what. I finally wrote a script win32_msc50.bat
+that compiles the necessary things in a Win32 _console_. Currently, the
+only useful application is mcdmsdos: it can extract files from a CVF in
+a Win32 environment. (Just tested: the executable runs even under wine in 
+an xterm :-) )
+
+I did not try other compiler versions. It may work with the DJGPP Dos port 
+of gcc and the EMX OS/2 port of gcc. But you may find that the long filenames
+the dmsdos sources use cause a lot of problems there...
+Now there's a script called "prepare_dos_8.3" in the src directory that
+translates all relevant dmsdos files to use 8.3 names. There's no further
+documentation about this. You are expected to take a look at the script.
+You are also expected to write your own Makefile for compilation in such an
+environment. There are lots of problems that may occur in a DOS environment.
+Sorry, but I can't test everything.
+
+Okay, that's what should work under every compiler:
+
+* Configure, compile and install dmsdos under Linux.
+* Copy the whole directory where it compiled to a vfat partition.
+* Boot a Win32 system and edit the script win32_msc50.bat (on my system
+  I had to setup include and library paths there). If your compiler is not
+  Microsoft Visual C++ 5.0 this may not work and you may have to write
+  a new script from scratch.
+* Run the script with errors directed into a file.
+* Hack the source where it fails. Please be sure to surround your changes
+  with appropriate #ifdef's (unless they are real bugs) so I can integrate
+  them into next dmsdos release. Let me know what you had to change and why.
+
+
+B. Driver Level
+---------------
+
+That's indeed possible. At least, there has been some discussion about using
+libdmsdos for writing a Win95/98 VXD or a Win NT 4.0 FS driver.
+
+Well, I refuse to do that. I'm not a Win32 driver hacker and my knowledge
+about the Win95/98 or Win NT driver interface is almost zero. But some
+notes may be interesting, though.
+
+Note that libdmsdos is *not* reentrant. If the Win32 system does not ensure 
+exclusive execution of the driver code you must write your own *exclusive* 
+locking interface around all libdmsdos calls, even in read-only mode.
+
+Beyond that, you will have to write a full-featured FAT filesystem
+driver that calls the libdmsdos cluster read and write routines, and link it
+against libdmsdos. That's almost all. That's not difficult.
+As FAT is a simple filesystem layout, and the CVFs are FAT12 or FAT16 but
+never FAT32, each experienced Dos programmer should be able to write that 
+from scratch, at least for 8.3 filenames which would be enough for 
+functionality :) The first trial is always read-only, and that should not be
+too much work.
+
+Note that libdmsdos references some standard C library functions that are
+not available at driver level. You must write an emulation for all these 
+functions and link it to the driver instead of the standard C library. The 
+emulation needn't be full-featured like the C library. Look at the source 
+if you are in doubt. Well, the read/write/lseek emulation is actually all 
+the low-level disk access :)
+
+See doc/libdmsdos.doc for further information about the dmsdos library
+(including a list of referrenced C library functions and a detailed
+description of the dmsdos functions the library exports).
+
+Let me know if you are a Win32 hacker and want to start such a project :)

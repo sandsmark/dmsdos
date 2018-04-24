@@ -1,0 +1,70 @@
+
+Update to CVF-FAT 1.1.0 or 1.2.0
+--------------------------------
+
+Today's kernels (currently means in time of Linux 2.2.2) use still CVF-FAT
+interface version 1.0.0. That is a bit outdated (and known to have one minor
+bug and some missing features).
+
+Latest versions are:
+   * CVF-FAT version 1.1.0 for 2.0.xx kernels
+   * CVF-FAT version 1.2.0 for kernels 2.1.128 or newer (also 2.2.x)
+   (The break between those two is somewhere between 2.1.94 and 2.1.128,
+   exactly it should be when kerneld was replaced by kmod, but I have never
+   verified that. Better use 2.0 or 2.2 kernels. :) )
+   
+Files:
+
+   cvf.c:             CVF-FAT 1.1.0. For kernels that support kerneld.
+   fat_cvf.txt:       Documentation for CVF-FAT 1.1.0 (in file cvf.c).
+
+   cvf.c-2.1.128:     CVF-FAT 1.2.0. For newer kernels that support kmod 
+                      instead of kerneld (including 2.2.x kernels).
+   fat_cvf.txt-2.1.128: Documentation for CVF-FAT 1.2.0 (in file
+                      cvf.c-2.1.128).
+
+These files _replace_ the respective files in the kernel sources:
+
+   linux/fs/fat/cvf.c
+   linux/fs/Documentation/filesystems/fat_cvf.txt
+
+The only difference between CVF-FAT 1.1.0 and 1.2.0 is that 1.2.0 has
+been rewritten for kmod support which replaces kerneld in latest 2.1.xx
+kernels (and also 2.2.x kernels). 
+*** Be sure to use the right file for your kernel! You must check the
+    kernel source or kernel documentation in order to find out whether 
+    your kernel supports kerneld or kmod. At least, I know that all 2.0.xx 
+    kernels support kerneld. Also, I checked that 2.1.128 uses kmod. Newer
+    kernels also should support kmod. That's all I know. You're on your 
+    own here to find that out. A kernel that supports kmod should have a
+    file linux/Documentation/kmod.txt or similar, but I'm not 100% sure :)
+
+Who should update
+-----------------
+
+If you are using CVF-FAT 1.0.0 or older you may want to update. Watch for a 
+version number in file linux/fs/fat/cvf.c. There should be a line somewhere 
+at the beginning of the file that reads "CVF-FAT-VERSION-ID: x.y.z" where 
+"x.y.z" is the version number. If this line is missing you are using version 
+1.0.0 or older.
+
+Why update
+----------
+
+It fixes a bug that lets the mount command silently succeed if there is a
+special kind of error. This bug sometimes caused the plain FAT driver to
+mount a CVF in case of error with CVF-FAT support, which is surely not a
+good idea :) 
+
+Now 'mount' fails with an error message in that case.
+
+Also the kerneld/kmod-autoload feature is now permanently in that file so you
+do not have to apply it as a seperate patch. For latest 2.1.xx kernels,
+where kerneld has been replaced by kmod, the kerneld-autoload support has
+been rewritten to use kmod instead.
+
+How to update
+-------------
+
+You can simply replace the old files with the new ones as listed above.
+Then recompile your modules (or your kernel if fat support is not modular).

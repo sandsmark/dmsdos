@@ -1,0 +1,16 @@
+diff -u -r -r linux-2.2.13-orig/fs/fat/misc.c linux-2.2.13-new1/fs/fat/misc.c
+--- linux-2.2.13-orig/fs/fat/misc.c	Mon Aug  9 19:04:41 1999
++++ linux-2.2.13-new1/fs/fat/misc.c	Sun Dec  5 11:43:02 1999
+@@ -222,9 +222,10 @@
+ 	sector = MSDOS_SB(sb)->data_start+(nr-2)*cluster_size;
+ 	last_sector = sector + cluster_size;
+ 	if (MSDOS_SB(sb)->cvf_format &&
+-	    MSDOS_SB(sb)->cvf_format->zero_out_cluster)
++	    MSDOS_SB(sb)->cvf_format->zero_out_cluster) {
+ 		MSDOS_SB(sb)->cvf_format->zero_out_cluster(inode,nr);
+-	else
++		res=fat_bread(sb,fat_smap(inode,inode->i_blocks));
++	}else
+ 	for ( ; sector < last_sector; sector++) {
+ 		#ifdef DEBUG
+ 			printk("zeroing sector %d\n",sector);

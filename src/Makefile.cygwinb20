@@ -1,0 +1,103 @@
+# Makefile for cygwin beta 20 compiler
+#
+# If you want or need to change something herein, please look 
+# below for the 'User Config Section'
+
+
+########################################################################
+# *** User Config Section ***
+# Here you can look for settings to change if the code refuses to compile
+# out of the box. There are so many different systems. So many versions
+# of compilers. So many different bugs. :(
+#
+# Select compiler
+CC=gcc
+#
+# If cpu specific optimization fails, uncomment the empty CPUFLAGS line to 
+# switch it off - there are some gas versions around that don't like the 
+# cpu specific asm instructions in dmsdos...
+# There's no way to detect this automatically in _all_ Win32 OS versions
+CPUFLAGS= -DCPU=486 -m486 -DUSE_ASM
+#CPUFLAGS=
+#
+# Some gnu assembler versions have a bug in the syntax for the xlat 
+# instruction. This enables a workaround. It should only be needed for very
+# old binutils versions. I don't know for which ones :(
+# CPUFLAGS+= -DGAS_XLAT_BUG
+#
+# CFLAGS for the dmsdos library
+# note: some macro expansions require at least -O
+# cygwin seems to have neither flock nor sopen support (Uuhhh....)
+# well it's bad to compile code without file locking but we have no choice
+#LCFLAGS= -Wall -O -ggdb -D__DMSDOS_LIB__ -DUSE_FLOCK
+LCFLAGS= -Wall -O -ggdb -D__DMSDOS_LIB__
+LCFLAGS+= $(CPUFLAGS) $(LIBC6FLAGS)
+# uncomment the next line if you want a shared library
+# does not work yet under win32
+# LIB_SHARED = 1
+#
+#
+# Okay, that's the end of the User Config Section.
+##########################################################################
+
+##########################################################################
+# The rest of this file are rules how to build which programs.
+
+all: dmsdos-config.h $(LIBDMSDOS) dcread dmsdosfsck mcdmsdos 
+
+dmsdos-config.h:
+	bash Configure
+
+config:
+	bash Configure
+
+clean:
+	rm -f *.o *.a *.i *.s *.lo *.do *.so *.so.* dutil dmsdosd dcread \
+	      dmsdosfsck cvftest cvflist mcdmsdos
+
+dep:
+
+mrproper: clean
+	rm -f core *~ depend
+	rm -f .config* dmsdos-config.h .menuconfig*
+
+
+LIB_OBJS =  lib_interface.lo dblspace_interface.lo dblspace_dec.lo \
+	    dblspace_compr.lo dblspace_methsq.lo dblspace_alloc.lo \
+	    dblspace_chk.lo dblspace_tables.lo dstacker_compr.lo \
+	    dstacker_dec.lo dstacker_alloc.lo
+
+$(LIB_OBJS): dmsdos.h dmsdos-config.h lib_interface.h
+
+ifndef LIB_SHARED
+
+LIBDMSDOS = libdmsdos.a
+
+%.lo: %.c ; $(CC) -o $@ $(LCFLAGS) -c $<
+
+$(LIBDMSDOS): $(LIB_OBJS)
+	ar rcs $(LIBDMSDOS) $^
+	ranlib $(LIBDMSDOS)
+
+else
+
+%.lo: %.c ; $(CC) --shared -o $@ $(LCFLAGS) -c $<
+
+LIBDMSDOS = libdmsdos.so.0.9.2
+
+$(LIBDMSDOS): $(LIB_OBJS)
+	ld --shared --soname=$(LIBDMSDOS) -o $(LIBDMSDOS) $^
+	ln -s $(LIBDMSDOS) libdmsdos.so
+
+endif
+
+dcread: dcread.c $(LIBDMSDOS) dmsdos.h dmsdos-config.h
+	$(CC) -Wall -ggdb -o dcread dcread.c -L. -ldmsdos
+
+mcdmsdos: mcdmsdos.c $(LIBDMSDOS) dmsdos.h dmsdos-config.h
+	$(CC) -Wall -ggdb -o mcdmsdos mcdmsdos.c -L. -ldmsdos
+
+dmsdosfsck: dmsdosfsck.c $(LIBDMSDOS) dmsdos.h dmsdos-config.h
+	$(CC) -Wall -o dmsdosfsck dmsdosfsck.c -L. -ldmsdos
+
+
