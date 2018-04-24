@@ -1,0 +1,279 @@
+troubleshooting.doc
+
+This file contains solutions to common problems with the dmsdos driver.
+It is mostly based on the feedback of dmsdos users that have sent mail to me
+for some hints (thanks a lot to all of you!).
+
+------------------------------------------------------------------------------
+
+  If you have problems, you may have found a bug. But check the following
+  list before (it is a collection of problems I have been reported and, I
+  think, can be solved easily). See also file BUGS for a list of known bugs.
+
+  *** See also your kernel log for 'DMSDOS:...' messages. Each message is
+      explained in file messages.doc. There you can find hints how to
+      solve the problems, too.
+
+- It does not install/compile!
+
+  Maybe the cvf.diff did not apply correctly. Check for *.rej files in
+  your kernel sources (only for the 2.0.xx kernels).
+  
+  In some 2.1.xx kernels umsdos is broken. Get at least 2.1.94 if you want
+  to use umsdos together with dmsdos.
+
+  Depending on the dmsdos configuration the code might fail to compile.
+  Critical configuration options are:
+
+     * advanced memory management (switch it off if problems occur)
+     * writable mmap (switch it *on* for latest 2.1.xx kernels)
+
+  Please keep in mind that 2.1.xx kernels are still changing quite fast.
+  I cannot test every configuration option against each kernel...
+
+- The module doesn't load. It fails with a message about undefined symbols.
+
+  The dmsdos module requires fat filesystem support. If the fat module is
+  not loaded and not part of the kernel the dmsdos module refuses to load
+  and complains about missing symbols. Since kernel 2.0.34, fat additionally
+  depends on nls support. If it is the UMSDOS module that doesn't load, 
+  see also the next problem :)
+
+- The UMSDOS module doesn't load though fat and msdos support is present.
+  It complains about missing symbols 'fat_readpage' and 'fat_dir_ioctl'.
+
+  This is a known bug in some older cvf.diffs from alpha test versions.
+  I forgot to add some symbols to the export list in older cvf.diffs for
+  kernel 2.0.33. This bug also went in 2.1.80 when CVF-FAT was included.
+  In order to fix the problem, edit file linux/fs/fat/fatfs_syms.c and
+  append the missing symbols 'fat_readpage' and 'fat_dir_ioctl' to the
+  export list. Look how the other symbols are listed there and put in the
+  missing ones in the same way. Then recompile the fat module (or the
+  kernel if your fat support isn't modular).
+
+- It crashes and writes a register dump to the syslog.
+
+  If you did not load the module with the -m flag this time, you are out 
+  of luck here. Please load the module with the -m flag (this prints a 
+  symbol table) and redirect the output into a file. This symbol table is 
+  required to analyse the crash. The symbol table usually differs from one 
+  insmod to another depending on free memory pages, so you cannot just
+  use an older one :) Then try to reproduce the problem.
+
+  This smells like a bug - most likely. To be sure that this is really a
+  dmsdos related problem please read the README file in the Linux kernel
+  sources (/usr/src/linux/README). There's a procedure explained how to
+  obtain valuable information from the register dump in the syslog, in
+  particular, how to find out in which function the crash occured. Please
+  note that the register dump is absolutely system dependent and thus must 
+  be analysed and interpreted by *you* (it's really not difficult, but it must
+  be done carefully - otherwise it's meaningless). Just use the symbol table
+  the insmod -m command created *before* the crash.
+
+  If it turns out to be a dmsdos function, you have discovered a serious bug 
+  that should be fixed. Please send a bug report in that case. Please also
+  explain how to reproduce the problem with simple commands like 'ls',
+  'cat' or 'touch', for example.
+
+- It hangs without any comments.
+
+  Can you switch to another virtual console and enter commands there? What 
+  does 'ps' tell about the hanging process? Can you kill it? If the answer
+  to all these is no, this may be a bug.
+
+  Can you reproduce the problem with simple commands like 'ls' or 'cat'?
+
+  Please note that write access to a compressed partition may be awfully
+  slow. This depends on the compression level and on the fragmentation of
+  the compressed filesystem. Such a situation might be interpreted as a hang
+  though it isn't really one (especially on a 386SX16 machine...).
+
+  Also reading a large file or a huge directory might cause a system freeze 
+  for a short time. This is especially true for the /dev directory (given
+  that you copied it to a compressed partition...)
+
+- After mounting the CVF I only see garbage when I do 'ls /_mountpoint_'.
+
+  Are you sure you loaded the dmsdos module? The plain fat driver (without
+  the dmsdos module) mounts some compressed volumes without complaining, but
+  it really can't deal with them and logs a lot of errors when trying to
+  read, for example, a directory on that partition. Since the mount command
+  is exactly the same this might indeed happen accidentially.
+
+  Take a look at your system log (usually in /var/log/messages). If you
+  don't see DMSDOS messages - unmount the filesystem, load the dmsdos module
+  and try again.
+
+  If you are sure you have loaded the module (try 'lsmod') dmsdos auto
+  detection may have failed. Try again with the appropriate cvf_format=xxx
+  mount option, i.e. cvf_format=dblspace (for M$ doublespace and drivespace)
+  or cvf_format=stacker (for Stacker 3 and 4).
+
+  If you do see DMSDOS messages, there are very likely much of them. If
+  the dmsdos driver cannot deal correctly with a filesystem it becomes
+  very noisy and sets the partition to read-only mode. In that case, please
+  let me know. You might have a new dblspace or stacker version that
+  should be supported too.
+
+- I cannot write to files, delete files, create directories ... in the
+  compressed subdirectories.
+
+  Lots of possibilities here -- watch your kernel log for a DMSDOS error
+  message that may explain what went wrong...
+  * Have you disabled write access at compile time? Then you'll find a
+    "write access not compiled in" message.
+  * Did you mount read-only (option ro)?
+  * Is your compressed partition almost full? The driver refuses to allocate
+    new clusters on a partition that is almost full when it thinks further
+    write access may be dangerous and might cause data loss. Delete some
+    files and retry.
+  * The compressed partition may have errors. The driver sets errorneous
+    compressed partitions to read-only immediately after mounting them. 
+    However, you can allow write access again by setting the comp parameter
+    via dutil (example: 'dutil /DOS/dblspace.001 setcomp guess'). Of course,
+    it is not recommended to write to errorneous partitions.....
+
+- When trying to write to a compressed filesystem I receive I/O errors.
+
+  See previous problem. If you think it's another reason, run dutil to check 
+  whether the filesystem is full or too fragmented. If the compressed
+  filesystem is read-only, all write access to the compressed filesystem is 
+  refused. There is, of course, no real I/O error. The dmsdos driver returns 
+  the 'permission denied' or 'no space left on device' error code depending 
+  on the situation, but some applications simply claim 'I/O error' instead.
+
+- When trying to write to the compressed partition, I receive "no space left
+  on device" errors though dutil says there's *a lot* of free space (>100KB).
+
+  That depends. 100KB is not much. If the filesystem does not allow
+  fragmented data dmsdos reserves the space of 10 clusters for the case of
+  emergency (just imagine that data that compress well can be replaced by 
+  data that don't compress at all and need more physical space). For a CVF 
+  with 8KB cluster size it's 80KB, for a CVF with 32KB cluster size it's 
+  320KB. You cannot use this space for regular data. If the filesystem 
+  supports fragmented data (e.g. drivespace 3, stacker 4) it's enough to 
+  reserve space for one fragment of maximum size (drivespace 3: 32.5KB, 
+  stacker 4: fragment support for write access is not yet implemented, 
+  so size is 10 clusters).
+
+  There are some other possibilities. You may have run out of clusters. The
+  driver ensures that you don't get more clusters than dos would give to
+  you (otherwise dos' scandisk.exe would *destroy* the compressed partition
+  the next time it checks it by inventing some strange errors and trying to
+  correct them [arghhhh... seems to be a scandisk bug]). This can be fixed
+  by booting dos, running dblspace.exe or drvspace.exe, and setting the 
+  compression ratio to the value the program suggests. (The procedure for
+  Stacker should be similar.) Don't be surprised if it suggests high
+  compression rates you aren't used to from dos - it's because dmsdos
+  compresses a little better than dos itself. (In fact, you needn't
+  believe the value dos claims - it's exaggerating sometimes....)
+
+  The third possibility is that your compressed partitiion has become too
+  fragmented at internal MDFAT level. Dos 6.0-6.22 Doublespace/Drivespace
+  and Win95 Doublespace/Drivespace (*not* drivespace 3) and Stacker 3 are
+  known to suffer extremely from internal MDFAT level fragmentation. Note
+  that this kind of fragmentation is different from usual FAT level
+  fragmentation and can not be repaired by those popular FAT defragmentation 
+  programs. Use the CVF maintainance tools that came with your CVF software
+  to defragment the CVF.
+
+- A file I want to read appears to be empty but the directory says it is not
+  empty.
+
+  There was a problem decompressing the file. See your kernel messages
+  (/var/log/messages). The first thing to do is to boot dos and run the dos
+  filesystem checker on the compressed partition (do not skip the surface test
+  since only this test finds erros in compressed data). After that, reboot
+  Linux and retry. If the problem did not disappear this may be a real
+  dmsdos bug and should be emailed to the author.
+
+- I mounted a compressed floppy at /mnt as type umsdos and tried to run 
+  umssync on the disk. It failed with an error message and now some or all 
+  files are gone (help)!
+
+  You cannot umssync a compressed floppy without freeing up some space for
+  the umsdos special file --linux-.--- (the real msdos part of a compressed
+  floppy is always totally full).
+
+  But you have luck, the files are not gone at all. Unmount the floppy and 
+  mount it as type msdos. Then remove the (empty) file --linux-.--- and the
+  'readme' or 'readthis' or whatoever (it contains a message that this disk
+  is compressed and that you must run Micro$ doublespace to read it ...
+  very interesting - and not true at all: you can use Linux and dmsdos
+  instead :-) ). Now there should be some bytes free for umsdos. Unmount
+  the floppy again, mount it as type umsdos and retry. If the problem
+  appeared inside the compressed partition, also mount as type msdos, remove
+  --linux-.--- where files were gone, free up some space, mount again as type 
+  umsdos, and retry running umssync.
+
+  This problem might be considered a umsdos caveat.
+
+- The utility dutil reports a different compression ratio and different free
+  space than dos.
+
+  The utility uses another method to calculate the compression ratio and the
+  amount of free space. Well, dos displays a dream ratio, dutil exactly
+  determines how much the files shrunk on compression. Dos' ratio is higher
+  because it compares the space the files *have* allocated with the space
+  the files *would have* allocated on an uncompressed partition with an 8 KB
+  (32KB under drivespace 3) cluster size. The slack at the end of the files
+  causes the difference (especially on small files), but saving wasted space
+  is not the same as compression (I think). Since the ratio is used to
+  estimate the free space, this value is also different.
+
+- The external utility dutil displays garbage.
+
+  You may have an old version of dutil somewhere in
+  your path, find and delete it and recompile dutil. If dutil displays just
+  zeros, you are definitely running a dutil from an older dmsdos version. 
+  Remove it and recompile the source.
+
+- The external dmsdos utility displays some "lost clusters", but dos'
+  scandisk says everything is okay.
+
+  The term "lost clusters" doesn't mean that the clusters are not assigned to
+  a file (like in a normal dos fs). Instead, it tells there are clusters that
+  have been allocated in the FAT but have a zero MDFAT entry. This is not a
+  filesystem error, it only means that the clusters do exist, but they don't
+  contain any data and therefore don't use disk space. So they aren't really
+  used, but they aren't free either. This is a special situation that can only
+  occur in a compressed filesystem. 
+
+- I can't see long filenames on my win95 partitions, I only see the short
+  ones.
+
+  Mount as type vfat instead of msdos.
+
+- I cannot unmount my dmsdos partition. umount complains with "device busy".
+
+  Some process is currently using a file or a directory of your partition.
+  Find and kill it, then retry. This may be the external dmsdos daemon...
+  Hint: 'man fuser'.
+
+- I cannot read some directories in my CVF. They seem to be empty, but they
+  aren't empty under dos/win95.
+
+  Watch for DMSDOS error messages in the kernel log.
+
+- On mount, I receive some strange error messages saying there were errors
+  in cluster xyz, but dos scandisk doesn't find them and even tells that the 
+  CVF doesn't have such many clusters.
+
+  Sorry, there *is* an error in your filesystem. However, it's a kind of
+  hidden error, i.e. it doesn't have an immediate effect. It's due to
+  garbage in some currently unused parts of the FAT or MDFAT. Most likely
+  the slack of the FAT or MDFAT is not zerod out. It should be zerod out
+  in order to represent still a valid FAT/MDFAT in case the compressed
+  filesystem is enlarged (this may even happen by increasing the compression
+  ratio). Dos scandisk & Co. don't check the unused FAT/MDFAT slack for 
+  errors. I've been reported that these errors can be fixed by setting a
+  large compression ratio, running scandisk again (now it should find and
+  correct the errors), and then resetting the compression ratio.
+
+- The dmsdos daemon always exits with an error "Can't get permissions...."
+
+  You are using the *internal* dmsdos daemon which is automatically started
+  when it is needed. In this case there's no need for the external daemon. 
+  Watch your process list or look for a
+  '#define INTERNAL_DAEMON' in dmsdos-config.h. (The internal daemon is a
+  kernel process like kflushd or nfsiod.) See file dmsdos.doc for details.

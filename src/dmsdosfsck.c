@@ -1,0 +1,646 @@
+/*
+
+dmsdosfsck.c
+
+Uhh... Warning this is very experimental code ... :)) 
+
+*/
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<ctype.h>
+#include<unistd.h>
+#include"dmsdos.h"
+#include"lib_interface.h"
+
+int check_dir(int parent,int clusternr);
+
+/*this is not good - but currently we have only one CVF open at a time*/
+struct super_block*sb;
+Dblsb*dblsb;
+
+typedef struct
+{ int referrenced_from;
+  int start;
+} Fatdata;
+
+Fatdata fat[65536];
+
+#define FAT_EOF -1
+
+int seenlist[65536];
+int repair_automatically=0;
+int repair_interactively=0;
+int verbose=0;
+int listfiles=0;
+
+#define vprintf if(verbose)printf
+#define lprintf if(listfiles)printf
+
+int repair(char*text)
+{ int c;
+
+  if(repair_automatically)return 1;
+  if(repair_interactively==0)return 0;
+  fflush(stdin);
+  printf("%s",text);
+  fflush(stdout);
+  c=fgetc(stdin);
+  fflush(stdin);
+  if(c=='y'||c=='Y')return 1;
+  return 0;
+}
+
+int check_fat_loop(int begin)
+{ int seen=0;
+  int next;
+  int i;
+  int newval;
+  
+  while(begin>=2&&begin<=dblsb->s_max_cluster)
+  { /* add to seenlist */
+    seenlist[seen]=begin;
+    ++seen;
+    if(seen>65535)return -1; /* cannot happen */
+    next=dbl_fat_nextcluster(sb,begin,NULL);
+    
+    /* check whether it was already seen */
+    for(i=0;i<seen;++i)
+    { if(seenlist[i]==next)
+      { /* here begins a fat loop */
+        printf("FAT loop at cluster %d found.\n",begin);
+        if(repair("Break it?")==0)return 1;
+        newval=FAT_EOF;
+        dbl_fat_nextcluster(sb,begin,&newval);
+        return 0;
+      }
+    }
+    
+    begin=next;
+  }
+  
+  return 0;
+}
+
+int check_fat()
+{ int i;
+  int val;
+  int errors=0;
+  int newval=0;
+      
+  for(i=0;i<65536;++i)
+  { fat[i].referrenced_from=0;
+    fat[i].start=0;
+  }
+  
+  for(i=2;i<=dblsb->s_max_cluster;++i)
+  { vprintf("Checking cluster %d...\n",i);
+  
+    val=dbl_fat_nextcluster(sb,i,NULL);
+    if(val)
+    { if(val==1)
+      { printf("cluster %d: invalid fat entry\n",i);
+        if(repair("Correct it?")==0)++errors;
+        else
+        { newval=FAT_EOF;
+          dbl_fat_nextcluster(sb,i,&newval);
+        }
+      }
+      if(check_fat_loop(i))
+      { printf("Unresolved FAT loop in filesystem. Can't continue, sorry.\n");
+        close_cvf(sb);
+        exit(4);
+      }
+    }
+    if(val>=2&&val<=dblsb->s_max_cluster)
+    { if(fat[val].referrenced_from)
+      { /* this is a crosslink */
+        printf("cluster %d is crosslinked with %d to %d\n",
+               i,fat[val].referrenced_from,val);
+        if(repair("Break it?")==0)++errors;
+        else
+        { newval=FAT_EOF;
+          dbl_fat_nextcluster(sb,i,&newval);
+          dbl_fat_nextcluster(sb,fat[val].referrenced_from,&newval);
+          fat[val].referrenced_from=0;
+        }
+      }
+      fat[val].referrenced_from=i;
+    }
+  }
+  
+  return errors;
+}
+
+int check_chains()
+{ int i;
+  int val;
+  int errors=0;
+  int newval=0;
+  int next;
+
+  for(i=2;i<=dblsb->s_max_cluster;++i)
+  { val=dbl_fat_nextcluster(sb,i,NULL);
+    if(val>=2&&val<=dblsb->s_max_cluster&&fat[i].referrenced_from==0)
+    { /* this is the start of a chain */
+      vprintf("checking chain beginning at cluster %d...\n",i);
+
+     rchain:
+      next=dbl_fat_nextcluster(sb,val,NULL);
+      if(next==FAT_EOF)continue;
+      
+      if(next==0||next>dblsb->s_max_cluster)
+      { printf("chain breaks unexpectedly.\n");
+        if(repair("Set proper end?")==0)++errors;
+        else
+        { newval=FAT_EOF;
+          dbl_fat_nextcluster(sb,val,&newval);
+        }
+      }
+      else
+      { val=next;
+        goto rchain;
+      }
+      
+    }
+  }
+  return 0;
+}
+
+struct nametest
+{ unsigned char name[12];
+  struct nametest*next; 
+} nametest;
+
+int add_name(struct nametest**namelist,unsigned char*text)
+{ struct nametest*akt=*namelist;
+
+  while(akt)
+  { if(strncmp(akt->name,text,11)==0)return -1;
+    akt=akt->next;
+  }
+  
+  akt=malloc(sizeof(struct nametest));
+  if(akt==NULL)return -2;
+  
+  strncpy(akt->name,text,11);
+  akt->next=*namelist;
+  *namelist=akt;
+  
+  return 0;
+}
+
+void free_namelist(struct nametest**namelist)
+{ struct nametest*akt=*namelist;
+  struct nametest*merk;
+  
+  while(akt)
+  { merk=akt->next;
+    free(akt);
+    akt=merk;
+  }
+  
+  *namelist=NULL;
+}
+
+int check_char(unsigned char c,int noprint)
+{ if(c==0x5)c=0xE5; /* M$ hack for languages where E5 is a valid char */
+  if(c<32||strchr("+\\?*<>|\"=,;",c)!=NULL)
+  { if(!noprint)lprintf("?");
+    return 1;
+  }
+  if(!noprint)lprintf("%c",c);
+  return 0;
+}
+
+int check_direntry(int dirstartclust, unsigned char*data, int*need_write,
+                   struct nametest**namelist)
+{ int i;
+  unsigned int x;
+  unsigned char*pp;
+  unsigned long size;
+  int cluster;
+  unsigned long fatsize;
+  int clustersize;
+  int invchar;
+
+  *need_write=0;
+    
+  if(data[0]==0||data[0]==0xE5)return 0;
+
+  if(data[11]&8)return 0; /* ignore V entries */
+  
+  invchar=0;
+  for(i=0;i<11;++i)
+  { if(i==8)lprintf(" ");
+    invchar+=check_char(data[i],0);
+  }
+  
+  if(listfiles)
+  {
+  printf("  ");
+  if(data[11]&1)printf("R");else printf(" ");
+  if(data[11]&2)printf("H");else printf(" ");
+  if(data[11]&4)printf("S");else printf(" ");
+  if(data[11]&8)printf("V");else printf(" ");
+  if(data[11]&16)printf("D");else printf(" ");
+  if(data[11]&32)printf("A");else printf(" ");
+  if(data[11]&64)printf("?");else printf(" ");
+  if(data[11]&128)printf("?");else printf(" ");
+
+  pp=&(data[22]);
+  x=CHS(pp);
+  printf("  %02d:%02d:%02d",x>>11,(x>>5)&63,(x&31)<<1);
+
+  pp=&(data[24]);
+  x=CHS(pp);
+  printf(" %02d.%02d.%02d",x&31,(x>>5)&15,(x>>9)+80);
+  }
+  
+  pp=&(data[26]);
+  cluster=CHS(pp);
+  lprintf(" %5d",cluster);
+
+  pp=&(data[28]);
+  size=CHL(pp);
+  lprintf(" %7lu ",size);
+
+  if(invchar)
+  { printf("name has invalid chars, ");
+    if(repair("Replace them?")!=0)
+    { for(i=0;i<11;++i)
+      { if(check_char(data[i],1))
+        { data[i]='~';
+          *need_write=1;
+        }
+      }
+    }
+  }
+  
+  if(add_name(namelist,data))
+  { printf("duplicate filename ");
+    for(i=0;i<11;++i)
+    { if(i==8)printf(" ");
+      printf("%c",data[i]);
+    }
+    printf("\n");
+
+    if(repair("Rename?")!=0)
+    { char teststr[10];
+      int n=1;
+      
+      i=7;
+      while(i>=0)
+      { if(data[i]==' ')data[i]='~';
+        else break;
+        --i;
+      }
+     
+      do
+      { sprintf(teststr,"~%d",n++);
+        for(i=0;i<strlen(teststr);++i)data[i+8-strlen(teststr)]=teststr[i];
+      }
+      while(add_name(namelist,data));
+      *need_write=1;
+    }
+  }
+  
+  if(cluster<0||cluster==1||cluster>dblsb->s_max_cluster)
+  { printf("clusternr invalid\n");
+    if(repair("Truncate?")==0)return -1;
+    data[26]=0;
+    data[27]=0;
+    cluster=0;
+    *need_write=1;
+  }
+  else 
+  { if(cluster)
+    { if(fat[cluster].referrenced_from!=0||fat[cluster].start!=0)
+      { printf("first cluster crosslink\n");
+        if(repair("Truncate?")==0)return -1;
+        data[26]=0;
+        data[27]=0;
+        cluster=0;
+        *need_write=1; 
+      }
+      else fat[cluster].start=1;
+    }
+  }
+
+  if(data[11]&16) /* dir */
+  { if(cluster==0)
+    { printf("clusternr invalid for subdir\n");
+      goto irrepdir;
+    }
+    lprintf("OK\n");
+    lprintf("descending directory...\n");
+    i=check_dir(dirstartclust,cluster);
+    lprintf("ascending...\n");
+    if(i>=0)
+    { if(size)
+      { printf("directory entry has size !=0\n");
+        if(repair("Correct this?")==0)++i;
+        else
+        { data[28]=0;
+          data[29]=0;
+          data[30]=0;
+          data[31]=0;
+          size=0;
+          *need_write=1;
+        }
+      }
+      return i;
+    }
+   irrepdir:
+    printf("directory is irreparably damaged");
+    if(repair("Convert to file?")==0)return -1;
+    data[11]&=~16;
+    *need_write=1;
+    /* fall through */
+  }
+  
+  if(cluster==0)
+  { if(size==0)
+    { lprintf("OK\n");
+      return 0;
+    }
+    printf("wrong size\n");
+    if(repair("Correct this?")==0)return -1;
+    else
+    { data[28]=0;
+      data[29]=0;
+      data[30]=0;
+      data[31]=0;
+      size=0;
+      *need_write=1;
+    }
+    return 0;
+  }
+
+  fatsize=0;
+  while(cluster>1&&cluster<=dblsb->s_max_cluster)
+  { cluster=dbl_fat_nextcluster(sb,cluster,NULL);
+    fatsize+=dblsb->s_sectperclust*SECTOR_SIZE;
+  }
+  if(cluster==0)
+  { printf("fat alloc ends with zero\n");
+    return -1;
+  }
+  if(cluster==1&&cluster>dblsb->s_max_cluster)
+  { printf("fat alloc invalid\n");
+    return -1;
+  }
+    
+  clustersize=dblsb->s_sectperclust*SECTOR_SIZE;
+  if(size==fatsize)
+  { lprintf("OK\n");
+    return 0;
+  }
+  if(size/clustersize==(fatsize-1)/clustersize)
+  { lprintf("OK\n");
+    return 0;
+  }
+  printf("file size wrong\n");
+  if(repair("Recalculate file size?")==0)return -1;
+  data[28]=fatsize;
+  data[29]=fatsize>>8;
+  data[30]=fatsize>>16;
+  data[31]=fatsize>>24;
+  *need_write=1;
+  return 0;
+}
+
+int check_root_dir(void)
+{ int i,j,errors,r;
+  struct buffer_head*bh;
+  int need_write=0;
+  struct nametest*namelist=NULL;
+  
+  errors=0;
+  
+  for(i=0;i<dblsb->s_rootdirentries/16;++i)
+  { bh=raw_bread(sb,dblsb->s_rootdir+i);
+    if(bh==NULL)return -1;
+    for(j=0;j<16;++j)
+    { r=check_direntry(0,&(bh->b_data[j*32]),&need_write,&namelist);
+      if(r)++errors;
+      else if(need_write)raw_mark_buffer_dirty(sb,bh,1);
+    }
+    raw_brelse(sb,bh);
+  }
+  
+  free_namelist(&namelist);
+  return errors;
+}
+
+int check_dir(int parent,int clusternr)
+{ unsigned char*data;
+  int j,errors,r;
+  int next;
+  int start=2;
+  int dirstartclust=clusternr;
+  int need_write=0;
+  int len;
+  struct nametest*namelist=NULL;
+  
+  errors=0;
+  data=malloc(dblsb->s_sectperclust*SECTOR_SIZE);
+  if(data==NULL)return -1;
+  
+  vprintf("checking directory at start cluster %d...\n",clusternr);
+  
+  next=dbl_fat_nextcluster(sb,clusternr,NULL);
+  if(next==0)
+  { printf("warning: dir cluster %d is marked free\n",clusternr);
+  }
+  
+  while(clusternr>0)
+  { len=dmsdos_read_cluster(sb,data,clusternr);
+    if(len<0){free(data);return -1;}
+  
+    if(start)
+    { unsigned char*pp;
+    
+      /* check .       12345678EXT */
+      if(strncmp(data,".          ",11)!=0)
+      { printf("first entry is not '.'\n");
+        ++errors;
+      }
+      pp=&(data[26]);
+      if(CHS(pp)!=clusternr)
+      { printf("self cluster nr is wrong in '.'\n");
+        ++errors;
+      }
+
+      /* check ..      12345678EXT */
+      if(strncmp(data+32,"..         ",11)!=0)
+      { printf("second entry is not '..'\n");
+        ++errors;
+      }
+      pp=&(data[26+32]);
+      if(CHS(pp)!=parent)
+      { printf("parent cluster nr is wrong in '..'\n");
+        ++errors;
+      }
+      
+      if(errors)
+      { printf("This doesn't look like a directory, skipped\n");
+        free(data);
+        return -1;
+      }
+    }
+    
+    for(j=start;j<dblsb->s_sectperclust*16;++j)
+    { r=check_direntry(dirstartclust,&(data[j*32]),&need_write,&namelist);
+      if(r)++errors;
+      else if(need_write)dmsdos_write_cluster(sb,data,len,clusternr,0,1);
+    } 
+    
+    start=0;
+    next=dbl_fat_nextcluster(sb,clusternr,NULL);
+    if(next==1||next>dblsb->s_max_cluster)
+    { printf("directory ends with fat alloc error\n");
+      ++errors;
+      break;
+    }
+    clusternr=next;
+  }
+  
+  free(data);
+  free_namelist(&namelist);
+  return errors;
+}
+
+int check_unused_chains()
+{ int i;
+  int val;
+  int errors=0;
+  
+  for(i=2;i<=dblsb->s_max_cluster;++i)
+  { val=dbl_fat_nextcluster(sb,i,NULL);
+    if(val>=2&&val<=dblsb->s_max_cluster&&fat[i].referrenced_from==0
+       &&fat[i].start==0)
+    { vprintf("chain beginning with cluster %d is unused.\n",i);
+      /* if(repair("Delete it?")==0)++errors;
+         else
+         { free_chain(sb,i);
+         }
+      */
+      ++errors;
+    }
+  }
+  
+  return errors;
+}
+
+int main(int argc, char*argv[])
+{ int errors=0;
+  int i;
+  char*filename=NULL;
+  
+  fprintf(stderr, "dmsdosfsck 0.0.1 ALPHA TEST (be extremely careful with repairs)\n");
+  
+  if(argc==1)
+  { usage:
+    fprintf(stderr, "usage: dmsdosfsck [ -aflrtvVw ] [ -d path -d ... ] [ -u path -u ... ] device\n"
+                    "-a          automatically repair the file system\n"
+                    "-d path (*) drop that file\n"
+                    "-f      (*) salvage unused chains to files\n"
+                    "-l          list path names\n"
+                    "-r          interactively repair the file system\n"
+                    "-t      (*) test for bad clusters\n"
+                    "-u path (*) try to undelete that (non-directory) file\n"
+                    "-v          verbose mode\n"
+                    "-V      (*) perform a verification pass\n"
+                    "-w      (*) write changes to disk immediately\n"
+                    "(*) not yet implemented but option accepted for dosfsck compatibility\n");
+    exit(16);
+  }
+  
+  for(i=1;i<argc;++i)
+  { if(strcmp(argv[i],"-a")==0)repair_automatically=1;
+    else if(strcmp(argv[i],"-r")==0)repair_interactively=1;
+    else if(strcmp(argv[i],"-l")==0)listfiles=1;
+    else if(strcmp(argv[i],"-v")==0)verbose=1;
+    else if(argv[i][0]!='-')filename=argv[i];
+  }
+  
+  if(filename==NULL)goto usage;
+  
+  if(repair_automatically!=0||repair_interactively!=0)
+  { printf("\n\nWARNING: repair functions are incomplete. Interrupt within 5 seconds to abort.\7\n\n\n");
+    sleep(5);
+  }
+  
+  sb=open_cvf(filename,repair_automatically|repair_interactively);
+  if(sb==NULL)
+  { fprintf(stderr,"open_cvf %s failed - maybe this isn't a CVF.\n",filename);
+    exit(16);
+  }
+
+  dblsb=MSDOS_SB(sb)->private_data; 
+ 
+  printf("pass 1: checking FAT...\n");
+ 
+  i=check_fat();
+  if(i)
+  { printf("Filesystem has fatal FAT errors\n");
+    printf("Cannot continue, sorry.\n");
+    printf("Don't mount this filesystem, it may crash or hang the FAT driver.\n");
+    close_cvf(sb);
+    exit(4);
+  }
+
+  printf("pass 2: checking cluster chains...\n");
+  
+  i=check_chains();
+  if(i)
+  { printf("filesystem has errors in cluster chains\n");
+    ++errors;
+  }
+  
+  printf("pass 3: calling dmsdos simple_check...\n");
+  
+  i=simple_check(sb,0);
+  if(i==-1) /* there were fatal FAT errors detected */
+  { printf("Filesystem still has fatal FAT errors\n");
+    printf("CANNOT HAPPEN. THIS IS A BUG.\n");
+    close_cvf(sb);
+    abort();
+  }
+  if(i)
+  { printf("filesystem has low-level structure errors\n");
+    if(repair("Try to fix them?")==0)++errors;
+    else 
+    { i=simple_check(sb,1);
+      if(i)
+      { printf("couldn't fix all low-level structure errors\n");
+        ++errors;
+      }
+    }
+  }
+
+  printf("pass 4: checking directories...\n");
+
+  if(check_root_dir())
+  { printf("filesystem has msdos-level structure errors\n");
+    ++errors;
+  }
+  
+  printf("pass 5: checking for unused chains...\n");
+  
+  i=check_unused_chains();
+  if(i)
+  { printf("filesystem has unused cluster chains\n");
+    ++errors;
+  }
+  
+  close_cvf(sb);
+  
+  if(errors==0)
+  { printf("filesystem has no errors\n");
+  }
+  
+  return (errors==0)?0:4;
+}

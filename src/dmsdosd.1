@@ -1,0 +1,66 @@
+.TH dmsdosd 1 "15 Apr 1998" "dmsdos 0.9.0.14" "dmsdos daemon"
+.SH NAME
+dmsdosd \- dmsdos daemon for background compression
+.SH SYNOPSIS
+
+.BI dmsdosd " directory [level [debug]]"
+
+.SH DESCRIPTION
+.I dmsdosd 
+does compression for the dmsdos driver in the background when
+the system is idle. This may reduce system load when there are much data
+to compress because the dmsdos driver can leave the data as they are and
+pass them to the daemon to do the job of compression.
+.I directory
+must be the mountpoint of a CVF that is served by dmsdos.
+In fact,
+.I directory
+may be also a subdirectory of the mountpoint. (If you mount more than
+one dmsdos partition it doesn't matter which one you specify. There is
+also no need to restart the daemon when additional partitions are mounted -
+the daemon automatically handles them all.)
+
+.I level
+is the compression level. It must be in the range of
+.BR 1 " - " 12 .
+If no
+.I level
+is given, it defaults to 12.
+
+If the parameter
+.I debug
+is given, dmsdosd prints a lot of debug information to stderr and doesn't
+put itself into the background.
+
+Note that you must run
+.I dmsdosd
+as root. The daemon refuses to run if started by another user. It also
+doesn't start if it finds already one instance of
+.I dmsdosd
+running.
+
+You can kill the daemon at any time (even when it is under heavy work).
+Send a SIGINT to let the daemon finish its actual work and then exit.
+Send a SIGTERM to make the daemon exit as soon as possible. You should not 
+send a SIGKILL.
+
+.SH BUGS
+.I dmsdosd 
+can only be started when a CVF has already been mounted by the
+dmsdos driver. 
+
+You must kill 
+.I dmsdosd
+before you can unmount the CVF that was given in the command line.
+
+Older versions (below 0.9.0.12) didn't run in the background, didn't check 
+for already running processes and didn't use stderr for error and debug
+messages. This manual page is not valid for them.
+
+.SH FILES
+.I /var/run/dmsdosd.pid
+- pid of running daemon
+
+.SH SEE ALSO
+
+Refer to the dmsdos main documentation for further information.

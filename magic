@@ -1,0 +1,16 @@
+#------------------------------------------------------------------------------
+#
+# dmsdos:  file(1) magic for the CVF formats supported by dmsdos
+#
+
+3	string		MSDBL6.0
+>51	byte		0
+>>13	byte		16		Doublespace CVF (version 1)
+>>13	byte		64		Drivespace 3 CVF
+>51	byte		2		Drivespace CVF (version 2)
+3	string		MSDSP6.0
+>51	byte		0
+>>13	byte		16		Doublespace CVF (version 1)
+>>13	byte		64		Drivespace 3 CVF
+>51	byte		2		Drivespace CVF (version 2)
+0	string		STACKER		Stacker CVF

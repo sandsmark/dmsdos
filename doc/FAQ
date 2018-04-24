@@ -1,0 +1,205 @@
+This file gives answers to frequently asked questions about dmsdos.
+
+
+What is dmsdos ?
+
+Dmsdos is a Linux kernel module that allows access to msdos/win95 compressed
+disk partitions. It supports different doublespace, drivespace and stacker
+versions.
+See file dmsdos.doc for an actual list of supported dos/win95 configurations. 
+
+
+
+How do I mount a compressed partition?
+
+You need to mount the uncompressed host partition as usual. In this
+partition, you can see the compressed partiton as large file (the CVF,
+Compressed Volume File). It usually has names like 'dblspace.NNN',
+'drvspace.NNN' or 'stacvol.XXX'. The whole compressed partition is inside
+this file.
+
+You need the loopback block device driver (enable the loopback device during
+kernel configuration):
+
+   *
+   * Additional Block Devices
+   *
+   Loopback device support (CONFIG_BLK_DEV_LOOP) [M/n/y/?] Y or M
+ 
+The loopback block device allows mounting a file as a filesystem (read some
+Linux docs about this for more information). To avoid confusion, note
+that this has absolutely nothing in common with the well-known network 
+loopback interface.
+
+Example: 'mount -t msdos -o loop /DOS/dblspace.001 /mnt'
+
+This mounts your compressed filesystem that in fact resides in the file 
+/DOS/dblspace.001 under /mnt.
+
+
+
+It doesn't work!
+
+Well, nothing simply doesn't work. It fails at a specific point and gives
+some errors or warnings before failure which are usually an important hint
+for finding out what exactly went wrong. Please have a look at file
+troubleshooting.doc. If you still cannot solve the problem you can send an
+email to the current dmsdos maintainer. The email address and a checklist
+what to include in a bug report can be found in file dmsdos.doc.
+
+
+
+I have compressed partitions, but I'm using umsdos. Can I use dmsdos without 
+losing umsdos features?
+
+No problem. It should work out of the box. If you want to use umsdos style
+long filenames inside the CVF, you can even mount it as type umsdos instead 
+of msdos. (Uhh. Use kernel 2.0.xx or get at least 2.1.94 for that).
+
+
+
+My compressed partition has long filenames under Win95. How can I see 
+them with dmsdos ?
+
+Mount as type vfat instead of msdos.
+
+
+
+Can I compress my Linux data under dmsdos?
+
+You can (via umsdos), but it's not recommended.
+
+Just to let you know: There's some other compression software available that
+may be a better choice for Linux data. See file dmsdos.doc.
+
+
+
+Can I boot Linux from a compressed partition?
+
+No. (Older dmsdos versions supported it, but this feature has been given up
+when the CVF-FAT interface was introduced. Well, the documentation always
+warned ... )
+
+
+
+Uhhh. Write access is so ssssssslow.....
+
+What can I say. You decided to use compressed partitions - now you are
+experiencing one of their greatest disadvantages. But dmsdos has some
+special tricks for you in this case. You can... (in recommended order)
+
+    - run the dmsdos daemon which does delayed compression in the background
+      when the system is idle, or use the internal daemon 
+
+    - set speedup bit #2 (allocation code skips exact search)
+
+    - set speedup bit #6 (allocation code doesn't search at all but takes
+      any hole free hole) (Really Not Recommended if you don't know what
+      you are doing). Read the comments in the documentation, please.
+
+See the dmsdos documentation for details and a discussion about their
+advantages and disadvantages.
+
+
+
+Is it safe to use dmsdos?
+
+This question is something like that one: 'is it safe to drive a car?'.
+
+There's no warrenty. I really can't promise that there aren't any bugs in
+the driver code. I think you just like to feel safe:
+
+ - If you don't have to write to your compressed filesystems, mount
+   read-only.
+
+ - Run the dos filesystem checker every time you boot dos and backup from
+   time to time.
+
+ - Backup your compressed filesystem before trying to mount read-write.
+
+
+
+How do I enable/disable long filename support?
+
+For long filename support use a filesystem type that knows long filenames,
+e.g. vfat instead of msdos.
+
+
+
+What happens if the compressed filesystem gets full during write access?
+
+Don't ask. That has become too complex. :(
+
+Well, in the worst case the same thing happens as under Dos: you get a
+strange error (Dos: "sector not found") and might lose data. It is difficult
+because some applications do not check the return values of write access
+functions (AAARGHHH!!!). On a compressed filesystem not only cluster
+allocation, but also usual write access may fail (i.e. when you replace
+data that compress well by data that don't compress well and thus need more
+physical space). So just keep in mind that you shouldn't fill a compressed
+partition up to the last byte :)
+
+
+
+What's the difference between win95 doublespace and drivespace 3 ?
+
+Please note that win95 has two different drivespace programs. One of them
+is included in win95 and it's in fact an old dos doublespace version. I
+still refer to it as 'win95 doublespace' though M$ call it 'drivespace'.
+This one is supported without restrictions.
+
+The other one is sold seperately from win95 in a 'M$ Plus' package (is this
+still true?) M$ have called it Drivespace 3. Meanwhile it should also
+be supported quite well.
+
+If you aren't sure, watch the filename of the large, hidden CVF. If it is
+something like 'dblspace.xxx' it's the old version. If it's 'drvspace.xxx'
+instead and you are very sure you created it under win95, it's Drivespace 3.
+Dmsdos also tells when it detects a drivespace 3 format CVF. 
+
+The main difference between these two versions is that drivespace 3 uses a
+larger cluster size (32KB instead of 8KB) and can compress up to 2GB of data 
+instead of only 512KB. It has also a more advanced compression scheme 
+(SQ-0-0).
+
+
+
+When do I have to defragment my compressed partitions?
+
+Watch the dutil output (see file dmsdos.doc for a dutil description). It
+displays a fragmentation value. You should keep it below 75% to feel safe. 
+When dutil even displays a warning about high fragmentation, you should
+immediately boot Dos and defragment the CVF.
+
+
+
+Does dmsdos work with FAT32 filesystems?
+
+Yes. All earlier problems have been avoided by moving dmsdos one layer down
+in the filesystem interface. Well, it does not support *compressed* FAT32
+filesystems. Win95 doesn't do either :) But, if some day they show up to 
+exist, I might be persuaded to implement it also.
+
+
+
+What about the relationship between dmsdos and software patents ?
+
+I'm still receiving mails about this question. At my best knowledge dmsdos 
+does not violate any software patents. (Well, I don't hope so, but my best 
+knowledge might be wrong. I'm not a lawyer.) If you are interested in
+details take a look at file patent.doc.
+
+
+
+Do I have to recompile dmsdos when I upgrade my kernel ?
+
+The safe answer is yes. It's best to recompile *all* modules if you change
+something in your kernel though not always necessary. But who knows.
+
+Some clever people invented a 'module version information' trick. You can
+enable it during kernel configuration. This makes your modules less kernel
+version dependent e.g. a module compiled under kernel 2.0.33 may also work 
+under kernel 2.0.34. In that case, you may share one precompiled dmsdos 
+module with several kernels. But please don't overuse it. You should not,
+for example, use the same compiled object code of a dmsdos module for
+kernel 2.0.34 and 2.1.105 - this is very likely to cause problems :)

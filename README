@@ -1,0 +1,21 @@
+This is the README for the DMSDOS CVF-FAT filesystem extensions. 
+
+CVF-FAT is a generic modular Compressed Volume Files interface for the FAT 
+filesystems.
+
+DMSDOS is a module which provides similar functionality to the former dmsdos 
+filesystem: support for Microsoft's doublespace/drivespace and for Stac's 
+stacker. DMSDOS uses the CVF-FAT extensions and can be considered as a
+sample implementation for using the CVF-FAT extensions. 
+
+CVF-FAT is the official successor of the dmsdos filesystem. DMSDOS itself
+is still continued, but it now is a child of CVF-FAT and not a filesystem
+any more.
+
+List of files to read:
+----------------------
+
+README          this file
+INSTALL.TXT     how to install CVF-FAT and dmsdos
+DIFFS.TXT       description of kernel patches ("when do I use which one")
+doc/*           various documentation

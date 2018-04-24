@@ -1,0 +1,25 @@
+--- linux/fs/fat/cvf.c.orig	Sun Jun 14 17:28:06 1998
++++ linux/fs/fat/cvf.c	Sun Jun 14 17:34:21 1998
+@@ -11,6 +11,10 @@
+ #include<linux/msdos_fs_sb.h>
+ #include<linux/string.h>
+ #include<linux/fat_cvf.h>
++#include<linux/config.h>
++#ifdef CONFIG_KERNELD
++#include<linux/kerneld.h>
++#endif
+ 
+ #define MAX_CVF_FORMATS 3
+ 
+@@ -93,6 +97,11 @@
+ { int i;
+   int found=0;
+   int found_i=-1;
++
++#ifdef CONFIG_KERNELD
++  request_module("dmsdos");
++  if(force)if(*force)request_module(force);
++#endif
+ 
+   if(force)
+   { if(*force)

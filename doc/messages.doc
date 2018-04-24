@@ -1,0 +1,858 @@
+dmsdos driver: kernel messages in alphabetical order.
+
+*** Some messages need a better explanation. Under construction :) ***
+
+Classes: I: Information.
+         E: Error in filesystem, check it under dos (incl. the surface test).
+         O: Other problem, not a filesystem error.
+         B: Bug, please send a bug report.
+         P: Panic message. Extremely severe filesystem, hardware or dmsdos
+            error. The process that actually called dmsdos when the problem
+            occured has been "frozen" in order to prevent data corruption.
+            Though your system continues to run, you should reboot immediately
+            and check the compressed filesystems. You may have to press the 
+            reset button in order to reboot.
+         ?: Unknown. (Look at the source code.)
+
+------------------------------------------------------------------------------
+
+DMSDOS: adapting free sectors count
+  I: Stacker sector count is corrected.
+
+DMSDOS: BB_ClustCnt=0x%x impossible (FAT32?)
+  E/O?: The filesystem is in an unsupported format, damaged or otherwise
+     strange. Dmsdos refuses to mount it. Please verify whether it is FAT32
+     under Dos/Win95. Currently compressed FAT32 is not supported.
+     (Compressed FAT32 has never been reported to exist so far.)
+
+DMSDOS: bitfat cache:
+  I: Debug message. Ignore.
+
+DMSDOS: BITFAT mismatches MDFAT, repairing...
+DMSDOS: BITFAT mismatches MDFAT (sector %d is %d and should be %d)
+DMSDOS: BITFAT mismatches MDFAT (sector %d)
+  E: There's an error in the allocation table (BITFAT) of your compressed
+     partition - next time you boot dos you should check it. WARNING:
+     Writing to an errorneous filesystem may cause further damage.
+     Optionally (with mount option bitfaterrs=repair)
+     the driver tries to repair the problem by recalculating the BITFAT.
+
+DMSDOS: bmap called, unsupported!
+  B: Shouldn't happen.
+
+DMSDOS: cannot write dirty cluster %d on dev 0x%x, trying again later
+  E/O: Very likely the filesystem is full. There should be another message
+     describing more details. The driver keeps the cluster in memory. This 
+     is a very critical condition as you may lose the data in that cluster. 
+     The driver usually tries 5 times to write the data again before 
+     throwing them away and setting the filesystem to read-only mode. If 
+     the filesystem is really full you still have a chance to free up some
+     space now.
+
+DMSDOS: ccache contents:
+DMSDOS: ccache statistics:
+  I: Debug messages. Ignore.
+
+DMSDOS: ch_dirty(_locked): READ-ONLY filesystem
+  O: When the filesystem suddenly is set read-only (e.g. because of a
+     problem) some kernel functions seem not to obey the RO flag. In this
+     case, the dmsdos driver itself rejects the command in order to
+     avoid trashing the filesystem.
+
+DMSDOS: ch_read: no memory!
+  O: System memory is even too low for read access. See below for hints
+     about 'no memory' messages.
+
+DMSDOS: ch_read: read_cluster failed
+  E: The cluster could not be read from disk. There should be another
+     message describing more details.
+
+DMSDOS: check_free_sectors: wrong count %d corrected to %d
+  B: Looks like a minor bug. As the message tells, the problem is corrected.
+
+DMSDOS: clear_list_dev: Uhh, sb==NULL ...
+  B: Shouldn't happen.
+
+DMSDOS: cluster %d read error
+  E: There should be another message describing the error more exactly.
+
+DMSDOS: compression method not recognized.
+  E: Check filesystem. May also be caused by running incompatible/unsupported 
+     or not yet fully supported compression software under dos. In detail, the
+     driver found a compressed cluster but didn't recognize the compression
+     header. This may even be suspicious to be a dmsdos bug.
+
+DMSDOS: could not find MDR signature or found more than one, mdrc=%d (ignored)
+  I: Debug message. It may indicate a problem with the CVF, but as this
+     signature is almost completely unimportant, you can most likely ignore
+     it.
+
+DMSDOS: could not guess compression method for CVF
+  I: There's no compressed file in your compressed filesystem that dmsdos
+     could analyse to determine the compression method. To avoid problems,
+     dmsdos has disabled compression when writing to this CVF. Specify a
+     compression method explicitely when mounting (comp=xxx option) or write
+     something (more than 1KB) to the compressed partition under dos.
+
+DMSDOS: counted free sectors=%d
+  I: The message tells how many free sectors have been counted in the CVF.
+
+DMSDOS: CVF almost full or highly fragmented at MDFAT level.
+  I: The driver warns that further write access might become dangerous.
+
+     This indicates a really bad situation. The algorithm to find free space
+     in a CVF performs three trials to find an appropriate hole for new data.
+     All of them use different priorities to avoid MDFAT level fragmentation.
+     But this time it did not succeed until its last trial. That means
+     additional MDFAT level fragmentation cannot be avoided any longer and the
+     more write access you perform the more likely the last trial is to fail.
+
+     Watch the free space on the compressed partition. If there seems to be
+     enough, try to defragment the partition as described in chapter
+     'defragment procedures' in file dmsdos.doc.
+
+     This message has KERN_EMERG priority to ensure you can see it on the
+     screen.
+
+DMSDOS: CVF end padding %d sectors.
+  I: Size of STACVOL is stored in its header. If real file is
+     longer than this information, user is informed about that
+     unused sectors. It can happens when you copy stacvol
+     to other host drive.
+
+DMSDOS CVF-FAT extension version %d.%d.%d
+  I: Tells version number and compile-time options when loading dmsdos.
+     The term 'read-only' means that you are using a read-only dmsdos
+     version (write access has been turned off during dmsdos configuration).
+     It does *not* tell that the filesystem is mounted read-only or 
+     read-write.
+
+DMSDOS: CVF full.
+DMSDOS: CVF full (cannot even allocate fragmented space)
+DMSDOS: CVF full or too fragmented at MDFAT level.
+  O/E: The message tells it all. The last write access may have failed and
+     data may have been lost. As you cannot tell how well the data will
+     compress it is dangerous to fill a CVF up to the last byte. There might
+     even be some errors in the filesystem now (but that's very unlikely).
+
+     These messages have KERN_EMERG priority. They indicate that something
+     dangerous has happened. The next time you boot dos you'd better check 
+     the filesystem. And, of course, free up some space.
+
+DMSDOS: CVF has bitfat mismatches, ignored.
+DMSDOS: CVF has bitfat mismatches, setting to read-only.
+DMSDOS: CVF has serious errors or compatibility problems, setting to read-only.
+  I: The driver has detected an error in the filesystem and has either
+     ignored the error or set the filesystem to read-only mode. There should
+     be another message describing the error. In rare cases, the error may
+     be caused by compatibility problems.
+
+DMSDOS: CVF has FAT32 signature, not mounted. Please report this.
+  O: Compressed FAT32 is unsupported. I've never seen it, but I may start
+     to write support for it if someone reports that a strange M$ product
+     really creates compressed FAT32 filesystems. I don't believe so.
+
+DMSDOS: CVF is in doublespace format (version 1).
+DMSDOS: CVF is in drivespace 3 format.
+DMSDOS: CVF is in drivespace format (version 2).
+DMSDOS: CVF is in stacker 3 format.
+DMSDOS: CVF is in stacker 4 format.
+  I: The driver reports what it has detected.
+
+DMSDOS: CVF is in unknown (new?) format, please report.
+  I: The driver didn't recognize the CVF format after verifying that it is
+     indeed a CVF. Watch for further messages. You'd better not write to
+     the partition :)
+
+DMSDOS: CVF is shorter about %d sectors. Mounting READ ONLY.
+  E: Error in stacker filesystem. Check under dos.
+     Real length of STACVOL is smaller, than that stored in stacvol
+     header. Stacvol is probably corrupted.
+
+DMSDOS: CVF on device 0x%x unmounted.
+  I: The message tells it all.
+
+DMSDOS: CVF set to read-only.
+  I: The message tells it all.
+
+DMSDOS: daemon is lying about its pid
+  O/B: Either someone is trying to compromise system security by misusing
+     dmsdos ioctls (without success) or the external daemon has a bug.
+
+DMSDOS: daemon_write_cluster: ch==NULL
+  B: Shouldn't happen.
+
+DMSDOS: Data are not SQ compressed
+  E: Error in drivespace 3 filesystem (invalid data?), check under Win95.
+
+DMSDOS: dataend corrected due to MDR signature old=%d new=%d
+  I: Due to a problem with the loopback block device - it only gives size 
+     information in units of 1K blocks and not in 512 byte sectors - dmsdos 
+     cannot determine the exact end of the CVF. So, it tries to guess where 
+     the real end of the compressed partition is. This guess is verified by 
+     searching the MDR signature, which is typically located in the last 
+     sector of the CVF. If the driver has guessed the wrong end, this is
+     automatically corrected and this message is logged. In theory, maximum 
+     error can be 1 sector.
+
+DMSDOS: dbl_bitfat_value: version not found?? cannot happen
+DMSDOS: dbl_mdfat_value: unknown version?? This is a bug.
+  B: Shouldn't happen.
+
+DMSDOS: dbl_replace_existing_cluster: checking old fraglist: first fragment wrong in cluster %d
+  E: Filesystem error in drivespace 3 volume. Check under Win95.
+
+DMSDOS: dbl_replace_existing_cluster: This is a bug - reboot and check filesystem
+  B: Uhh. Cut'n'paste your logfile and mail it to me. This is a serious bug.
+
+DMSDOS: dblspace_fat_access: READ-ONLY filesystem
+  O: When the filesystem suddenly is set read-only (e.g. because of a
+     problem) some kernel functions seem not to obey the RO flag. In this
+     case, the dmsdos driver itself rejects the command in order to
+     avoid trashing the filesystem. There's notably a problem with the
+     FAT driver, which seems to poke around in the FAT randomly after having
+     just set the filesystem to read-only mode by a filesystem panic (argh). 
+     The reason is unknown (well, it doesn't seem to be really in the FAT 
+     driver). To be safe, dmsdos just doesn't allow something to change the 
+     FAT in that case.
+
+DMSDOS: dblspace_mark_buffer_dirty: READ-ONLY filesystem
+  O: When the filesystem suddenly is set read-only (e.g. because of a
+     problem) some kernel functions seem not to obey the RO flag. In this
+     case, the dmsdos driver itself rejects the command in order to
+     avoid trashing the filesystem.
+
+DMSDOS: decompression of cluster %d in CVF failed.
+  E/B: There's an error in the compressed data (there should be another 
+     message describing what exactly failed). The next time you boot dos you 
+     should check it (including the surface test since only this test finds
+     compression errors). If it is okay under dos/win95 but still fails 
+     under dmsdos, *please* send a bug report (best with raw cluster data
+     extracted by using duitl).
+
+DMSDOS: dec_sq: submethod not tested - raw read
+  ?: Maybe a drivespace 3 problem. Check under Win95.
+
+DMSDOS: delete_cache_cluster: get_ch returned NULL
+  ?: Shouldn't happen. This message means that the cluster couldn't be
+     locked during deletion. So it's deleted without locking. So what.
+
+DMSDOS: Deleted clusters found, removing...
+  I: Cleaning up stacker filesystem.
+
+DMSDOS: dfat cache:
+  I: Debug message. Ignore.
+
+DMSDOS: dirty cluster %d on dev 0x%x removed, data are lost
+  O/E: The driver is giving up that cluster. Writing has failed more than
+     5 times. YOU HAVE BEEN WARNED 5 TIMES! In order to prevent a system
+     lockup caused by endless loops the driver has thrown the data away.
+     THE DATA ARE DEFINITIVELY LOST NOW. Very likely the filesystem is 
+     damaged now and a part of a directory is also lost. 
+     The driver sets the filesystem to read-only mode (printing it in the 
+     next message). This is a really bad situation. You'd better boot Dos 
+     and have the CVF maintainance software repair what can be repared.
+     If the CVF repair tool permits it, save all lost clusters - they are 
+     likely to contain some of the lost files.
+
+DMSDOS: Dirty virtual sector cannot be written - FILESYSTEM DAMAGE POSSIBLE! Trying to delay write.
+  O: THE FILESYSTEM IS FULL! It's even so full that some clusters cannot
+     be written back to the disk (they're kept in memory instead). Free up
+     some space IMMEDIATELY! Otherwise your filesystem will be destroyed
+     on unmount. After some warnings (the number depends on your cache size) 
+     the driver will give up and stop the system with a panic.
+
+DMSDOS: dos max_cluster=%d too large, cutting to %d.
+  E?:Seems to be a filesystem error. Verify that dmsdos recognized the FAT
+     bit size correctly. If it hasn't, this is a bug.
+
+DMSDOS: error in DS-0-x compressed data.
+  E: There's an error in the filesystem. The next time you boot dos you
+     should check it (including the surface test).
+
+DMSDOS: error in JM-0-x compressed data.
+  E: There's an error in the filesystem. The next time you boot dos you
+     should check it (including the surface test).
+
+DMSDOS: Error while reading an mmap file %d <> %d
+  E: There should be another message describing the error more exactly.
+
+DMSDOS: evaluate_option: loglevel set to 0x%lx.
+DMSDOS: evaluate_option: speedup set to 0x%lx.
+  I: The messages tell it all.
+
+DMSDOS: exit_daemon: counter<0 ???
+  B: Shouldn't happen.
+
+DMSDOS: FAT bit size not recognized, guessed %d bit
+  I: The driver did not find a valid FAT size entry in the CVF super block
+     and the emulated boot block, so it guessed the FAT size according to the
+     CVF size. This may indicate a minor filesystem error or incompatibility. 
+
+     Warning: There's a small chance to guess the wrong FAT bit size, so be
+     careful.
+
+     Note: This message may appear on all stacker filesystems since they
+     don't seem to have a FATxx signature in the bootblock.
+
+DMSDOS: FAT crosslink or loop in CVF detected (cluster %d), giving up.
+  E: There's a FAT level error in your compressed filesystem. This is
+     a serious error you should immediately repair by running dos scandisk.
+     
+     Note: Verify with dutil that dmsdos has recognized the right FAT
+     bit size. If it hasn't, this is a bug.
+
+DMSDOS: FAT size does not match cluster count. Mounting READ ONLY.
+  E: Error in stacker filesystem.
+
+DMSDOS: file_mmap_nopage: no memory!
+  O: Shouldn't happen.
+
+DMSDOS: file_read: inode = NULL, rejected.
+DMSDOS: file_read: mode = %07o, rejected.
+  B: Maybe a bug in the FAT driver or the rest of the kernel.
+
+DMSDOS: file_readx: FAT mismatches file size for ino=%ld
+  E/B: FAT error or bug.
+
+DMSDOS: filesystem on dev 0x%x probably damaged, set to READ-ONLY mode
+  E: The message tells it all. You'd better boot Dos and have your CVF
+     maintainance software repair the CVF.
+
+DMSDOS: file_write: READ-ONLY filesystem
+  O: When the filesystem suddenly is set read-only (e.g. because of a
+     problem) some kernel functions seem not to obey the RO flag. In this
+     case, the dmsdos driver itself rejects the command in order to
+     avoid trashing the filesystem.
+
+DMSDOS: find_free_bitfat: free sectors=%d, cannot believe this. Counting...
+  B: Something is wrong with the free sector count. The driver tries to
+     correct this by counting the free sectors again. This is a minor bug.
+
+DMSDOS: find_free_bitfat returned sector %d size %d but they are not all free!
+  B: Cannot happen. (Uh, oh... happened in dmsdos <= 0.6.3. Don't use them.)
+
+DMSDOS: fraglist!=mde cluster %d sector %d!=%ld or count %d!=%d
+  E: Error in drivespace 3 filesystem. Check under Win95.
+
+DMSDOS: free_ccache_dev: oh oh, freeing busy cluster...
+  B: Bug in cluster cache code. Expect a crash or hang soon. Please report.
+
+DMSDOS: free_cluster_sectors: error in fragmentation list in cluster %d
+DMSDOS: free_cluster_sectors: first fragment wrong in cluster %d
+DMSDOS: free_cluster_sectors: fragmentation list unreadable in cluster %d
+  E: Error in drivespace 3 filesystem. Check under Win95.
+
+DMSDOS: free sectors=%d
+  I: The number of free sectors is displayed.
+
+DMSDOS: free sector finding statistics:
+  I: Debug message, ignore.
+
+DMSDOS: get_ch: actual looks modified ARGHHH, retrying
+DMSDOS: get_ch: free looks modified ARGHHH, retrying
+  I: Debug message. Ignore. (This messages may be important to verify that
+     new SMP safe cluster locking works correctly.)
+
+DMSDOS: get_ch: free->c_count!=0
+  B: Shouldn't happen. Indicates a bug (probably leak) in cluster caching
+     code.
+
+DMSDOS: get_ch: max_retries reached, breaking loop. This may be a bug.
+  B?: Shouldn't happen. Indicates that the driver broke an endless loop
+     to prevent a complete system hang. If you haven't run horribly out
+     of memory and you aren't loading the system to death this is an
+     extremely unlikely situation. Very suspicious to be a bug.
+
+DMSDOS: get_ch: oldest->c_count!=0
+  B: Shouldn't happen. Indicates a bug (probably leak) in cluster caching
+     code.
+
+DMSDOS: get_cluster failed (FAT problem ?)
+  O/E: The FAT driver returned an error. Maybe a problem with the FAT.
+
+DMSDOS: giving up after %d errors. There may be more errors.
+  I/E: The filesystem check tries to continue after the first error was
+     detected, but it definitely stops after 20 errors in order to prevent 
+     your syslog from becoming larger than the errorneous filesystem.....
+
+DMSDOS: illegal dfat access (cluster=%d max_cluster2=%d)
+  ?: Bug or filesystem error.
+
+DMSDOS: illegal fragcount in cluster %d
+  E: Error in drivespace 3 filesystem. Check it under Win95.
+
+DMSDOS: illegal mdfat access (cluster=%d max_cluster2=%d)
+  ?: Bug or filesystem error.
+
+DMSDOS: illegal virtual sector %d, can't map to real sector
+  B: Problem with virtual sector mapping.
+
+DMSDOS: Inconsistent first data sector number. Mounting READ ONLY.
+DMSDOS: Inconsistent sector length
+  E: Error in stacker filesystem.
+
+DMSDOS: init_daemon: daemon already present
+  I: Debug message, ignore.
+
+DMSDOS: Interesting MDFAT non-lin subalocation (cluster %d)
+  I: Will be disabled, because it is normal for stacker 4.
+
+DMSDOS: ioctl: D_READ: no memory!
+  O: Lack of system memory. Can be ignored. (*)[see below]
+
+DMSDOS: ioctl: D_READ: read_cluster failed!
+  E: Seems to be an error in your filesystem (the dmsdos daemon tried to
+     read some data but read access failed). There should be at least one
+     preceeding message that describes the error more exactly.
+
+DMSDOS: ioctl: D_WRITE: no memory!
+  O: Lack of system memory. Can be ignored. (*)[see below]
+
+DMSDOS: ioctl: loglevel set to 0x%lx.
+  I: The message tells it all.
+
+DMSDOS: ioctl: read_cluster: no memory!
+  O: The driver could not read a cluster because of lack of memory. Don't run
+     so much applications at the same time, increase your swap space or add
+     memory to your machine. (Shouldn't happen.) (*)[see below]
+
+DMSDOS: ioctl: speedup set to 0x%lx.
+  I: The message tells it all.
+
+DMSDOS: killing internal daemon...
+  I: Debug message. Ignore.
+
+DMSDOS: list statistics:
+  I: Debug message. Ignore.
+
+DMSDOS: lock_ch: count=0! This is a bug.
+  P: Serious bug in cluster caching code. Please report. The system might
+     even hang completely now.
+
+DMSDOS: log_ccache_statistics: cannot happen.
+DMSDOS: log_list_statistics: cannot happen.
+  B: Bug, please report.
+
+DMSDOS: MDFAT bad allocation (cluster %d)
+  E: Error in stacker filesystem.
+
+DMSDOS: mdfat cache:
+  I: Debug message, ignore.
+
+DMSDOS: MDFAT crosslink in CVF detected (cluster %d)
+DMSDOS: MDFAT crosslink detected (cluster %d)
+  E: There's a MDFAT level crosslink in your compressed partition. This is a
+     serious error you should immediately repair by running dos scandisk.
+ 
+DMSDOS: MDFAT entry invalid (cluster %d, sect %d)
+DMSDOS: MDFAT entry invalid in CVF (cluster %d)
+DMSDOS: MDFAT entry invalid in CVF (fragmented cluster %d fragpnt %d)
+  E: There's a problem with your compressed partition. Dmsdos ignores
+     invalid entries if they are assigned to a file (the file will be
+     unreadable).
+
+DMSDOS: MDFAT-level dead sectors found in CVF (cluster %d)
+DMSDOS: MDFAT-level dead sectors found, removing...
+  E/I: The driver has found sectors in the filesystem that belong to a
+     non-existing cluster. Depending on the repair flag, it tries to
+     repair the problem.
+
+DMSDOS: MDR signature found at sector %d
+  I: Debug message. Usually shows the number of the last sector in the CVF.
+
+DMSDOS: MDR test breaks at i=%d
+  I: Debug message that is produced during CVF size test. There's very
+     likely also a message 'access beyond end of device' logged just before
+     this message. It's part of the MDR test to provoke an access beyond
+     the device end. You can safely ignore both messages.
+
+DMSDOS: mount_dblspace: out of memory
+  O: Shouldn't happen.
+
+DMSDOS: mounting CVF on device 0x%x %s...
+  I: The message tells it all.
+
+DMSDOS: mount_stacker: out of memory
+  O: Shouldn't happen.
+
+DMSDOS: MOVEBACK ioctl has gone
+  O: Then don't use it.
+
+DMSDOS: MSDBL/MSDSP signature not found, CVF skipped
+  E: This file doesn't seem to be really a CVF. The driver refuses, for
+     example, to mount your phone directory that has been renamed to
+     something like dblspace.001. Check the compressed filesystem under
+     dos (if dos refuses to boot because it runs into a similar problem,
+     use a dos boot disk and hold down CTRL and F8 during boot process).
+
+DMSDOS: no memory for decompression!
+  O: The driver could not decompress a cluster because of lack of memory. 
+     Don't run so much applications at the same time, increase your swap space
+     or add memory to your machine. (Shouldn't happen.) (*)[see below]
+
+DMSDOS: page-aligned memory returned by kmalloc - please disable XMALLOC
+  B: The xmalloc allocation mechanism is broken. This may be caused by
+     using a very new kernel. You can still use dmsdos, but you are strongly
+     encouraged to disable xmalloc: rerun the dmsdos configuration, disable
+     advanced memory management and recompile. Please send also a problem
+     report so I can start looking for what broke xmalloc in your kernel.
+
+DMSDOS: part 1 of filesystem check failed, aborting.
+DMSDOS: part 2 of filesystem check failed, aborting.
+  I: The message tells it all.
+
+DMSDOS: read BITFAT state error
+  E: Problem with stacker filesystem. Probably low level host drive IO
+     error.
+
+DMSDOS: read_cluster: illegal cvf version flag!
+  B: Bug, please report.
+
+DMSDOS: read_cluster: mdfat sectors > sectperclust, cutting
+  E: There's an error in the filesystem. The next time you boot dos you
+     should check it (including the surface test). (This indicates a
+     corrupted MDFAT, may be suspicious to be a dmsdos write access bug.)
+
+DMSDOS: read_file bug: f_pos not cluster-aligned
+  B: ???
+
+DMSDOS: read_fragments: cluster does not look fragmented!
+DMSDOS: read_fragments failed!
+DMSDOS: read_fragments: safety_counter exceeds membytes!
+  E: Error in drivespace 3 filesystem. Check under Win95.
+
+DMSDOS: read_fragments: size limit reached.
+  I: Debug message. Ignore.
+
+DMSDOS: read_the_page: no memory!
+  O: Shouldn't happen.
+
+DMSDOS: read_virtual_sector: no memory!
+DMSDOS: read_virtual_sector: read_cluster failed!
+  E/I: Problem with virtual sector handling.
+
+DMSDOS: READ/WRITE DIRENTRY ioctl has gone
+DMSDOS: RECOMPRESS ioctl has gone
+  O: So don't use them.
+
+DMSDOS: sd4_comp: Compression ends with mismash
+DMSDOS: sd4_comp: Hufman code leakage in table 1
+DMSDOS: sd4_comp: Hufman code leakage in table 2
+DMSDOS: sd4_huffman: Problems with number of bits
+  I: Huffman code length of some character is longer
+     than 15 bits in STAC4 compression. Code will be recomputed
+     with little worse compression ratio.
+     Message may be disabled in future.
+
+DMSDOS: sd4_decomp: no memory!
+  O: Data cannot be decompressed, memory is low. (See below for 'no memory'
+     messages.)
+
+DMSDOS: sd4_decomp: Magic = %X => error!
+DMSDOS: sd4_decomp: Table 2 consistency check !!!!
+DMSDOS: sd4_decomp: Table 1 consistency check !!!!
+DMSDOS: sd4_decomp: Table 1 error
+DMSDOS: sd4_decomp: Under !!!
+DMSDOS: sd4_decomp: Over !!!!
+DMSDOS: sd4_decomp: End read %X and should be %X
+DMSDOS: sd4_decomp: Error end token %X
+  E: Data cannot be decompressed.
+     Filesystem probably damaged. Run DOS stac/check.
+
+DMSDOS: SETMAXCLUSTER ioctl has gone.
+  O: This ioctl command has turned out to be too dangerous. Use the native 
+     CVF maintainance tools that came with your CVF package under Dos/Win95.
+
+DMSDOS: set_maxcluster %d refused: cluster %d in use
+  O: You tried to specify a cluster limit that is too low via the
+     'setmaxcluster' command of dutil. This message also displays the
+     currently lowest possible value ('cluster %d in use'). Your command has
+     been skipped.
+
+DMSDOS: set_maxcluster refused - CVF is not in doublespace or drivespace<=2 format.
+  O: The setmaxcluster command is intended as workaround for a bug in
+     dos scandisk. You can only use it on CVFs that have been created by
+     a doublespace version that has this bug.
+
+DMSDOS: strange version flag %d, assuming 0.
+  I/E: The version flag in the CVF header contains garbage. Either it's
+     destroyed or you have found a new doublespace/drivespace version. In
+     the latter case please let me know.
+
+DMSDOS: simple_check aborted (no memory)
+  O: Lack of kernel memory caused the dmsdos driver to abort the filesystem
+     check. Shouldn't happen. (*)[see below]
+
+DMSDOS: simple_check: BITFAT abnormal state
+DMSDOS: simple_check: BITFAT mounted/dirty
+DMSDOS: simple_check: BITFAT state error
+  IE: The BITFAT/allocation map of the stacker filesystem is marked as 
+      'not up-to-date'. This may have been caused by a dos crash or reset.
+      The filesystem can only be used read-only. You can repair it by 
+      booting DOS (stacker will show its "updating allocation map" 
+      message) or use dmsdos' mount option 'bitfaterrs=repair' or use dutil.
+
+DMSDOS: simple_check: read BITFAT sumary error
+  E: Error in stacker filesystem.
+
+DMSDOS: simple_check: MDFAT+BITFAT test skipped (no memory)
+  O: Lack of kernel memory caused the dmsdos driver to skip the MDFAT and
+     BITFAT test. Since this test may require up to 1 MB kernel memory
+     (depending on the partition size), this message may occur occasionally.
+     You needn't be concerned about this. (*)[see below]
+
+DMSDOS: sq_comp: ERROR: Processed only %d bytes !!!!!!
+DMSDOS: sq_comp: Huffman code leakage in table 1
+DMSDOS: sq_comp: Huffman code leakage in table 2
+DMSDOS: sq_comp: Huffman code leakage in table 3
+DMSDOS: sq_huffman: Problems with number of bits
+ I: SQ compression problem. Data will be compressed again with lower 
+    compression ratio or written without compression.
+
+DMSDOS: sq_comp: Not enough memory
+ O: The data written uncompressed due to lack of memory for compression.
+
+DMSDOS: SQ-0-0 decompression failed.
+DMSDOS: sq_dec: huff BAD last token %x
+DMSDOS: sq_dec: huff count_1 too big
+DMSDOS: sq_dec: huff count_2 too big
+DMSDOS: sq_dec: huff error in char and len table
+DMSDOS: sq_dec: huff error in helper table
+DMSDOS: sq_dec: huff error in offset table
+DMSDOS: sq_dec: huff offset OVER
+DMSDOS: sq_dec: huff offset UNDER
+DMSDOS: sq_dec: out of memory!
+DMSDOS: sq_dec: submethod not tested - fixed huffman
+DMSDOS: sq_dec: unknown submethod - 3
+  E/B: Error in SQ compressed data (drivespace 3). Check under Win95.
+     I've been reported about SQ decompression problems when the files
+     even decompress well under Win95. There seems to be a problem
+     somewhere in the SQ decompression code, but I'm unable to fix it.
+
+DMSDOS: stac3_decomp: char repeat overrun!
+DMSDOS: stac3_decomp: end token 0x%02X
+DMSDOS: stac3_decomp: Illegal back pointer length 0x%x at pos 0x%x->0x%x
+DMSDOS: stac3_decomp: Multi rep overrun 0x%x at pos 0x%x->0x%x
+DMSDOS: stac3_decomp: ReadNC error!
+DMSDOS: stac3_decomp: Unknown token %d on pos 0x%X->0x%X
+DMSDOS: stac3_decomp: xor sum error!
+  E: Looks like your stacker filesystem is corrupt. The data of a file
+     couldn't be decompressed.
+
+DMSDOS: stac3_decomp: Multi rep:(%dx %d)
+DMSDOS: stac3_decomp: Rep:(%dx)
+  I: Debug messages. Ignore.
+
+DMSDOS: stac_cwalk_init: bad bytes_in_cluster %d
+DMSDOS: stac_cwalk_init: count = %d < 0 in long subalocated
+DMSDOS: stac_cwalk_init: count = %d < 0 in short subalocated
+DMSDOS: stac_cwalk_init: fragment signature not found cluster=%d
+DMSDOS: stac_cwalk_init: sector count mismash fragmented cluster=%d!
+DMSDOS: stac_cwalk_init: suballocation signature not found cluster=%d
+DMSDOS: stac_cwalk_init: suballocation error 1, cluster %d
+DMSDOS: stac_cwalk_init: suballocation error 2, cluster %d
+DMSDOS: stac_cwalk_init: suballocation error 3, cluster %d, zerro offset 0x%X 0x%X
+DMSDOS: stac_cwalk_init: suballocation error 4, cluster %d
+DMSDOS: stac_cwalk_init: suballocation not present, cluster %d
+DMSDOS: stac_cwalk_init: too much fragmented cluster=%d!
+DMSDOS: stac_cwalk_init: unknown flags 0x%2x cluster %d
+DMSDOS: stac_cwalk_init: wrong cluster types for subalocation, cluster %d 
+  E?: Looks like your stacker filesystem is corrupt.
+
+DMSDOS: stac_cwalk_sector: finfo==NULL, cluster %d
+  B: Internal bug in fragmented clusters access.
+
+DMSDOS: Stacker 0x1A0A signature not found
+  E/O: This CVF doesn't seem to be really a CVF.
+
+DMSDOS: Stacker sector size not 512 bytes, hmm...
+  E: Strange error in stacker filesystem or incompatible version (?)
+
+DMSDOS: STACKER signature not found
+  E/O: This CVF doesn't seem to be really a CVF.
+
+DMSDOS: stac_read_cluster: alloc error in cluster %d
+DMSDOS: stac_read_cluster: decompression error cluster=%d
+DMSDOS: stac_read_cluster: internal cw error 1 cluster=%d
+DMSDOS: stac_read_cluster: internal cw error 2 cluster=%d
+  E: Error in stacker filesystem.
+
+DMSDOS: stac_read_cluster: no memory!
+  O: The driver could not read a cluster because of lack of memory. Don't run
+     so much applications at the same time, increase your swap space or add
+     memory to your machine. (Shouldn't happen.) (*)[see below]
+
+DMSDOS: stac_replace_existing_cluster: This is a bug - reboot and check filesystem
+  B: Safety check in allocation routine failed. Please send a bug report.
+
+DMSDOS: stac_special_free: alloc error in cluster %d
+  E: Problems with deleting of cluster may be caused by
+     - damaged filesystem
+       should be reported when mounted as bitfat mismashes
+       can be repaired by mount option bitfaterrs=repair
+     - dmsdos internal bug
+
+DMSDOS: stac_write_cluster: alloc error in cluster %d
+DMSDOS: stac_write_cluster: internal cw error 1 cluster=%d
+DMSDOS: stac_write_cluster: internal cw error 2 cluster=%d
+  E: Error in stacker filesystem.
+
+DMSDOS: stac_write_cluster: no memory for compression, writing uncompressed!
+  O: Shouldn't happen.(*)[see below]
+
+DMSDOS: starting internal daemon...
+  I: The message tells it all.
+
+DMSDOS: Sumary: Deleted clusters = %d
+DMSDOS: Sumary: Free sectors = %d
+DMSDOS: Sumary: info1 = %d
+DMSDOS: Sumary: info2 = %d
+  I: Internal stacker messages. Information from checking of CVF.
+     First two are counted and next two are read from CVF.
+
+DMSDOS: support for doublespace/drivespace(<3) not compiled in.
+DMSDOS: support for drivespace 3 not compiled in.
+DMSDOS: support for stacker 3 not compiled in.
+DMSDOS: support for stacker 4 not compiled in.
+  O: The message tells it all. Rerun the dmsdos configuration and recompile 
+     the source if you do need support for this type of CVF.
+
+DMSDOS: Too many BITFAT mismatches, check aborted.
+DMSDOS: Too many BITFAT mismatches in CVF, check aborted.
+  E: The message tells it all.
+
+DMSDOS: try_daemon: kill_proc daemon_pid=%d failed with error code %d, assuming daemon has died
+  O: The driver tried to wake up the external daemon, but it seems to be no
+     longer running.
+
+DMSDOS: try_daemon: no empty slot found, listcount corrected.
+  B: Shouldn't happen.
+
+DMSDOS: try_fragmented: cnt<0 ? This is a bug.
+DMSDOS: try_fragmented: frags=%d ? Cannot happen.
+DMSDOS: try_fragmented returned non-free sectors!
+  B: Shouldn't happen (bugs in code for writing fragmented clusters for
+     drivespace 3 volumes).
+
+DMSDOS: trying to allocate fragmented space...
+  I: The driver tries to create a fragmented cluster since disk space is
+     low or highly fragmented. 
+
+DMSDOS: unable to read acache area=%d
+DMSDOS: unable to read bitfat area %d for sector %d
+DMSDOS: unable to read dfat area %d for cluster %d
+DMSDOS: unable to read emulated boot block of CVF
+DMSDOS: unable to read mdfat area %d for cluster %d
+DMSDOS: unable to read second dfat
+DMSDOS: unable to read second mdfat
+DMSDOS: unable to read super block
+DMSDOS: unable to read super block of CVF
+  E: Bad block or serious error in the underlying msdos filesystem. The
+     CVF or the underlying filesystem is most likely destroyed.
+
+DMSDOS: unable to read fragmentation list of cluster %d.
+  E: Error in drivespace 3 filesystem or hardware error.
+
+DMSDOS: unknown option %s, rejected
+  O: Syntax error in mount option string.
+
+DMSDOS: Updating BITFAT
+DMSDOS: Updating BITFAT.
+DMSDOS: Updating BITFAT finished
+DMSDOS: version_flag=%d sectperclust=%d
+  I: Debug info.
+
+DMSDOS: vmalloc returned unaligned memory - please disable XMALLOC
+  P/B: The xmalloc allocation mechanism is broken. This may be caused by
+     using a very new kernel. The driver detected this problem and stopped
+     immediately to prevent memory corruption. You may have to press the
+     reset button after this message. You can still use dmsdos, but you must
+     disable xmalloc before: rerun dmsdos configuration and disable advanced
+     memory management. Please send also a problem report so I can start 
+     looking for what broke xmalloc in your kernel.
+
+DMSDOS: write access not compiled in, ignored
+  I: Someone or something tried to write to a compressed partition but write
+     access support is not compiled in. This message always appeares
+     *instead* of a real write access.
+
+     If you *want* to write to a compressed partition, you must compile
+     in write access support before. Rerun the dmsdos configuration
+     ('make config' in the src directory), recompile and reinstall dmsdos.
+
+DMSDOS: write_cluster: guessed 0x%08x.
+  I: The driver succeeded to guess the compression method and tells what
+     it has guessed.
+
+DMSDOS: write_cluster: guessing compression method...
+  I: The driver is analysing some clusters to determine the compression
+     method automatically. This kind of 'guessing' has proven to be very
+     reliable, so it may be a good idea to let the driver guess the 
+     compression method instead of specifying it explicitely in a mount
+     option.
+
+DMSDOS: write_cluster: illegal cvf_version flag!
+  B: Looks like a bug in the dmsdos configuration (some missing or wrong
+     ifdefs somewhere). Let me know, please. Meanwhile, configure dmsdos
+     to support everything, recompile, and try again.
+
+DMSDOS: write_cluster: no memory for compression, writing uncompressed!
+  I: The driver could not compress a cluster because of lack of memory, so
+     it skipped compression. Don't run so much applications at the same time,
+     increase your swap space or add memory to your machine. (Shouldn't
+     happen.) (*)[see below]
+
+DMSDOS: write_file: ch_dirty failed!
+DMSDOS: write_file: ch_noread failed
+DMSDOS: write_file: ch_noread failed!
+  E: There should be another message describing the error.
+
+DMSDOS: write_file: CVF full (free sector count too low)
+DMSDOS: write_file: CVF full (full flag set)
+  O: Guess what. To prevent filesystem corruption, the driver has stopped
+     write access at a cluster boundary and returned the 'no space left on
+     device' error code in order to give an application the chance to exit
+     cleanly.
+
+     WARNING: As you cannot exactly say how well the data compress it is
+     dangerous to fill a CVF up to the last byte. The driver tries to stop
+     applications quite a time before it becomes dangerous. This message
+     indicates that up to now nothing dangerous has happened.
+
+DMSDOS: write_file: length>clustersize ??? bug !!!
+  B: Cannot happen.
+
+DMSDOS: write_file: fat_add_cluster failed
+  O: Filesystem is full or has run out of clusters. Run dutil to distinguish
+     between these two situations. In the latter case you need to boot dos
+     and increase the estimated compression ratio.
+
+DMSDOS: write_file: read_cluster failed!
+  E: There should be another message describing the error.
+
+DMSDOS: write_file: something wrong, cannot happen
+DMSDOS: write_file: something's wrong, cannot happen
+  B: Problem with writing a file.
+
+DMSDOS: write_fragmented: raw_getblk sector %d failed
+  O/B: Low-level disk i/o problem or serious bug (may even be a bug in
+       the rest of the kernel). A fragmented cluster couldn't be written.
+       This leaves behind a damaged filesystem. You must repair it under
+       Win95 (if it is a real hardware error, e.g. dying disk, you might
+       be lost hopelessly without a backup).
+
+DMSDOS: unable to read emulated boot block
+  E: Error in filesystem, check it under dos.
+
+DMSDOS: zero_new_cluster: ch_noread failed???
+  O/B: Don't know. Really. This shouldn't happen.
+
+(*) ['no memory' messages:]
+    There was a problem in previous dmsdos versions that caused these
+    messages rarely though there was enough memory free. I've tried to fix
+    it by calling another memory allocation routine in newer dmsdos
+    releases. It's currently unknown if the new method is better. So if
+    you think you receive 'no memory' messages too often, you can try to
+    switch the allocation mode. It's setup during dmsdos configuration
+    ('make config'). If you change it, please let me know your results.

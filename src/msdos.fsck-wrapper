@@ -1,0 +1,120 @@
+#!/bin/sh
+
+# This is an example shell script that can be used as a wrapper for a
+# msdos.fsck (called by the generic fsck frontend).
+#
+# The script accepts a standard fsck command line and decides upon the
+# the raw filesystem data whether it is a CVF or not. If it is a CVF then
+# dmsdosfsck is invoked.
+#
+# The case when it is not a CVF but an uncompressed msdos partition is a bit
+# more complex. First, dosfsck is invoked to check that dos partition. Then
+# the script tries to mount that partition and scans its root directory for
+# CVFs. If there are CVFs it tries to check them, too, by calling dmsdosfsck
+# on them. After that, the msdos partition is unmounted again in order to
+# restore the previous state. If the -r option is present in the fsck
+# command line, some questions are asked.
+#
+# Note that this script needs a helper program that finds out whether a 
+# file is a CVF or not. If you have added the file(1) magics for CVFs to
+# /etc/magic (see the dmsdos installation instructions) you can use a
+# combination of file and grep (for example) for that purpose. I think this
+# is a standard way. If you still prefer the older method (by calling the
+# helper program cvftest) just compile cvftest ('make cvftest') and change 
+# some lines below (I've commented out the two cvftest calls and placed a
+# file command in the next line).
+
+###########################################################################
+
+# where to find the different filesystem checker utilities
+DMSDOSFSCK="dmsdosfsck"
+DOSFSCK="dosfsck"
+
+ARGS="$@"
+FILE=""
+ASK=n
+
+while [ "$1" != "" ];
+do
+	case "$1" in
+	-u) 	shift
+		shift ;;
+	-d)	shift
+		shift ;;
+	-r)	ASK=y
+		shift ;;
+	-*)	shift ;;
+	*)	FILE="$1" 
+		shift ;;
+	esac;
+done
+
+#echo "ARGS=$ARGS"
+#echo "FILE=$FILE"
+
+#if cvftest $FILE ;
+if [ ! -z "`file $FILE | grep CVF`" ];
+then
+	echo "CVF detected, calling dmsdosfsck..."
+	$DMSDOSFSCK $ARGS
+	CODE="$?"
+else
+	echo "no CVF found, calling dosfsck..."
+	$DOSFSCK $ARGS
+	CODE="$?"
+	if [ "$CODE" != "0" ];
+	then
+		exit $CODE
+	fi
+	if [ $ASK = y ];
+	then
+		echo -n "search $FILE for CVFs in it and check them, too?"
+		read ANS JUNK
+		if [ "$ANS" != "y" -a "$ANS" != "Y" ];
+		then
+			exit 0
+		fi
+	fi
+	mkdir /tmp/fsckwrap.$$
+	if [ "$?" != "0" ];
+	then
+		echo "need write access to /tmp for automatic CVF check (skipped)"
+		exit 0
+	fi
+	chmod 700 /tmp/fsckwrap.$$
+	mount -t msdos $FILE /tmp/fsckwrap.$$
+	if [ "$?" != "0" ];
+	then
+		echo "cannot search $FILE for CVFs in it (skipped)"
+		exit 0
+	fi
+
+	CODE="0"
+	FIRST=y
+	for I in /tmp/fsckwrap.$$/dblspace.0?? /tmp/fsckwrap.$$/drvspace.0?? /tmp/fsckwrap.$$/stacvol.*
+	do
+		if [ -f $I ];
+		then
+			#if cvftest $I ;
+			if [ ! -z "`file $I | grep CVF`" ];
+			then
+				if [ $FIRST = y ];
+				then
+					echo "$FILE contains CVFs"
+					FIRST=n
+				fi
+				echo -n "checking CVF "
+				basename $I
+				$DMSDOSFSCK $ARGS $I
+				if [ "$?" != "0" ];
+				then
+					CODE="$?"
+				fi
+			fi
+		fi
+	done
+	umount /tmp/fsckwrap.$$
+	rmdir /tmp/fsckwrap.$$
+fi
+
+exit $CODE

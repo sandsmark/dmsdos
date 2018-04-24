@@ -1,0 +1,1035 @@
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/Documentation/filesystems/fat_cvf.txt linux-2.0.33-cyrix-patched-fat32-test/Documentation/filesystems/fat_cvf.txt
+--- linux-2.0.33-cyrix-patched-fat32/Documentation/filesystems/fat_cvf.txt	Thu Jan  1 01:00:00 1970
++++ linux-2.0.33-cyrix-patched-fat32-test/Documentation/filesystems/fat_cvf.txt	Sun Jan  4 11:59:56 1998
+@@ -0,0 +1,198 @@
++This is the main documentation for the CVF-FAT filesystem extension.  31DEC1997
++
++
++Table of Contents:
++
++1. The idea of CVF-FAT
++2. Restrictions
++3. Mount options
++4. Installation
++5. Description of the CVF-FAT interface
++
++------------------------------------------------------------------------------
++
++
++1. The idea of CVF-FAT
++------------------------------------------------------------------------------
++
++CVF-FAT is a FAT filesystem extension that provides a generic interface for
++Compressed Volume Files in FAT partitions. Popular CVF software, for
++example, are Microsoft's Doublespace/Drivespace and Stac's Stacker.
++Using the CVF-FAT interface, it is possible to load a module that handles
++all the low-level disk access that has to do with on-the-fly compression
++and decompression. All other part of FAT filesystem access is still handled
++by the FAT, MSDOS or VFAT or even UMSDOS driver.
++
++CVF access works by redirecting certain low-level routines from the FAT
++driver to a loadable, CVF-format specific module. This module must fake
++a normal FAT filesystem to the FAT driver while doing all the extra stuff
++like compression and decompression silently.
++
++
++2. Restrictions
++------------------------------------------------------------------------------
++
++- BMAP problems
++
++  CVF filesystems cannot do bmap. It's impossible by principle. Thus
++  all actions that require bmap do not work (swapping, writable mmapping).
++  Read-only mmapping works because the FAT driver has a hack for this
++  situation :) Well, with some tricks writable mmapping could work,
++  (proof: they did under old dmsdos), but..... (hint: readpage/writepage
++  interface functions) ...... but the FAT driver has to support them 
++  first without bmap :-)
++
++  We'll see. If someone points me to an application that needs this, I
++  might be persuaded to implement it :). CVF-FAT is already prepared
++  for using readpage.
++  
++- DOSEMU users attention 
++
++  You may have to unmount all CVF partitions before running DOSEMU depending 
++  on your configuration. If DOSEMU is configured to use wholedisk or 
++  partition access (this is often the case to let DOSEMU access 
++  compressed partitions) there's a risk of destroying your compressed 
++  partitions or crashing your system because of confused drivers.
++  
++  Note that it is always safe to redirect the compressed partitions with 
++  lredir or emufs.sys. Refer to the DOSEMU documentation for details.
++
++
++3. Mount options
++------------------------------------------------------------------------------
++
++The CVF-FAT extension currently adds the following options to the FAT
++driver's standard options:
++
++  cvf_format=xxx
++    Forces the driver to use the CVF module "xxx" instead of auto-detection.
++    This is only necessary if the CVF format is not recognized corrrectly
++    because of bugs or incompatibilities in the CVF modules. (It skips
++    the detect_cvf call.) "xxx" may be the text "none" (without the quotes)
++    to inhibit using any of the loaded CVF modules, just in case a CVF
++    module insists on mounting plain FAT filesystems by misunderstanding :)
++
++  cvf_options=yyy
++    Option string passed to the CVF module. I.e. only the "yyy" is passed
++    (without the quotes). The documentation for each CVF module should 
++    explain it since it is interpreted only by the CVF module. Note that 
++    the string must not contain a comma (",") - this would lead to 
++    misinterpretation by the FAT driver, which would recognize the text 
++    after a comma as a FAT driver option and might get confused or print 
++    strange error messages. The documentation for the CVF module should 
++    offer a different seperation symbol, for example the dot ".", which
++    is only valid inside the string "yyy".
++
++
++4. Installation
++------------------------------------------------------------------------------
++
++Just apply the diff cvf.diff-x.y.z to your kernel. I hope the diff will
++make it into the standard kernel some day, but it's not up to me to decide
++this :) Note that the diff has been created using kernel x.y.z so it might
++fail or need manual interaction for other kernels. Modified diffs for
++other kernels welcome :)
++
++Well, you also need a CVF module to load. Otherwise CVF-FAT is quite useless
++to you :)
++
++
++5. Description of the CVF-FAT interface
++------------------------------------------------------------------------------
++
++Assuming you want to write your own CVF module, you need to write a lot of
++interface funtions. Most of them are covered in the kernel documentation
++you can find on the net, and thus won't be described here. They have been
++marked with "[...]" :-) Take a look at include/linux/fat_cvf.h.
++
++struct cvf_format
++{ int cvf_version;
++  char* cvf_version_text;
++  unsigned long int flags;
++  int (*detect_cvf) (struct super_block*sb);
++  int (*mount_cvf) (struct super_block*sb,char*options);
++  int (*unmount_cvf) (struct super_block*sb);
++  [...]
++  void (*cvf_zero_cluster) (struct inode*inode,int clusternr);
++}
++
++This structure defines the capabilities of a CVF module. It must be filled
++out completely by a CVF module. Consider it as a kind of form that is used
++to introduce the module to the FAT/CVF-FAT driver.
++
++It contains...
++  - cvf_version:
++      A version id which must be uniqe. Choose one.
++  - cvf_version_text:
++      A human readable version string that should be one short word 
++      describing the CVF format the module implements. This text is used
++      for the cvf_format option. This name must also be uniqe.
++  - flags:
++      Bit coded flags, currently only used for a readpage/mmap hack that 
++      provides both mmap and readpage functionality. If CVF_USE_READPAGE
++      is set, mmap is set to generic_file_mmap and readpage is caught
++      and redirected to the cvf_readpage function. If it is not set,
++      readpage is set to generic_readpage and mmap is caught and redirected
++      to cvf_mmap.
++  - detect_cvf:
++      A function that is called to decide whether the filesystem is a CVF of
++      the type the module supports. The detect_cvf function must return 0
++      for "NO, I DON'T KNOW THIS GARBAGE" or anything !=0 for "YES, THIS IS
++      THE KIND OF CVF I SUPPORT". The function must maintain the module
++      usage counters for safety, i.e. do MOD_INC_USE_COUNT at the beginning
++      and MOD_DEC_USE_COUNT at the end. The function *must not* assume that
++      successful recongition would lead to a call of the mount_cvf function
++      later. 
++  - mount_cvf:
++      A function that sets up some values or initializes something additional
++      to what has to be done when a CVF is mounted. This is called at the
++      end of fat_read_super and must return 0 on success. Definitely, this
++      function must increment the module usage counter by MOD_INC_USE_COUNT.
++      This mount_cvf function is also responsible for interpreting a CVF
++      module specific option string (the "yyy" from the FAT mount option
++      "cvf_options=yyy") which cannot contain a comma (use for example the
++      dot "." as option separator symbol).
++  - unmount_cvf:
++      A function that is called when the filesystem is unmounted. Most likely
++      it only frees up some memory and calls MOD_DEC_USE_COUNT. The return
++      value might be ignored (it currently is ignored).
++  - [...]:
++      All other interface functions are "caught" FAT driver functions, i.e.
++      are executed by the FAT driver *instead* of the original FAT driver
++      functions. NULL means use the original FAT driver functions instead.
++      If you really want "no action", write a function that does nothing and 
++      hang it in instead.
++  - cvf_zero_cluster:
++      The cvf_zero_cluster function is called when the fat driver wants to
++      zero out a (new) cluster. This is important for directories (mkdir).
++      If it is NULL, the FAT driver defaults to overwriting the whole
++      cluster with zeros. Note that clusternr is absolute, not relative
++      to the provided inode.
++
++Notes:
++  1. The cvf_bmap function should be ignored. It really should never
++     get called from somewhere. I recommend redirecting it to a panic
++     or fatal error message so bugs show up immediately.
++  2. The cvf_writepage function is ignored. This is because the fat
++     driver doesn't support it. This might change in future. I recommend
++     setting it to NULL (i.e use default).
++
++int register_cvf_format(struct cvf_format*cvf_format);
++  If you have just set up a variable containing the above structure,
++  call this function to introduce your CVF format to the FAT/CVF-FAT
++  driver. This is usually done in init_module. Be sure to check the
++  return value. Zero means success, everything else causes a kernel
++  message printed in the syslog describing the error that occured.
++  Typical errors are:
++    - a module with the same version id is already registered or 
++    - too many CVF formats. Hack fs/fat/cvf.c if you need more.
++
++int unregister_cvf_format(struct cvf_format*cvf_format);
++  This is usually called in cleanup_module. Return value =0 means
++  success. An error only occurs if you try to unregister a CVF format
++  that has not been previously registered. The code uses the version id
++  to distinguish the modules, so be sure to keep it uniqe.
++
++Refer to the dmsdos module (the successor of the dmsdos filesystem) for a
++sample implementation.
++
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/fat/Makefile linux-2.0.33-cyrix-patched-fat32-test/fs/fat/Makefile
+--- linux-2.0.33-cyrix-patched-fat32/fs/fat/Makefile	Wed Feb  7 08:39:27 1996
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/fat/Makefile	Sun Jan  4 11:59:56 1998
+@@ -8,7 +8,7 @@
+ # Note 2! The CFLAGS definitions are now in the main makefile...
+ 
+ O_TARGET := fat.o
+-O_OBJS   := buffer.o cache.o dir.o file.o inode.o misc.o mmap.o tables.o
++O_OBJS   := buffer.o cache.o dir.o file.o inode.o misc.o mmap.o tables.o cvf.o
+ OX_OBJS  := fatfs_syms.o
+ M_OBJS   := $(O_TARGET)
+ 
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/fat/buffer.c linux-2.0.33-cyrix-patched-fat32-test/fs/fat/buffer.c
+--- linux-2.0.33-cyrix-patched-fat32/fs/fat/buffer.c	Sun Jan  4 11:55:32 1998
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/fat/buffer.c	Sun Jan  4 12:07:19 1998
+@@ -9,6 +9,7 @@
+ #include <linux/string.h>
+ #include <linux/fs.h>
+ #include <linux/msdos_fs.h>
++#include <linux/fat_cvf.h>
+ 
+ #if 0
+ #  define PRINTK(x) printk x
+@@ -26,6 +27,11 @@
+ 	/* Note that the blocksize is 512 or 1024, but the first read
+ 	   is always of size 1024. Doing readahead may be counterproductive
+ 	   or just plain wrong. */
++	   
++	if(MSDOS_SB(sb)->cvf_format)
++	  if(MSDOS_SB(sb)->cvf_format->cvf_bread)
++	   return MSDOS_SB(sb)->cvf_format->cvf_bread(sb,block);
++	
+ 	if (sb->s_blocksize == 512) {
+ 		ret = bread (sb->s_dev,block,512);
+ 	} else {
+@@ -81,6 +87,11 @@
+ {
+ 	struct buffer_head *ret = NULL;
+ 	PRINTK(("fat_getblk: block=0x%x\n", block));
++	
++	if(MSDOS_SB(sb)->cvf_format)
++	  if(MSDOS_SB(sb)->cvf_format->cvf_getblk)
++	    return MSDOS_SB(sb)->cvf_format->cvf_getblk(sb,block);
++	
+ 	if (sb->s_blocksize == 512){
+ 		ret = getblk (sb->s_dev,block,512);
+ 	}else{
+@@ -100,6 +111,10 @@
+ 	struct buffer_head *bh)
+ {
+ 	if (bh != NULL){
++		if(MSDOS_SB(sb)->cvf_format)
++          	  if(MSDOS_SB(sb)->cvf_format->cvf_brelse)
++            	    return MSDOS_SB(sb)->cvf_format->cvf_brelse(sb,bh);
++
+ 		if (sb->s_blocksize == 512){
+ 			brelse (bh);
+ 		}else{
+@@ -117,6 +132,12 @@
+ 	struct buffer_head *bh,
+ 	int dirty_val)
+ {
++	if(MSDOS_SB(sb)->cvf_format)
++          if(MSDOS_SB(sb)->cvf_format->cvf_mark_buffer_dirty)
++          { MSDOS_SB(sb)->cvf_format->cvf_mark_buffer_dirty(sb,bh,dirty_val);
++            return;
++          }
++ 
+ 	if (sb->s_blocksize != 512){
+ 		bh = bh->b_next;
+ 	}
+@@ -128,6 +149,12 @@
+ 	struct buffer_head *bh,
+ 	int val)
+ {
++	if(MSDOS_SB(sb)->cvf_format)
++          if(MSDOS_SB(sb)->cvf_format->cvf_set_uptodate)
++          { MSDOS_SB(sb)->cvf_format->cvf_set_uptodate(sb,bh,val);
++            return;
++          }
++ 
+ 	if (sb->s_blocksize != 512){
+ 		bh = bh->b_next;
+ 	}
+@@ -137,6 +164,10 @@
+ 	struct super_block *sb,
+ 	struct buffer_head *bh)
+ {
++	if(MSDOS_SB(sb)->cvf_format)
++          if(MSDOS_SB(sb)->cvf_format->cvf_is_uptodate)
++            return MSDOS_SB(sb)->cvf_format->cvf_is_uptodate(sb,bh);
++ 
+ 	if (sb->s_blocksize != 512){
+ 		bh = bh->b_next;
+ 	}
+@@ -149,6 +180,12 @@
+ 	int nbreq,
+ 	struct buffer_head *bh[32])
+ {
++        if(MSDOS_SB(sb)->cvf_format)
++          if(MSDOS_SB(sb)->cvf_format->cvf_ll_rw_block)
++          { MSDOS_SB(sb)->cvf_format->cvf_ll_rw_block(sb,opr,nbreq,bh);
++            return;
++          }
++ 
+ 	if (sb->s_blocksize == 512){
+ 		ll_rw_block(opr,nbreq,bh);
+ 	}else{
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/fat/cache.c linux-2.0.33-cyrix-patched-fat32-test/fs/fat/cache.c
+--- linux-2.0.33-cyrix-patched-fat32/fs/fat/cache.c	Sun Jan  4 11:55:32 1998
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/fat/cache.c	Sun Jan  4 12:08:48 1998
+@@ -9,6 +9,7 @@
+ #include <linux/errno.h>
+ #include <linux/string.h>
+ #include <linux/stat.h>
++#include <linux/fat_cvf.h>
+ 
+ #include "msbuffer.h"
+ 
+@@ -29,6 +30,10 @@
+ 	unsigned char *p_first,*p_last;
+ 	int copy,first,last,next,b;
+ 
++	if(MSDOS_SB(sb)->cvf_format)
++	  if(MSDOS_SB(sb)->cvf_format->fat_access)
++	    return MSDOS_SB(sb)->cvf_format->fat_access(sb,nr,new_value);
++
+ 	if ((unsigned) (nr-2) >= MSDOS_SB(sb)->clusters)
+ 		return 0;
+ 	if (MSDOS_SB(sb)->fat_bits == 32) {
+@@ -261,6 +266,10 @@
+ 	int cluster,offset;
+ 
+ 	sb = MSDOS_SB(inode->i_sb);
++	if(sb->cvf_format)
++	  if(sb->cvf_format->cvf_smap)
++	    return sb->cvf_format->cvf_smap(inode,sector);
++	
+ 	if ((sb->fat_bits != 32) &&
+ 	    (inode->i_ino == MSDOS_ROOT_INO || (S_ISDIR(inode->i_mode) &&
+ 	     !MSDOS_I(inode)->i_start))) {
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/fat/cvf.c linux-2.0.33-cyrix-patched-fat32-test/fs/fat/cvf.c
+--- linux-2.0.33-cyrix-patched-fat32/fs/fat/cvf.c	Thu Jan  1 01:00:00 1970
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/fat/cvf.c	Sun Jan  4 11:59:56 1998
+@@ -0,0 +1,120 @@
++/* 
++ * CVF extensions for fat-based filesystems
++ *
++ * written 1997,1998 by Frank Gockel <gockel@sent13.uni-duisburg.de>
++ *
++ */
++ 
++#include<linux/sched.h>
++#include<linux/fs.h>
++#include<linux/msdos_fs.h>
++#include<linux/msdos_fs_sb.h>
++#include<linux/string.h>
++#include<linux/fat_cvf.h>
++
++#define MAX_CVF_FORMATS 3
++
++struct cvf_format *cvf_formats[MAX_CVF_FORMATS]={NULL,NULL,NULL};
++int cvf_format_use_count[MAX_CVF_FORMATS]={0,0,0};
++
++int register_cvf_format(struct cvf_format*cvf_format)
++{ int i,j;
++
++  for(i=0;i<MAX_CVF_FORMATS;++i)
++  { if(cvf_formats[i]==NULL)
++    { /* free slot found, now check version */
++      for(j=0;j<MAX_CVF_FORMATS;++j)
++      { if(cvf_formats[j])
++        { if(cvf_formats[j]->cvf_version==cvf_format->cvf_version)
++          { printk("register_cvf_format: version %d already registered\n",
++                   cvf_format->cvf_version);
++            return -1;
++          }
++        }
++      }
++      cvf_formats[i]=cvf_format;
++      cvf_format_use_count[i]=0;
++      printk("CVF format %s (version id %d) successfully registered.\n",
++             cvf_format->cvf_version_text,cvf_format->cvf_version);
++      return 0;
++    }
++  }
++  
++  printk("register_cvf_format: too many formats\n");
++  return -1;
++}
++
++int unregister_cvf_format(struct cvf_format*cvf_format)
++{ int i;
++
++  for(i=0;i<MAX_CVF_FORMATS;++i)
++  { if(cvf_formats[i])
++    { if(cvf_formats[i]->cvf_version==cvf_format->cvf_version)
++      { if(cvf_format_use_count[i])
++        { printk("unregister_cvf_format: format %d in use, cannot remove!\n",
++          cvf_formats[i]->cvf_version);
++          return -1;
++        }
++      
++        printk("CVF format %s (version id %d) successfully unregistered.\n",
++        cvf_formats[i]->cvf_version_text,cvf_formats[i]->cvf_version);
++        cvf_formats[i]=NULL;
++        return 0;
++      }
++    }
++  }
++  
++  printk("unregister_cvf_format: format %d is not registered\n",
++         cvf_format->cvf_version);
++  return -1;
++}
++
++void dec_cvf_format_use_count_by_version(int version)
++{ int i;
++
++  for(i=0;i<MAX_CVF_FORMATS;++i)
++  { if(cvf_formats[i])
++    { if(cvf_formats[i]->cvf_version==version)
++      { --cvf_format_use_count[i];
++        if(cvf_format_use_count[i]<0)
++        { cvf_format_use_count[i]=0;
++          printk(KERN_EMERG "FAT FS/CVF: This is a bug in cvf_version_use_count\n");
++        }
++        return;
++      }
++    }
++  }
++  
++  printk("dec_cvf_format_use_count_by_version: version %d not found ???\n",
++         version);
++}
++
++int detect_cvf(struct super_block*sb,char*force)
++{ int i;
++  int found=0;
++  int found_i=-1;
++
++  if(force)
++  { if(*force)
++    { for(i=0;i<MAX_CVF_FORMATS;++i)
++      { if(cvf_formats[i])
++        { if(!strcmp(cvf_formats[i]->cvf_version_text,force))
++            return i;
++        }
++      }
++    }
++  }
++
++  for(i=0;i<MAX_CVF_FORMATS;++i)
++  { if(cvf_formats[i])
++    { if(cvf_formats[i]->detect_cvf(sb))
++      { ++found;
++        found_i=i;
++      }
++    }
++  }
++  
++  if(found==1)return found_i;
++  if(found>1)printk("CVF detection ambiguous, use cvf_format=xxx option\n"); 
++  return -1;
++}
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/fat/dir.c linux-2.0.33-cyrix-patched-fat32-test/fs/fat/dir.c
+--- linux-2.0.33-cyrix-patched-fat32/fs/fat/dir.c	Sun Jan  4 11:55:32 1998
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/fat/dir.c	Sun Jan  4 11:59:56 1998
+@@ -425,6 +425,7 @@
+ 		  unsigned int cmd, unsigned long arg)
+ {
+ 	int err;
++	
+ 	/*
+ 	 * We want to provide an interface for Samba to be able
+ 	 * to get the short filename for a given long filename.
+@@ -451,6 +452,11 @@
+ 				    vfat_ioctl_fill, NULL, 1, 0, 1);
+ 	}
+ 	default:
++	        /* forward ioctl to CVF extension */
++	        if(MSDOS_SB(inode->i_sb)->cvf_format
++	           &&MSDOS_SB(inode->i_sb)->cvf_format->cvf_dir_ioctl)
++	             return MSDOS_SB(inode->i_sb)->cvf_format->
++	                               cvf_dir_ioctl(inode,filp,cmd,arg);
+ 		return -EINVAL;
+ 	}
+ 
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/fat/fatfs_syms.c linux-2.0.33-cyrix-patched-fat32-test/fs/fat/fatfs_syms.c
+--- linux-2.0.33-cyrix-patched-fat32/fs/fat/fatfs_syms.c	Sun Jan  4 11:55:32 1998
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/fat/fatfs_syms.c	Sun Jan  4 12:11:10 1998
+@@ -11,6 +11,7 @@
+ 
+ #include <linux/mm.h>
+ #include <linux/msdos_fs.h>
++#include <linux/fat_cvf.h>
+ 
+ #include "msbuffer.h"
+ 
+@@ -53,6 +54,13 @@
+ X(fat_uni2esc) X_PUNCT
+ X(fat_unlock_creation) X_PUNCT
+ X(fat_write_inode) X_PUNCT
++X(register_cvf_format) X_PUNCT
++X(unregister_cvf_format) X_PUNCT
++X(get_cluster) X_PUNCT
++X(lock_fat) X_PUNCT
++X(unlock_fat) X_PUNCT
++X(fat_readpage) X_PUNCT
++X(fat_dir_ioctl) X_PUNCT
+ #if LINUX_VERSION_CODE < ASC_LINUX_VERSION(2,1,0)
+ #include <linux/symtab_end.h>
+ };                                           
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/fat/file.c linux-2.0.33-cyrix-patched-fat32-test/fs/fat/file.c
+--- linux-2.0.33-cyrix-patched-fat32/fs/fat/file.c	Sun Jan  4 11:55:32 1998
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/fat/file.c	Sun Jan  4 11:59:56 1998
+@@ -17,6 +17,7 @@
+ #include <linux/stat.h>
+ #include <linux/string.h>
+ #include <linux/pagemap.h>
++#include <linux/fat_cvf.h>
+ 
+ #if LINUX_VERSION_CODE >= ASC_LINUX_VERSION(2,1,0)
+ #include <asm/uaccess.h>
+@@ -121,6 +122,40 @@
+ 	NULL			/* smap */
+ };
+ 
++static struct file_operations fat_file_operations_readpage = {
++	NULL,			/* lseek - default */
++	fat_file_read,		/* read */
++	fat_file_write,		/* write */
++	NULL,			/* readdir - bad */
++	NULL,			/* select - default */
++	NULL,			/* ioctl - default */
++	generic_file_mmap,	/* mmap */
++	NULL,			/* no special open is needed */
++	NULL,			/* release */
++	file_fsync		/* fsync */
++};
++
++struct inode_operations fat_file_inode_operations_readpage = {
++	&fat_file_operations_readpage,	/* default file operations */
++	NULL,			/* create */
++	NULL,			/* lookup */
++	NULL,			/* link */
++	NULL,			/* unlink */
++	NULL,			/* symlink */
++	NULL,			/* mkdir */
++	NULL,			/* rmdir */
++	NULL,			/* mknod */
++	NULL,			/* rename */
++	NULL,			/* readlink */
++	NULL,			/* follow_link */
++	fat_readpage,		/* readpage */
++	NULL,			/* writepage */
++	NULL,			/* bmap */
++	fat_truncate,		/* truncate */
++	NULL,			/* permission */
++	NULL			/* smap */
++};
++
+ #define MSDOS_PREFETCH	32
+ struct fat_pre {
+ 	int file_sector;/* Next sector to read in the prefetch table */
+@@ -183,6 +218,10 @@
+ 		printk("fat_file_read: inode = NULL\n");
+ 		return -EINVAL;
+ 	}
++        if(MSDOS_SB(sb)->cvf_format)
++          if(MSDOS_SB(sb)->cvf_format->cvf_file_read)
++            return MSDOS_SB(sb)->cvf_format->cvf_file_read(inode,filp,buf,count);
++ 
+ 	/* S_ISLNK allows for UMSDOS. Should never happen for normal MSDOS */
+ 	if (!S_ISREG(inode->i_mode) && !S_ISLNK(inode->i_mode)) {
+ 		printk("fat_file_read: mode = %07o\n",inode->i_mode);
+@@ -305,6 +344,10 @@
+ 		printk("fat_file_write: inode = NULL\n");
+ 		return -EINVAL;
+ 	}
++        if(MSDOS_SB(sb)->cvf_format)
++          if(MSDOS_SB(sb)->cvf_format->cvf_file_write)
++            return MSDOS_SB(sb)->cvf_format->cvf_file_write(inode,filp,buf,count);
++
+ 	/* S_ISLNK allows for UMSDOS. Should never happen for normal MSDOS */
+ 	if (!S_ISREG(inode->i_mode) && !S_ISLNK(inode->i_mode)) {
+ 		printk("fat_file_write: mode = %07o\n",inode->i_mode);
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/fat/inode.c linux-2.0.33-cyrix-patched-fat32-test/fs/fat/inode.c
+--- linux-2.0.33-cyrix-patched-fat32/fs/fat/inode.c	Sun Jan  4 11:55:32 1998
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/fat/inode.c	Sun Jan  4 12:31:18 1998
+@@ -22,6 +22,7 @@
+ #include <linux/stat.h>
+ #include <linux/locks.h>
+ #include <linux/malloc.h>
++#include <linux/fat_cvf.h>
+ 
+ #include "msbuffer.h"
+ 
+@@ -88,6 +89,10 @@
+ 
+ void fat_put_super(struct super_block *sb)
+ {
++	if(MSDOS_SB(sb)->cvf_format)
++	{ dec_cvf_format_use_count_by_version(MSDOS_SB(sb)->cvf_format->cvf_version);
++	  MSDOS_SB(sb)->cvf_format->unmount_cvf(sb);
++	}
+ 	if (MSDOS_SB(sb)->fat_bits == 32) {
+ 		fat_clusters_flush(sb);
+ 	}
+@@ -113,7 +118,8 @@
+ 
+ 
+ static int parse_options(char *options,int *fat, int *blksize, int *debug,
+-			 struct fat_mount_options *opts)
++			 struct fat_mount_options *opts,
++			 char* cvf_format, char*cvf_options)
+ {
+ 	char *this_char,*value,save,*savep;
+ 	char *p;
+@@ -239,6 +245,16 @@
+ 				ret = 0;
+ 			}
+ 		}
++                else if (!strcmp(this_char,"cvf_format")) {
++                        if (!value)
++                                return 0;
++                        strncpy(cvf_format,value,20);
++                }
++                else if (!strcmp(this_char,"cvf_options")) {
++                        if (!value)
++                                return 0;
++                        strncpy(cvf_options,value,100);
++                }
+ 
+ 		if (this_char != options) *(this_char-1) = ',';
+ 		if (value) *savep = save;
+@@ -261,6 +277,14 @@
+ 	struct fat_mount_options opts;
+ 	char buf[50];
+ 	char *p;
++	int i;
++	char cvf_format[21];
++	char cvf_options[101];
++
++	cvf_format[0]='\0';
++	cvf_options[0]='\0';
++	MSDOS_SB(sb)->cvf_format=NULL;
++	MSDOS_SB(sb)->private_data=NULL;
+ 
+ 	MOD_INC_USE_COUNT;
+ 	if (hardsect_size[MAJOR(sb->s_dev)] != NULL){
+@@ -270,7 +294,8 @@
+ 		}
+ 	}
+ 	opts.isvfat = MSDOS_SB(sb)->options.isvfat;
+-	if (!parse_options((char *) data, &fat, &blksize, &debug, &opts)
++	if (!parse_options((char *) data, &fat, &blksize, &debug, &opts,
++	    cvf_format, cvf_options)
+ 		|| (blksize != 512 && blksize != 1024)) {
+ 		sb->s_dev = 0;
+ 		MOD_DEC_USE_COUNT;
+@@ -375,6 +400,9 @@
+ 				/* because clusters (DOS) are often aligned */
+ 				/* on odd sectors. */
+ 	sb->s_blocksize_bits = blksize == 512 ? 9 : 10;
++	if(!strcmp(cvf_format,"none"))i=-1;
++	else i=detect_cvf(sb,cvf_format);
++	if(i>=0)error=cvf_formats[i]->mount_cvf(sb,cvf_options);
+ 	if (error || debug) {
+ 		/* The MSDOS_CAN_BMAP is obsolete, but left just to remember */
+ 		printk("[MS-DOS FS Rel. 12,FAT %d,check=%c,conv=%c,"
+@@ -392,13 +420,15 @@
+ 		       MSDOS_SB(sb)->root_cluster,MSDOS_SB(sb)->free_clusters);
+ 		printk ("Transaction block size = %d\n",blksize);
+ 	}
+-	if (MSDOS_SB(sb)->clusters+2 > fat_clusters)
++	if(i<0) if (MSDOS_SB(sb)->clusters+2 > fat_clusters)
+ 		MSDOS_SB(sb)->clusters = fat_clusters-2;
+ 	if (error) {
+ 		if (!silent)
+ 			printk("VFS: Can't find a valid MSDOS filesystem on dev "
+ 			       "%s.\n", kdevname(sb->s_dev));
+ 		sb->s_dev = 0;
++		if(MSDOS_SB(sb)->private_data)kfree(MSDOS_SB(sb)->private_data);
++		MSDOS_SB(sb)->private_data=NULL;
+ 		MOD_DEC_USE_COUNT;
+ 		return NULL;
+ 	}
+@@ -419,6 +449,8 @@
+ 			MSDOS_SB(sb)->nls_disk = load_nls_default();
+ 		} else {
+ 			sb->s_dev = 0;
++			if(MSDOS_SB(sb)->private_data)kfree(MSDOS_SB(sb)->private_data);
++			MSDOS_SB(sb)->private_data=NULL;
+ 			MOD_DEC_USE_COUNT;
+ 			return NULL;
+ 		}
+@@ -433,6 +465,8 @@
+ 				kfree(opts.iocharset);
+ 				unload_nls(MSDOS_SB(sb)->nls_disk);
+ 				sb->s_dev = 0;
++				if(MSDOS_SB(sb)->private_data)kfree(MSDOS_SB(sb)->private_data);
++				MSDOS_SB(sb)->private_data=NULL;
+ 				MOD_DEC_USE_COUNT;
+ 				return NULL;
+ 			} else {
+@@ -447,9 +481,16 @@
+ 		unload_nls(MSDOS_SB(sb)->nls_disk);
+ 		if (MSDOS_SB(sb)->nls_io) unload_nls(MSDOS_SB(sb)->nls_io);
+ 		if (opts.iocharset) kfree(opts.iocharset);
++		if(MSDOS_SB(sb)->private_data)kfree(MSDOS_SB(sb)->private_data);
++		MSDOS_SB(sb)->private_data=NULL;
+ 		MOD_DEC_USE_COUNT;
+ 		return NULL;
+ 	}
++	
++	if(i>=0)
++	{ MSDOS_SB(sb)->cvf_format=cvf_formats[i];
++	  ++cvf_format_use_count[i];
++	}
+ 
+ 	return sb;
+ }
+@@ -459,7 +500,13 @@
+ {
+ 	int free,nr;
+ 	struct statfs tmp;
+-
++       
++        if(MSDOS_SB(sb)->cvf_format)
++          if(MSDOS_SB(sb)->cvf_format->cvf_statfs)
++          { MSDOS_SB(sb)->cvf_format->cvf_statfs(sb,buf,bufsiz);
++            return;
++          }
++          
+ 	lock_fat(sb);
+ 	if (MSDOS_SB(sb)->free_clusters != -1)
+ 		free = MSDOS_SB(sb)->free_clusters;
+@@ -488,6 +535,10 @@
+ 	int cluster,offset;
+ 
+ 	sb = MSDOS_SB(inode->i_sb);
++	if(sb->cvf_format)
++	  if(sb->cvf_format->cvf_bmap)
++	    return sb->cvf_format->cvf_bmap(inode,block);
++	
+ 	if ((inode->i_ino == MSDOS_ROOT_INO) && (sb->fat_bits != 32)) {
+ 		return sb->dir_start + block;
+ 	}
+@@ -600,7 +651,12 @@
+ 		       !is_exec(raw_entry->ext)))
+ 		    	? S_IRUGO|S_IWUGO : S_IRWXUGO)
+ 		    & ~MSDOS_SB(sb)->options.fs_umask) | S_IFREG;
+-		inode->i_op = (sb->s_blocksize == 1024)
++		if(MSDOS_SB(sb)->cvf_format)
++		  inode->i_op = (MSDOS_SB(sb)->cvf_format->flags&CVF_USE_READPAGE)
++			? &fat_file_inode_operations_readpage
++			: &fat_file_inode_operations_1024;
++		else
++		  inode->i_op = (sb->s_blocksize == 1024)
+ 			? &fat_file_inode_operations_1024
+ 			: &fat_file_inode_operations;
+ 		MSDOS_I(inode)->i_start = CF_LE_W(raw_entry->start);
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/fat/misc.c linux-2.0.33-cyrix-patched-fat32-test/fs/fat/misc.c
+--- linux-2.0.33-cyrix-patched-fat32/fs/fat/misc.c	Sun Jan  4 11:55:32 1998
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/fat/misc.c	Sun Jan  4 11:59:56 1998
+@@ -225,6 +225,10 @@
+ #endif
+ 	sector = MSDOS_SB(sb)->data_start+(nr-2)*cluster_size;
+ 	last_sector = sector + cluster_size;
++	if(MSDOS_SB(sb)->cvf_format&&
++	  MSDOS_SB(sb)->cvf_format->zero_out_cluster)
++	    MSDOS_SB(sb)->cvf_format->zero_out_cluster(inode,nr);
++	else
+ 	for ( ; sector < last_sector; sector++) {
+ 		#ifdef DEBUG
+ 			printk("zeroing sector %d\n",sector);
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/fat/mmap.c linux-2.0.33-cyrix-patched-fat32-test/fs/fat/mmap.c
+--- linux-2.0.33-cyrix-patched-fat32/fs/fat/mmap.c	Sun Jan  4 11:55:32 1998
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/fat/mmap.c	Sun Jan  4 11:59:56 1998
+@@ -100,6 +100,9 @@
+  */
+ int fat_mmap(struct inode * inode, struct file * file, struct vm_area_struct * vma)
+ {
++	if(MSDOS_SB(inode->i_sb)->cvf_format)
++	  if(MSDOS_SB(inode->i_sb)->cvf_format->cvf_mmap)
++	    return MSDOS_SB(inode->i_sb)->cvf_format->cvf_mmap(inode,file,vma);
+ 	if (vma->vm_flags & VM_SHARED)	/* only PAGE_COW or read-only supported now */
+ 		return -EINVAL;
+ 	if (vma->vm_offset & (inode->i_sb->s_blocksize - 1))
+@@ -117,4 +120,12 @@
+ 	return 0;
+ }
+ 
++int fat_readpage(struct inode * inode, struct page * page)
++{
++	if(MSDOS_SB(inode->i_sb)->cvf_format)
++	  if(MSDOS_SB(inode->i_sb)->cvf_format->cvf_readpage)
++	    return MSDOS_SB(inode->i_sb)->cvf_format->cvf_readpage(inode,page);
+ 
++	printk("fat_readpage called with no handler (shouldn't happen)\n");
++	return -1;
++}
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/umsdos/emd.c linux-2.0.33-cyrix-patched-fat32-test/fs/umsdos/emd.c
+--- linux-2.0.33-cyrix-patched-fat32/fs/umsdos/emd.c	Wed Feb  7 08:39:29 1996
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/umsdos/emd.c	Sun Jan  4 11:59:56 1998
+@@ -32,6 +32,7 @@
+ 	int ret;
+ 	int old_fs = get_fs();	
+ 	set_fs (KERNEL_DS);
++	MSDOS_I(inode)->i_binary=2;
+ 	ret = fat_file_read(inode,filp,buf,count);
+ 	set_fs (old_fs);
+ 	return ret;
+@@ -48,6 +49,7 @@
+ 	int ret;
+ 	int old_fs = get_fs();
+ 	set_fs (KERNEL_DS);
++	MSDOS_I(inode)->i_binary=2;
+ 	ret = fat_file_write(inode,filp,buf,count);
+ 	set_fs (old_fs);
+ 	return ret;
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/umsdos/file.c linux-2.0.33-cyrix-patched-fat32-test/fs/umsdos/file.c
+--- linux-2.0.33-cyrix-patched-fat32/fs/umsdos/file.c	Tue Feb 20 09:28:13 1996
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/umsdos/file.c	Sun Jan  4 11:59:56 1998
+@@ -129,3 +129,38 @@
+ 	NULL,			/* smap */
+ };
+ 
++/* For other with larger and unaligned file system with readpage */
++struct file_operations umsdos_file_operations_readpage = {
++	NULL,				/* lseek - default */
++	UMSDOS_file_read,	/* read */
++	UMSDOS_file_write,	/* write */
++	NULL,				/* readdir - bad */
++	NULL,				/* select - default */
++	NULL,				/* ioctl - default */
++	generic_file_mmap,		/* mmap */
++	NULL,				/* no special open is needed */
++	NULL,				/* release */
++	file_fsync			/* fsync */
++};
++
++struct inode_operations umsdos_file_inode_operations_readpage = {
++	&umsdos_file_operations_readpage,	/* default file operations */
++	NULL,			/* create */
++	NULL,			/* lookup */
++	NULL,			/* link */
++	NULL,			/* unlink */
++	NULL,			/* symlink */
++	NULL,			/* mkdir */
++	NULL,			/* rmdir */
++	NULL,			/* mknod */
++	NULL,			/* rename */
++	NULL,			/* readlink */
++	NULL,			/* follow_link */
++	fat_readpage,		/* readpage */
++	NULL,			/* writepage */
++	NULL,			/* bmap */
++	UMSDOS_truncate,/* truncate */
++	NULL,			/* permission */
++	NULL,			/* smap */
++};
++
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/umsdos/inode.c linux-2.0.33-cyrix-patched-fat32-test/fs/umsdos/inode.c
+--- linux-2.0.33-cyrix-patched-fat32/fs/umsdos/inode.c	Sat Nov 30 11:21:22 1996
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/umsdos/inode.c	Sun Jan  4 11:59:56 1998
+@@ -149,11 +149,20 @@
+ 	if (!umsdos_isinit(inode)){
+ 		inode->u.umsdos_i.i_emd_dir = 0;
+ 		if (S_ISREG(inode->i_mode)){
++		    if (MSDOS_SB(inode->i_sb)->cvf_format){
++			if (MSDOS_SB(inode->i_sb)->cvf_format->flags
++			    &CVF_USE_READPAGE){
++				inode->i_op = &umsdos_file_inode_operations_readpage;
++			}else{
++				inode->i_op = &umsdos_file_inode_operations_no_bmap;
++			}
++		    } else {
+ 			if (inode->i_op->bmap != NULL){
+ 				inode->i_op = &umsdos_file_inode_operations;
+ 			}else{
+ 				inode->i_op = &umsdos_file_inode_operations_no_bmap;
+ 			}
++		    }
+ 		}else if (S_ISDIR(inode->i_mode)){
+ 			if (dir != NULL){
+ 				umsdos_setup_dir_inode(inode);
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/fs/umsdos/ioctl.c linux-2.0.33-cyrix-patched-fat32-test/fs/umsdos/ioctl.c
+--- linux-2.0.33-cyrix-patched-fat32/fs/umsdos/ioctl.c	Wed Jul  3 15:39:48 1996
++++ linux-2.0.33-cyrix-patched-fat32-test/fs/umsdos/ioctl.c	Sun Jan  4 11:59:56 1998
+@@ -60,6 +60,21 @@
+ {
+ 	int ret = -EPERM;
+ 	int err;
++	
++	/* forward non-umsdos ioctls - this hopefully doesn't cause conflicts */
++	if(cmd!=UMSDOS_GETVERSION
++	   &&cmd!=UMSDOS_READDIR_DOS
++	   &&cmd!=UMSDOS_READDIR_EMD
++	   &&cmd!=UMSDOS_INIT_EMD
++	   &&cmd!=UMSDOS_CREAT_EMD
++	   &&cmd!=UMSDOS_RENAME_DOS
++	   &&cmd!=UMSDOS_UNLINK_EMD
++	   &&cmd!=UMSDOS_UNLINK_DOS
++	   &&cmd!=UMSDOS_RMDIR_DOS
++	   &&cmd!=UMSDOS_STAT_DOS
++	   &&cmd!=UMSDOS_DOS_SETUP)
++              return fat_dir_ioctl(dir,filp,cmd,data);
++              
+ 	/* #Specification: ioctl / acces
+ 		Only root (effective id) is allowed to do IOCTL on directory
+ 		in UMSDOS. EPERM is returned for other user.
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/include/linux/fat_cvf.h linux-2.0.33-cyrix-patched-fat32-test/include/linux/fat_cvf.h
+--- linux-2.0.33-cyrix-patched-fat32/include/linux/fat_cvf.h	Thu Jan  1 01:00:00 1970
++++ linux-2.0.33-cyrix-patched-fat32-test/include/linux/fat_cvf.h	Sun Jan  4 11:59:56 1998
+@@ -0,0 +1,55 @@
++#ifndef _FAT_CVF
++#define _FAT_CVF
++
++#define CVF_USE_READPAGE  0x0001
++
++struct cvf_format
++{ int cvf_version;
++  char* cvf_version_text;
++  unsigned long flags;
++  int (*detect_cvf) (struct super_block*sb);
++  int (*mount_cvf) (struct super_block*sb,char*options);
++  int (*unmount_cvf) (struct super_block*sb);
++  struct buffer_head* (*cvf_bread) (struct super_block*sb,int block);
++  struct buffer_head* (*cvf_getblk) (struct super_block*sb,int block);
++  void (*cvf_brelse) (struct super_block *sb,struct buffer_head *bh);
++  void (*cvf_mark_buffer_dirty) (struct super_block *sb,
++                              struct buffer_head *bh,
++                              int dirty_val);
++  void (*cvf_set_uptodate) (struct super_block *sb,
++                         struct buffer_head *bh,
++                         int val);
++  int (*cvf_is_uptodate) (struct super_block *sb,struct buffer_head *bh);
++  void (*cvf_ll_rw_block) (struct super_block *sb,
++                        int opr,
++                        int nbreq,
++                        struct buffer_head *bh[32]);
++  int (*fat_access) (struct super_block *sb,int nr,int new_value);
++  void (*cvf_statfs) (struct super_block *sb,struct statfs *buf, int bufsiz);
++  int (*cvf_bmap) (struct inode *inode,int block);
++  int (*cvf_smap) (struct inode *inode,int sector);
++  int (*cvf_file_read) ( struct inode *inode,
++                     struct file *filp,
++                     char *buf,
++                     int count);
++  int (*cvf_file_write) ( struct inode *inode,
++                      struct file *filp,
++                      const char *buf,
++                      int count);
++  int (*cvf_mmap) (struct inode*, struct file *, struct vm_area_struct *);
++  int (*cvf_readpage) (struct inode *, struct page *);
++  int (*cvf_writepage) (struct inode *, struct page *);
++  int (*cvf_dir_ioctl) (struct inode * inode, struct file * filp,
++                        unsigned int cmd, unsigned long arg);
++  void (*zero_out_cluster) (struct inode*, int clusternr);
++};
++
++int register_cvf_format(struct cvf_format*cvf_format);
++int unregister_cvf_format(struct cvf_format*cvf_format);
++void dec_cvf_format_use_count_by_version(int version);
++int detect_cvf(struct super_block*sb,char*force);
++
++extern struct cvf_format *cvf_formats[];
++extern int cvf_format_use_count[];
++
++#endif
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/include/linux/msdos_fs.h linux-2.0.33-cyrix-patched-fat32-test/include/linux/msdos_fs.h
+--- linux-2.0.33-cyrix-patched-fat32/include/linux/msdos_fs.h	Sun Jan  4 11:55:33 1998
++++ linux-2.0.33-cyrix-patched-fat32-test/include/linux/msdos_fs.h	Sun Jan  4 12:40:48 1998
+@@ -246,12 +246,14 @@
+ /* file.c */
+ extern struct inode_operations fat_file_inode_operations;
+ extern struct inode_operations fat_file_inode_operations_1024;
++extern struct inode_operations fat_file_inode_operations_readpage;
+ extern int fat_file_read(struct inode *, struct file *, char *, int);
+ extern int fat_file_write(struct inode *, struct file *, const char *, int);
+ extern void fat_truncate(struct inode *inode);
+ 
+ /* mmap.c */
+ extern int fat_mmap(struct inode *, struct file *, struct vm_area_struct *);
++extern int fat_readpage(struct inode *, struct page *);
+ 
+ 
+ /* vfat.c */
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/include/linux/msdos_fs_sb.h linux-2.0.33-cyrix-patched-fat32-test/include/linux/msdos_fs_sb.h
+--- linux-2.0.33-cyrix-patched-fat32/include/linux/msdos_fs_sb.h	Sun Jan  4 11:55:33 1998
++++ linux-2.0.33-cyrix-patched-fat32-test/include/linux/msdos_fs_sb.h	Sun Jan  4 12:02:05 1998
+@@ -1,5 +1,6 @@
+ #ifndef _MSDOS_FS_SB
+ #define _MSDOS_FS_SB
++#include<linux/fat_cvf.h>
+ 
+ /*
+  * MS-DOS file system in-core superblock data
+@@ -46,6 +47,8 @@
+ 	struct fat_mount_options options;
+ 	struct nls_table *nls_disk;  /* Codepage used on disk */
+ 	struct nls_table *nls_io;    /* Charset used for input and display */
++	struct cvf_format* cvf_format;
++	void* private_data;	
+ };
+ 
+ #endif
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/include/linux/umsdos_fs.h linux-2.0.33-cyrix-patched-fat32-test/include/linux/umsdos_fs.h
+--- linux-2.0.33-cyrix-patched-fat32/include/linux/umsdos_fs.h	Tue Dec 23 22:50:14 1997
++++ linux-2.0.33-cyrix-patched-fat32-test/include/linux/umsdos_fs.h	Sun Jan  4 12:40:48 1998
+@@ -135,6 +135,7 @@
+ extern struct file_operations  umsdos_file_operations;
+ extern struct inode_operations umsdos_file_inode_operations;
+ extern struct inode_operations umsdos_file_inode_operations_no_bmap;
++extern struct inode_operations umsdos_file_inode_operations_readpage;
+ extern struct inode_operations umsdos_symlink_inode_operations;
+ extern int init_umsdos_fs(void);
+ 
+diff -u -r -N linux-2.0.33-cyrix-patched-fat32/kernel/ksyms.c linux-2.0.33-cyrix-patched-fat32-test/kernel/ksyms.c
+--- linux-2.0.33-cyrix-patched-fat32/kernel/ksyms.c	Sun Jan  4 11:55:33 1998
++++ linux-2.0.33-cyrix-patched-fat32-test/kernel/ksyms.c	Sun Jan  4 11:59:56 1998
+@@ -124,6 +124,9 @@
+ 	X(do_mmap),
+ 	X(do_munmap),
+ 	X(exit_mm),
++	X(exit_sighand),
++	X(exit_fs),
++	X(exit_files),
+ 
+ 	/* internal kernel memory management */
+ 	X(__get_free_pages),

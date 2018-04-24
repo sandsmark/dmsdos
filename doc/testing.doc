@@ -1,0 +1,68 @@
+
+Testing of read access with Dosemu
+==================================
+
+
+I describe the method I use for my drives, you may need to change some names.
+I have a DOS filesystem on /dev/hda1, I usually mount it on /DOS.
+This drive is seen as c: from DOS when starting.
+Stacvol file is c:stacvol.dsk. When config.sys is executed
+stacvol.dsk is swapped and becomes c: and old c: is d:.
+
+Prepare dmsdos package in /usr/local/src/dmsdos-x.y.z/src
+  rmmod dmsdos      # for changes from next compilation
+  make clean
+  make
+  insmod dmsdos
+  cd /DOS
+  mount -r -t msdos -o loop stacvol.dsk /mnt  # important: mount READ-ONLY!!!
+
+Now you should see the root of your DOS drive in /DOS directory and
+under /mnt the root of your stacker drive.
+In the syslog you can see the parameters of all mounted stacker drives.
+If you have dutil compiled, you can proceed the next test
+
+  dutil /mnt checkfs
+
+If there are errors you can see them in the syslog as DMSDOS: ...
+Now you can make the read test.
+Configure Dosemu for readonly access to the full hard drive or partition.
+
+  disk { partition "/dev/hda1" readonly }  # must be first to boot from it
+  disk { image "/var/lib/dosemu/hdimage" } # or something similar
+	# you need this to have access to dosemu utilities
+
+You must include somewhere in config.sys line
+
+  device=<hdimage_drive>:\emufs.sys /
+
+Now run Dosemu by command
+
+  dos -C
+
+If it does not work try to find out if stacker can see its stackvols.
+There may be differences if you have some other organization of the drives
+under DOS. 
+Now you can see or change redirections to the Linux filesystem
+
+  <hdimage_drive>:lredir 
+
+For comparing you can use the dos utility cmpdisk.exe, which tries read all
+files from two drives. One should be the drive managed by regular
+dos stacker and the second by the Linux dmsdos driver.
+
+  cd <stac_drive>:\
+  cd <redirected_linux_drive>:\mnt
+  cmpdisk <stac_drive>: <redirected_linux_drive>:
+
+If some file is read differently from one drive, cmpdisk waits
+for a keystroke. Then it continues. Parameters of cmpdisk can
+be in form:
+
+  <drive_letter>:[\]<directory>\ 
+
+for example
+
+  E:\mnt\
+
+Any differences are suspected to be dmsdos bugs!

@@ -1,0 +1,169 @@
+
+List of CVF-FAT diffs
+---------------------
+
+Well, as always be careful with diffs. Nobody knows whether they always
+apply correctly. Praise yourself lucky if you see errors on the screen -
+then at least you know that the patch failed. :)
+
+However, I've seen patches applying without errors, but changing code at 
+the wrong place, even creating syntactically correct but senseless
+and not well working code. (For example, this happens for a small part of
+the patches if you use the plain 2.0.33 diff here for a fat32 patched
+2.0.33 kernel or a 2.1.76 kernel. Argh. It's almost impossible to find
+and repair such an error if you haven't written the code yourself.)
+
+So do at least the usual security steps. It's best to get a fresh kernel
+from the net (*not* upgrading by patches). But sometimes you need some
+patches (for example, the cyrix patches that tell a cyrix cpu to keep cool 
+in a hot environment :-) ). Ensure:
+
+  A. Before applying a patch:
+
+     1. Copy your complete kernel sources to another place, and operate
+        only on this test copy, e.g.
+
+          cp -a /usr/src/linux-x.y.z /usr/src/linux-x.y.z-test
+          cd /usr/src/linux-x.y.z-test
+
+     2. Remove all patch related files in the kernel sources, e.g.
+
+          find . -name "*.orig" -exec rm {} \;
+          find . -name "*.rej" -exec rm {} \;
+
+  B. Apply the patches you need. Order is important.
+
+     1. Look at the first lines of the diff. There's very likely a complete
+        path in the filenames. If it begins with "linux..." you need the
+        option -p1, if it begins with "/usr/src/linux..." you need -p3 or
+        -p0 (you'll see). If the option is wrong or the number behind -p is
+        wrong, patch will display a prompt like "file to patch?" and wait
+        for your answer, which should be CTRL-C in that case :-). Okay:
+
+          patch -p1 < your-favorite-diff
+
+     2. After applying each patch, watch for reject files, e.g.
+
+          find . -name "*.rej" -print
+
+        If there are any, then the patch failed. You must repair it manually
+        now or you can give up completely. If you dare to repair it, take
+        a look at the *.rej files and try to find out what should have been
+        changed in the sources but couldn't be changed for some reasons.
+     
+        Just note, you *cannot* continue if any "*.rej" file is present and
+        the problem is not fixed manually. You will have messed up kernel
+        sources that won't work or won't even compile.
+
+     3. After applying the patch and eventually fixing problems manually
+        remove all patch related files in the kernel sources, e.g.
+
+          find . -name "*.orig" -exec rm {} \;
+          find . -name "*.rej" -exec rm {} \;
+
+     4. Then apply the next patch (if you need), and so on.
+
+  C. Recompile the kernel from scratch. Don't install it yet. Watch for
+     errors and warnings that were not present before:
+
+         make mrproper (this is not always needed, but if problems arise
+                        without it, try again starting here)
+         make config   (this is also not always needed)
+         make dep
+         make clean
+         make zImage
+         make modules
+       
+     Okay, if everything succeeded, you might want to give it a try.
+     It's best to use a boot disk for the first test ('make zdisk'), but
+     if your configuration is highly modular this won't be enough,
+     so you might not have another choice than doing 'make zlilo' and
+     'make modules_install'. 
+
+     Be sure to have a rescue boot and root floppy (a simple boot disk is
+     not always sufficient). I know most people are lazy and ignore this
+     until "it" happens. I've been lazy too :-) Also be sure to have
+     your old kernel and your old modules handy (if you only operated on
+     your test copy of the kernel, as I recommended above, you have them 
+     still somewhere in the original source tree).
+     
+
+Good luck and happy hacking. :)
+
+
+----------------------------------------------------------------------------
+
+cvf.diff-2.0.33
+
+  This is a diff was generated against a cyrix-patched 2.0.33 kernel (I need
+  cyrix support, so don't ask me to leave it out). This shouldn't matter as
+  the cyrix patches don't affect filesystem code. So just don't wonder why
+  the paths in that patch include the name 'cyrix-patched'. Of course, the
+  diff does not contain the cyrix patches itself :)
+
+  This diff has been tested thoroughly and found to work with a plain 2.0.33 
+  kernel.
+
+  If you are using the uvfat patches, uvfat will not work correctly on CVFs
+  (it cannot since some wrappers must be patched in). You must additionally
+  apply the cvf-uvfat.diff-2.0.33 patch.
+  
+  This patch does not work for fat32 support. Try the next one instead :)
+  This patch also fails for Linux 2.0.34 and newer. Try the next one in this 
+  case.
+
+cvf.diff-2.0.33+fat32-0.2.8
+cvf.diff-2.0.34 (link to same file)
+
+  This diff was generated against a cyrix-patched and fat32-patched 2.0.33 
+  kernel. It works also with a 2.0.33 kernel that is only fat32-patched.
+  The fat32 version used is 0.2.8. 
+
+  Please don't misunderstand. This diff does *not* include fat32 support 
+  itself. It only works against a kernel that has already been patched for
+  fat32 support.
+
+  This patch has also been tested against the new 2.0.34 and 2.0.35 kernels
+  and found to work without problems :) It should also work with 2.0.36 
+  which is currently prepared by Alan Cox.
+
+cvf-uvfat.diff-2.0.33
+
+  This diff changes the uvfat filesystem so it works properly on CVFs.
+  Changes are minimal. This diff does not contain the uvfat patches itself.
+ 
+  What uvfat is? Look:
+      uvfat : umsdos == vfat : msdos
+  Search the net for more information. There's a uvfat homepage:
+  http://lab1.psy.univie.ac.at/~michael/uvfat.html
+
+  This diff must be applied *after* the uvfat patch and *after* the 
+  cvf.diff-2.0.33 patch (or cvf.diff-2.0.33+fat32-0.2.8 - depending on what
+  you need). Note that the uvfat patches caused a reject file when I tried 
+  (fs/Makefile.rej), so be sure to check. The problem was because there was
+  autofs added in linux 2.0.31, and plain uvfat is against kernel 2.0.28. 
+  Just add the text uvfat to the list in Makefile, and it works. As far as 
+  I know, there's no uvfat update for newer (2.1.xx with xx>80) kernels.
+
+  Okay, step by step, this is what I have done, and it worked for me:
+
+  1. Get linux 2.0.33 sources and unpack.
+  2. Patch in linux-2.0.28-uvfat-0.1.diff.
+  3. Repair the rejected file fs/Makefile.
+  4. Patch in cvf.diff-2.0.33.
+  5. Patch in this patch.
+
+kerneld-autoload.diff
+
+  This diff makes kerneld load the dmsdos module if it is required.
+  Apply it after all other diffs. The diff works for all currently
+  known kernels that work with dmsdos :)
+
+  NOTE: If you previously hacked linux/fs/fat/inode.c as described in the
+  documentation of older dmsdos releases please restore the original
+  inode.c before. Changing inode.c is no longer recommended.
+
+--------------------------------------------------------------------------
+
+Well, are there other useful extensions for the fat based filesystems
+that should be checked whether they work with CVF-FAT ? Just let me know.

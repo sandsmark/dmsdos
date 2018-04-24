@@ -1,0 +1,101 @@
+
+Concerning the relationship between dmsdos and patents I keep receiving mail 
+like this one... 
+
+> In article <pycola.884372545.31697@laulujoutsen.pc.helsinki.fi> you wrote:
+> : dmsdos 0.9.0 has just been released. It supports read and write access to
+> : compressed dos filesystems [...]
+> 
+> I think you should make sure no patents are violated. I am afraid that you
+> MUST get permission to distribute your code. I wish it was impossible
+> to get a software patent, but unfortunately companies do receive these
+> patents. There are many patents in encryption and compression technology!
+> [...]
+> Again, I wish it was possible/legal to write a free variant for every
+> existing commercial variant. Unfortunately it is not always possible.
+
+Let me say some gereral things about this. The patent problem is indeed as 
+old as the first dmsdos version, which was released approximately three 
+years ago.
+
+First, please allow me to correct some statements that are not litterally
+written above, but that sound like a misunderstanding. Dmsdos is not a 
+"free variant" of an "existing commercial variant". Even both "free" and 
+"variant" are wrong. Dmsdos is not free, but copyrighted and distributed 
+under the GPL. 
+
+Dmsdos also is not a "variant" of some commercially available software
+package. It is just a tool that makes it possible to read from and write
+to some variants of compressed dos filesystems. Dmsdos is surely not a
+filesystem compression software package like stacker and doublespace, as 
+such a package needs a lot of more software e.g. all kinds of creation and 
+maintainance tools. I know it would be nice to have them under Linux, but 
+I won't write them for well known reasons.
+
+If you follow the dmsdos history, i.e. the dmsdos documentation of older
+releases, there have always been some comments on the possibility of patent 
+problems mentioned in the documentation, and thus some features users liked
+to have in dmsdos were not implemented. Not because I knew they are 
+forbidden by patent but because I thought they *might* be covered by a 
+patent.
+
+Yes, I did contact the respective companies (no need to say which ones :) )
+for legal issues and, of course, I asked whether they were willing to help 
+developing the code by providing documentation about their filesystem. 
+So what? When I really had luck and got an answer, it was of no value. A 
+stripped down version of one answer was published once in the dmsdos 
+documentation. I removed the name of the company and the name of the person 
+since I didn't want to blame one person. But I wanted to show the level 
+of interest of these companies - on the one hand in support and cooperation,
+and on the other hand in a Linux version of their code. It was absolutely 
+zero.
+
+So I did my own research. It was surely not exhaustive. Patents are things
+for lawyers, but I'm not a lawyer myself and I don't have the money to
+get a bunch of lawyers study all the software patents concerning data 
+compression. Furthermore, I don't earn any penny with dmsdos.
+
+It lead to the result that there are a lot of patented compression
+algorithms. Also the compression algorithms that the original dos software
+uses for filesystem compression are covered by patents. So what. Dmsdos
+doesn't use them. Dmsdos was developed without official documentation, and 
+it turned out that its compression algorithm even reached a higher 
+compression ratio (but was much slower).
+
+I still tried to contact the companies, rarely, but it became more and more 
+boring. I must admit that I gave it up some time ago. I also must admit
+that I didn't add all the patent problem related stuff to the dmsdos
+documentation when I rewrote it some day. I considered it simply dead.
+This implies that some features are still missing in dmsdos and will
+probably never be added because I don't just want to be exposed to the
+risk of violating a software patent and provoking a company owning it.
+The community of dmsdos users on the net seem to have accepted this.
+
+I also must say that dmsdos is not at all fully my own work. I just happen
+to maintain the code currently, and I'm not doing this on my own. The 
+documentation used to implement dmsdos came from a lot of people on the
+net and even from a previous sample implementation(*) that was released under
+the GPL. If you know the GPL you also know that it has a very restrictive
+patent section, so I considered this quite safe.
+
+In fact, the compression and decompression routines in dmsdos are something
+like a collection of parts of free or GPL'd software. Most of them have
+meanwhile been rewritten from scratch for better performance. They use very
+common compression techniques. And you don't receive a patent for something 
+that is well known. You can receive a patent, e.g. for a special, highly 
+optimized algorithm, but, let me repeat this, dmsdos does not use any 
+patented compression algorithms.
+
+So what can I do? Just throw away the dmsdos code and remove it from
+the servers? This is like a snail going back into its house and staying
+there though nothing is happening outside. Just continue trying to contact 
+the companies? I'm bored by their answers if I happen to get one. Sorry.
+Just giving dmsdos maintainance into the hand of someone else? Heh. That 
+would solve the problem probably for me, but not for others.
+
+If you just happen to know more about the patent situation than me, please
+let me know.
+
+
+(*) ftp://sunsite.unc.edu/pub/Linux/system/Filesystems/dosfs/thsfs.tgz
+    written 1994 by Thomas Scheuermann (current email address unknown)

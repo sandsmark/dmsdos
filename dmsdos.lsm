@@ -1,0 +1,35 @@
+Begin3
+Title:		dmsdos
+Version:	0.9.1.5
+Entered-date:	18AUG1998
+Description:	dmsdos: reads and writes compressed dos filesystems (CVF-FAT)
+                * read and write access to compressed partitions (files like 
+                  dblspace.xxx, drvspace.xxx and stacvol.xxx). The following 
+                  configurations are supported:
+                       - DoubleSpace / DriveSpace (msdos 6.x)
+                       - DoubleSpace / DriveSpace (win95)
+                       - DriveSpace 3 (win95 with Plus! pack)
+                       - Stacker 3
+                       - Stacker 4
+                * Works with FAT32, NLS, codepages etc. (tested with fat32 
+                  patches version 0.2.8 under Linux 2.0.33 and with fat32 in
+                  standard 2.1.xx kernels and 2.0.34+35) 
+                * Dmsdos can run together with vfat or umsdos for long
+                  filenames.
+                * Dmsdos has been redesigned to be ready for SMP.
+                * Dmsdos should now compile completely under libc6.
+Keywords:	filesystem compression doublespace drivespace stacker
+Author: 	gockel@sent13.uni-duisburg.de (Frank Gockel)
+                pisa@cvlinux.felk.cvut.cz (Pavel Pisa)
+Maintained-by:	gockel@sent13.uni-duisburg.de (Frank Gockel)
+                pisa@cvlinux.felk.cvut.cz (Pavel Pisa)
+Primary-site:	sunsite.unc.edu /pub/Linux/system/Filesystems/dosfs
+                230 kB dmsdos-0.9.1.5.tgz
+Alternate-site: ftp.uni-stuttgart.de /pub/systems/linux/local/system
+                230 kB dmsdos-0.9.1.5.tgz
+                fb9nt.uni-duisburg.de /pub/linux/dmsdos
+                230 kB dmsdosfs-0.9.1.5.tgz
+Original-site:
+Platforms:	Linux 2.0.xx (xx>=29), 2.1.yy (yy>=94), msdos 6.x, win95
+Copying-policy:	GPL
+End

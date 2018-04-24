@@ -1,0 +1,110 @@
+diff -u -r -N linux-2.0.33-cyrix-patched-uvfat/fs/uvfat/emd.c linux-2.0.33-cyrix-patched-uvfat-test/fs/uvfat/emd.c
+--- linux-2.0.33-cyrix-patched-uvfat/fs/uvfat/emd.c	Sun Jan  4 15:01:56 1998
++++ linux-2.0.33-cyrix-patched-uvfat-test/fs/uvfat/emd.c	Sun Jan  4 15:15:23 1998
+@@ -34,6 +34,7 @@
+ 	int ret;
+ 	int old_fs = get_fs();	
+ 	set_fs (KERNEL_DS);
++	MSDOS_I(inode)->i_binary=2;
+ 	ret = fat_file_read(inode,filp,buf,count);
+ 	set_fs (old_fs);
+ 	return ret;
+@@ -50,6 +51,7 @@
+ 	int ret;
+ 	int old_fs = get_fs();
+ 	set_fs (KERNEL_DS);
++	MSDOS_I(inode)->i_binary=2;
+ 	ret = fat_file_write(inode,filp,buf,count);
+ 	set_fs (old_fs);
+ 	return ret;
+diff -u -r -N linux-2.0.33-cyrix-patched-uvfat/fs/uvfat/file.c linux-2.0.33-cyrix-patched-uvfat-test/fs/uvfat/file.c
+--- linux-2.0.33-cyrix-patched-uvfat/fs/uvfat/file.c	Sun Jan  4 15:01:56 1998
++++ linux-2.0.33-cyrix-patched-uvfat-test/fs/uvfat/file.c	Sun Jan  4 15:18:16 1998
+@@ -131,3 +131,38 @@
+ 	NULL,			/* smap */
+ };
+ 
++/* For other with larger and unaligned file system with readpage */
++struct file_operations uvfat_file_operations_readpage = {
++	NULL,				/* lseek - default */
++	UVFAT_file_read,	/* read */
++	UVFAT_file_write,	/* write */
++	NULL,				/* readdir - bad */
++	NULL,				/* select - default */
++	NULL,				/* ioctl - default */
++	generic_file_mmap,		/* mmap */
++	NULL,				/* no special open is needed */
++	NULL,				/* release */
++	file_fsync			/* fsync */
++};
++
++struct inode_operations uvfat_file_inode_operations_readpage = {
++	&uvfat_file_operations_readpage,	/* default file operations */
++	NULL,			/* create */
++	NULL,			/* lookup */
++	NULL,			/* link */
++	NULL,			/* unlink */
++	NULL,			/* symlink */
++	NULL,			/* mkdir */
++	NULL,			/* rmdir */
++	NULL,			/* mknod */
++	NULL,			/* rename */
++	NULL,			/* readlink */
++	NULL,			/* follow_link */
++	fat_readpage,		/* readpage */
++	NULL,			/* writepage */
++	NULL,			/* bmap */
++	UVFAT_truncate,/* truncate */
++	NULL,			/* permission */
++	NULL,			/* smap */
++};
++
+diff -u -r -N linux-2.0.33-cyrix-patched-uvfat/fs/uvfat/inode.c linux-2.0.33-cyrix-patched-uvfat-test/fs/uvfat/inode.c
+--- linux-2.0.33-cyrix-patched-uvfat/fs/uvfat/inode.c	Sun Jan  4 15:01:56 1998
++++ linux-2.0.33-cyrix-patched-uvfat-test/fs/uvfat/inode.c	Sun Jan  4 15:22:33 1998
+@@ -165,11 +165,20 @@
+ 	if (!uvfat_isinit(inode)){
+ 		inode->u.uvfat_i.i_emd_dir = 0;
+ 		if (S_ISREG(inode->i_mode)){
++		    if (MSDOS_SB(inode->i_sb)->cvf_format){
++			if (MSDOS_SB(inode->i_sb)->cvf_format->flags
++			                         &CVF_USE_READPAGE){
++				inode->i_op = &uvfat_file_inode_operations_readpage;
++			}else{
++				inode->i_op = &uvfat_file_inode_operations_no_bmap;
++			}
++		    }else{
+ 			if (inode->i_op->bmap != NULL){
+ 				inode->i_op = &uvfat_file_inode_operations;
+ 			}else{
+ 				inode->i_op = &uvfat_file_inode_operations_no_bmap;
+ 			}
++		    }
+ 		}else if (S_ISDIR(inode->i_mode)){
+ 			if (dir != NULL){
+ 				uvfat_setup_dir_inode(inode);
+diff -u -r -N linux-2.0.33-cyrix-patched-uvfat/fs/uvfat/ioctl.c linux-2.0.33-cyrix-patched-uvfat-test/fs/uvfat/ioctl.c
+--- linux-2.0.33-cyrix-patched-uvfat/fs/uvfat/ioctl.c	Sun Jan  4 15:01:56 1998
++++ linux-2.0.33-cyrix-patched-uvfat-test/fs/uvfat/ioctl.c	Sun Jan  4 15:24:41 1998
+@@ -62,6 +62,21 @@
+ {
+ 	int ret = -EPERM;
+ 	int err;
++	
++	/* forward non-uvfat ioctls - this hopefully doesn't cause conflicts */
++	if(cmd!=UVFAT_GETVERSION
++	   &&cmd!=UVFAT_READDIR_DOS
++	   &&cmd!=UVFAT_READDIR_EMD
++	   &&cmd!=UVFAT_INIT_EMD
++	   &&cmd!=UVFAT_CREAT_EMD
++	   &&cmd!=UVFAT_RENAME_DOS
++	   &&cmd!=UVFAT_UNLINK_EMD
++	   &&cmd!=UVFAT_UNLINK_DOS
++	   &&cmd!=UVFAT_RMDIR_DOS
++	   &&cmd!=UVFAT_STAT_DOS
++	   &&cmd!=UVFAT_DOS_SETUP)
++              return fat_dir_ioctl(dir,filp,cmd,data);
++              
+ 	/* #Specification: ioctl / acces
+ 		Only root (effective id) is allowed to do IOCTL on directory
+ 		in UVFAT. EPERM is returned for other user.

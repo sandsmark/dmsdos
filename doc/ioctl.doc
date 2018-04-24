@@ -1,0 +1,199 @@
+DMSDOS ioctl commands (outdated.... newers are missing here)
+
+*****************************************************************************
+WARNING: INFORMATION IN THIS FILE IS OUTDATED AND PARTIALLY WRONG. SEE THE
+         DMSDOS UTILITIES SOURCE CODE FOR PROGRAMMING EXAMPLES.
+
+         When I have enough time I write better documentation.....
+*****************************************************************************
+
+Example code:
+
+  #include<stdio.h>
+  #include<linux/dmsdos_fs.h>
+  #include<sys/ioctl.h>
+  #include<sys/types.h>
+  #include<sys/stat.h>
+  #include<fcntl.h>
+  #include<string.h>
+  #include<errno.h>
+
+  Dblsb dblsb;
+  int fd;
+  int ret;
+  unsigned long w[10];
+  Mdfat_entry mde;
+
+  /* open file descriptor fd */
+  fd=open(CVF_name,O_RDONLY);
+  if(fd<0)
+  { printf("No such file or directory.\n");
+    return;
+  }
+
+DMSDOS_GET_DBLSB:
+read DMSDOS version number and read CVF parameters in dblsb structure.
+This function also performs a version check, i.e. if the dmsdos driver in
+the kernel thinks the version number you supply in s_dcluster is too old, 
+it "or"s the returned value with 0x0f000000 and doesn't fill in the values
+for the dblsb structure.
+
+** Since not all DMSDOS versions support all commands, this ioctl should be
+always issued first **
+
+  dblsb.s_dcluster=DMSDOS_VERSION;  
+  ret=ioctl(fd,DMSDOS_GET_DBLSB,&dblsb);
+  if(ret<0)
+  { printf("This is not a DMSDOS directory.\n");
+    exit(1);
+  }
+  printf("You are running DMSDOS Version %d.%d.%d.\n\n",(ret&0xff0000)>>16,
+         (ret&0x00ff00)>>8,ret&0xff);
+  if(ret&0x0f000000)
+  { printf("This program is too old for the DMSDOS version you are running.\n");
+    exit(1);
+  }
+
+  dblsb structure see dmsdos.h.
+
+DMSDOS_READ_BITFAT:
+read bitfat entry
+w[0]=sectornr; returns 0 in w[1] if sector free
+
+  ret=ioctl(fd,DMSDOS_READ_BITFAT,w);
+  if(ret<0)error.....;
+
+DMSDOS_WRITE_BITFAT:
+write bitfat entry
+w[0]=sectornr, w[1]=new value (0=free, 1=allocated)
+
+  ret=ioctl(fd,DMSDOS_WRITE_BITFAT,w);
+  if(ret<0)error.....;
+
+DMSDOS_READ_MDFAT:
+read mdfat entry
+w[0]=clusternr; returns result in mde structure.
+
+  w[1]=&mde;
+  ret=ioctl(fd,DMSDOS_READ_MDFAT,w);
+  if(ret<0)error......;
+  
+DMSDOS_WRITE_MDFAT:
+write mdfat entry
+w[0]=clusternr; mde=new mdfat entry value.
+  
+  w[1]=&mde;
+  ret=ioctl(fd,DMSDOS_WRITE_MDFAT,w);
+  if(ret<0)error......;
+
+raw MDFAT entry: 32/40 bit number (hidden to the user)
+
+  dos 6.x, Win95 without drivespace 3:
+  3322222222221111111111
+  10987654321098765432109876543210 
+  ucaaaammmm?sssssssssssssssssssss
+
+  Win95 with drivespace 3:
+  33333333322222222221111111111
+  9876543210987654321098765432109876543210 
+  ucaaaaaammmmmm??ssssssssssssssssssssssss
+
+Mdfat_entry structure: (the dmsdos driver automatically converts it to the
+                        appropriate 32 or 40 bit number)
+
+  mde.sector_minus_1= ('ssss...' bits)
+  mde.size_lo_minus_1= ('mmmmmm' bits)
+  mde.size_hi_minus_1= ('aaaaaa' bits)
+  mde.flags= ('uc' bits)
+  mde.unknown= ('?' bit(s)), are NOT written, always set to zero
+  
+  u: 1=entry is used, 0=entry is free
+  c: 1=cluster is uncompressed, 0=cluster is compressed
+  a: uncompressed size minus 1 (number of sectors belonging to this cluster)
+  m: compressed size minus 1 (      "      "        "          )
+  ?: unknown, but seem(s) to be used sometimes
+  s: sector number minus 1 (theoretical 2 GB limit)
+     The sector number is counted from the beginning of the CVF file
+     starting with sector number 0.
+
+DMSDOS_SET_COMP:
+set compression method for write access.
+  
+  ioctl(fd,DMSDOS_SET_COMP,READ_ONLY); or:
+  ioctl(fd,DMSDOS_SET_COMP,UNCOMPRESSED); or:
+  ioctl(fd,DMSDOS_SET_COMP,GUESS); or:
+  ioctl(fd,DMSDOS_SET_COMP,DS_0_0); or:
+  ioctl(fd,DMSDOS_SET_COMP,DS_0_1); or:
+  ioctl(fd,DMSDOS_SET_COMP,DS_0_2); or:
+  ioctl(fd,DMSDOS_SET_COMP,JM_0_0); or:
+  ioctl(fd,DMSDOS_SET_COMP,JM_0_1); or:
+  ioctl(fd,DMSDOS_SET_COMP,SQ_0_0);
+
+DMSDOS_SET_CF:
+set compression level:
+  
+  ioctl(fd,DMSDOS_SET_CF,level-1);
+
+DMSDOS_EXTRA_STATFS:
+special statfs command for dmsdos
+reads special info in w.
+
+  ioctl(fd,DMSDOS_EXTRA_STATFS,w);
+
+w[0]= free sectors in CVF.
+w[1]= used sectors.
+w[2]= maximum free unfragmented sectors (contiguous sectors)
+w[3]= free fat clusters
+w[4]= used fat clusters
+w[5]= clusters allocated in fat but free in MDFAT (filesystem error if > 0)
+w[6]= sum of sectors used by compressed clusters
+w[7]= sum of sectors used by uncompressed clusters
+w[8]= number of compressed clusters
+w[9]= number of uncompressed clusters
+
+DMSDOS_READ_BLOCK:
+read sector from CVF; returns sector contents in bstruct.data;
+
+  struct bstruct
+  { unsigned long sectornr;
+    unsigned char data[512];
+  };
+
+  bstruct.sectornr= sector number;
+
+  ioctl(fd,DMSDOS_READ_BLOCK,&bstruct);
+
+DMSDOS_WRITE_BLOCK:
+
+  analogue to read_block...
+
+DMSDOS_READ_DIRENTRY:
+DMSDOS_WRITE_DIRENTRY:
+
+  removed and unsupported...
+
+DMSDOS_READ_DFAT:
+w[0]=clusternr; returns fat entry value in w[1]; (last=-1 or 0xFFFFFFFF)
+
+  ret=ioctl(fd,DMSDOS_READ_DFAT,w);
+  if(ret<0)error......;
+
+DMSDOS_WRITE_DFAT:
+w[0]=clusternr; w[1]=new value;
+
+  ret=ioctl(fd,DMSDOS_WRITE_DFAT,w);
+  if(ret<0)error......;
+
+DMSDOS_SIMPLE_CHECK:
+performs simple filesystem check (crosslinks & allocation errors)
+w[0]=0; means do not try to repair errors
+
+returns result in w[0] (0=ok, -1=FAT error, -2=MDFAT error, -3=BITFAT error,
+                        1=out of memory, check aborted,
+                        2=FAT ok, but out of memory for MDFAT check)
+
+  ioctl(fd,DMSDOS_SIMPLE_CHECK,w);
+  if(w[0]==....)printf(.....);
+
+
+dmsdos daemon ioctls missing here....

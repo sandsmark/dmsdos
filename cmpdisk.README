@@ -1,0 +1,16 @@
+cmpdisk.exe is a DOS program. See doc/testing.doc for details.
+The sources are in cmpdisk.cpp. You must compile them under DOS.
+
+As not everyone is expected to have a DOS C compiler the BC 3.1 compiled
+(16bit) executable is included here. 
+
+Yes, there is also a GCC port for DOS. There are even two. Search the net 
+for 'djgpp' or 'emx'. But they are 32 bit (i.e. overkill for this small 
+program). But it should also work though the program has not been tested 
+with recent versions.
+
+If I remember correctly, the FREEDOS project has a free DOS C compiler,
+or has at least pointers to one. I promise to test it some day and replace
+the BC compiled executable by one compiled with a free compiler. Note that
+this is not a license problem. It's just a kind of "political" question
+concerning free software :)

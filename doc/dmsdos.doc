@@ -1,0 +1,1070 @@
+dmsdos.doc
+
+This is the main documentation for the DMSDOS CVF module.            18AUG1998
+
+------------------------------------------------------------------------------
+
+                        This is version 0.9.1.5.
+
+This version has been designed for Linux 2.0.35, but it should run with all 
+kernels from 2.0.29 to 2.0.35. It very likely also works with older ones,
+but it has at least been reported to fail with 2.0.0. For the 2.1.xx series 
+you need at least 2.1.80 though it is recommended to use 2.1.94 or newer.
+Has 2.2 been released yet? :)
+
+Installation notes see file ../INSTALL.TXT.
+
+   
+Contents:
+
+1. DMSDOS capabilities
+2. Restrictions
+3. Mount options
+4. Kernel messages [moved to file messages.doc]
+5. Installation [moved to file ../INSTALL.TXT]
+6. Troubleshooting [moved to file troubleshooting.doc]
+7. Defragment procedures
+8. How to contribute to dmsdos development
+9. The external dmsdos utility 'dutil'
+10. The dmsdos daemon 'dmsdosd'
+11. The dmsdos library 'libdmsdos.a'
+12. The dmsdos filesystem checker 'dmsdosfsck'
+13. Authors and email addresses
+
+------------------------------------------------------------------------------
+
+
+1. DMSDOS capabilities
+------------------------------------------------------------------------------
+
+   * 'mount' 
+      - doublespace/drivespace compressed msdos 6.x partitions (read-write), 
+      - doublespace and drivespace 3 compressed win95 partitions (read-write),
+      - and stacker 3 and 4 compressed partitions (read-write)
+      under Linux via the loopback block device
+   * supports compressed floppies (yes, and even cdroms[**])
+   * can use umsdos extensions in compressed partitions
+   * when writing, compression level may be selected by user
+   * supports standard text conversion like the msdos driver
+   * simple internal fs check on mount (can be switched off)
+   * dmsdos daemon for compressing data in the background
+   * works with all drivers that base on the fat driver, also with FAT32
+   * stand-alone dmsdos library for CVF related programming (experimental)
+   * stand-alone dmsdosfsck (experimental)
+
+   [**] No, don't really think of burning a CVF onto a cdrom. Dos cannot read 
+        it unless you copy it to your hard disk. REALLY BAD. Linux+dmsdos can.
+
+In detail:
+
+  Dos compressed partitions are always stored inside an uncompressed host
+  partition as large files (CVFs, Compressed Volume Files). In order to
+  access them from Linux, you need 
+    * the CVF-FAT interface, which is present in kernels 2.1.80 and newer 
+      and must be patched into the 2.0.xx kernel series - the patches are 
+      included in this dmsdos release
+    * and the loopback block device. 
+  The latter lets you mount a file as a filesystem. You must compile the 
+  loopback block device into your kernel or as a loadable module in order 
+  to use this feature.
+
+  This version works with compressed hard disks and with compressed floppies.
+  It has been tested successfully with MS-DOS 6.2 Doublespace and MS-DOS 6.22
+  Drivespace compressed formats. win95 doublespace is supported, also the
+  drivespace 3 format from the Micro$ Plus package (rumors tell that this
+  package has been integrated into Win95OSR2). Stacker version 3 and 4 
+  are supported too. Dmsdos can even mount CVFs from cdrom (Dos can't).
+
+  Francesco Potorti(pot@foda-devel.cnuce.cnr.it) has reported that dmsdos
+  also mounts Superstore compressed filesystems. I can't test this as I
+  don't have Superstore. They are recognized as old Dos 6.0 Doublespace
+  format. I'm interested in further reports about this. I still can't 
+  believe that M$ simply copied (bought?) Superstore and renamed it to
+  Doublespace without further modifications...
+
+  Dmsdos runs now *below* the msdos/fat filesystem. This makes it compatible
+  with all fat based filesystems including FAT32, NLS and other things :)
+
+  Dmsdos does a lot of internal caching in order to reach a reasonable speed
+  with a compressed (and really badly organised, but simple) filesystem. As
+  a side effect, this cache may eat a lot of system memory (you can change the
+  size limit).
+
+  Dmsdos was initially inspired by the THS filesystem (once found under
+  ftp://sunsite.unc.edu/pub/Linux/system/Filesystems/dosfs/thsfs.tgz)
+  written 1994 by Thomas Scheuermann (email address out of date), which was 
+  the first filesystem available under Linux that could read some CVFs. 
+
+  When mounting a compressed filesystem, the dmsdos driver does some quick
+  and simple consistency checking. If it finds a serious filesystem error
+  that might cause further damage on write access, it sets the compressed
+  filesystem to read-only mode. The filesystem check can be switched off if
+  you don't like it.
+
+  The dmsdos daemon included in this release can speed up dmsdos write
+  access on systems that usually run at high processor load using delayed 
+  compression in the background when the system is idle. I recommend to 
+  use it if you are going to write much to compressed partitions from Linux
+  and need the processor time mostly for other tasks. The daemon also has a
+  significant effect on dmsdos memory management which might be important
+  for systems with little memory (well yes, dmsdos *is* a memory monster
+  that can eat up to 2MB of system memory for caching in the default 
+  configuration). See chapter 'The dmsdos daemon' for details.
+
+  The dmsdos library is a stand-alone tool for raw CVF programming.
+  'Stand-alone' means that it works independently from the dmsdos kernel
+  module, on *raw* CVFs (i.e. those large files lying around in an 
+  uncompressed host partition). It's the same source code, though, just 
+  compiled in a slightly different way. :)
+
+
+2. Restrictions
+------------------------------------------------------------------------------
+
+  (See also file BUGS for a list of known bugs.)
+
+  Performance degradiation (well, not really bad in most cases...)
+  ------------------------
+
+  Access to compressed filesystems slows down your system. This is a fact
+  that results from additional time needed to decompress or compress the
+  data and to maintain additional filesystem structures. It's an untrue 
+  rumor (sometimes spread by compressed filesystem software sellers) that 
+  compressed filesystems speeded up slow ISA bus systems because of the 
+  smaller amount of data to be transferred through the slow ISA bus - 
+  there's too much overhead otherwhere.
+  
+  Though most time-consuming actions like compression and finding free
+  sectors have been greatly improved since dmsdos 0.8.0, there are still 
+  sudden system freezes reported. Reasons for this include (in rising order):
+
+      * Decompressing the data takes some time, but that is supposed to be
+        minimal.
+
+      * Badly written programs issuing many redundant reads. Such programs 
+        kill performance on every filesystem, but it's extremely bad under 
+        dmsdos because of the filesystem layout.
+ 
+      * Large files, especially accessing them near their end. Again the 
+        filesystem layout is the cause. (How do you find the end of a file
+        in a fat filesystem? Right, read the fat. And if the file is large
+        there are tons of fat access necessary to find the end.)
+
+      * Huge directories. It's again the fat access problem like above. (In
+        2.1.xx kernels it's faster due to the gain from dentry caching.)
+
+      * Compression on write access. Compression speed depends heavily on 
+        the data to compress. In general you can say, the better the data 
+        compress the faster the compression.
+
+      * Compressing incompressible data. This only wastes time since the
+        driver throws the compressed data away and uses the uncompressed
+        data if the compressed data turn out to be in fact larger. The only
+        thing you can do against this is disabling compression if you know
+        the data you want to write don't compress any more (e.g. when
+        writing already compressed files).
+
+      * Highly fragmented (at internal MDFAT level) filesystems. This
+        puts the search algorithm that searches for free space in a long
+        loop finding a fitting hole for data to be written. This is probably
+        the most important reason for sudden system freezes. It's also the
+        most annoying one since there's really nothing to do against it.
+        This kind of fragmentation is normal to every compressed filesystem
+        and cannot be avoided. The more you write the worse it becomes.
+        (See below for details on that kind of fragmentation. Note that it's
+        very different from that FAT level fragmentation known from FAT
+        based filesystems.)
+
+  Compression and free sector finding may be fine-tuned with some of
+  the dmsdos options. This is not really explained here, see mount
+  options cf:xx and speedup:xx.
+
+  Dmsdos never freezes the system totally, it periodically unfreezes even on
+  extremely hard disk access. You *can* login into another console and you
+  *can* enter commands there. No keystroke gets lost though you may not see
+  a reaction on the console immediately, but after some seconds you should 
+  see something. Just be warned and prepared :)
+
+  Compressed formats
+  ------------------
+
+  The scheme I named the compression methods is simply this: Take the first 
+  four bytes of a compressed cluster. For the DS-0-2 method, for example, 
+  they are 'D','S',0x00,0x02.
+
+  Format:             Used by:                    Readable:      Writable:
+  DS-0-0              win95 doublespace           yes            yes
+  DS-0-1              never reported to exist     works in theory :)
+  DS-0-2              msdos 6.2 doublespace       yes            yes
+  JM-0-0              msdos 6.22 drivespace       yes            yes
+                      and win95 drivespace 3      yes            yes
+  JM-0-1              win95 drivespace 3 'High'   yes            yes
+  SQ-0-0              win95 drivespace 3 'Ultra'  yes            yes
+  uncompressed        all versions                yes            yes
+  (no header)         Stacker 3                   yes            yes
+  0x81-0              Stacker 4                   yes            yes
+
+  Yes, meanwhile all currently known methods are supported (hmm, why is this
+  still listed under restrictions...)
+
+  Fragmented clusters in drivespace 3 volumes
+  -------------------------------------------
+
+  They can be read since dmsdos 0.8.1pl5. They can be written since
+  0.9.0pl10, but writing fragmented clusters is supposed extremely
+  experimental. If dmsdos needs to rewrite data that are stored in a
+  fragmented cluster it first deletes the old data and saves the new
+  data in the usual linear order. Fragmentation writes are only done
+  if the data do not fit on the disk in an unfragmented way. Currently, 
+  dmsdos becomes VERY noisy when it writes fragmented clusters... 
+  This is considered experimental and needs further testing. You can 
+  currently switch off this feature by setting speedup bit#8 (this is
+  a mount option, see below).
+
+  Fragmented and suballocated clusters in Stacker volumes
+  -------------------------------------------------------
+
+  Of course, they can be read. But currently, they cannot be written.
+  If dmsdos needs to rewrite data that are stored in a fragmented or
+  suballocated cluster it currently deletes the old data and saves the new
+  data in the usual linear order. Fragmentation write may come soon,
+  suballocation write is more complex and currently considered not very 
+  important for dmsdos. We'll see...
+
+  Swapping to a file on the compressed partition
+  ----------------------------------------------
+
+  Just No. It doesn't work. Don't bother me with ideas of swapping to a
+  compressed ram disk which would be a memory compressor... bah!
+  That's all gibberish, crap, and dogsh*t. I won't write code to support
+  this. You know very well that swapping has to be extremely fast, so use 
+  a partition on your fastest disk for this purpose. Not a swapfile, and
+  never in a fat based filesystem (just imagine what a filesystem driver
+  has to do in order to access the *end* of a large file... yeah, tons
+  of fat access...)
+
+  DOSEMU users attention 
+  ----------------------
+
+  You may have to unmount all fat based partitions before running 
+  DOSEMU depending on your configuration. If DOSEMU is configured to use 
+  wholedisk or partition access (this is often the case to let DOSEMU access 
+  compressed partitions) there's a risk of destroying your compressed 
+  partitions or crashing your system because of confused drivers.
+  
+  Let me explain why. Dmsdos does a lot of internal caching, but cache 
+  contents won't be up to date if DOSEMU directly modifies the disk. This 
+  confuses dmsdos and may mess up your data. On the other hand, dos 
+  dblspace/drvspace.bin also has a kind of caching mechanism that gets 
+  confused by the Linux dmsdos driver's write access. Confusion even
+  occurs if one party mounts read-only and the other mounts read-write.
+  
+  Note that it is always safe to redirect the compressed partitions with 
+  lredir or emufs.sys. Refer to this table for configurations that are safe 
+  (marked with +) and which are dangerous (marked with -):
+
+         DOSEMU:                 Linux fat-based filesystems:
+         --------------          --------------------------------
+                                   not       mounted     mounted
+                                 mounted       ro          rw
+         wholedisk ro               +          +           -     
+         wholedisk rw               +          -           -
+         partition ro               +          +           -
+         partition rw               +          -           -
+         lredir/emufs.sys ro/rw                +           +
+
+  Memory mapping
+  --------------
+
+  *Should* work. :^)
+
+  Underlying dos filesystem limitations
+  -------------------------------------
+
+  None. Really, they're gone since the CVF-FAT interface is used.
+
+  Umsdos users warning
+  --------------------
+
+  If you want to use umsdos-style long filenames in compressed filesystems,
+  use kernel 2.0.xx or get at least kernel 2.1.94.
+
+  Win98 compatibility
+  -------------------
+
+  Has someone tried? Just let me know :)
+
+  Last but least 
+  --------------
+
+  Dmsdos has been written for dos/win95 compatibility. It's just a relict
+  from the time when I programmed some software that had to run both under 
+  dos and Linux and I had to compress my drive because hard disk space was 
+  rather expensive. Times and prices have changed a lot since then, but 
+  dmsdos has still been improved for fun.
+
+  If you don't need dos/win95 compatibility, i.e. if you want to compress
+  Linux-only data, let me say: DON'T DO IT. Clean up your disk, or buy a
+  larger one, but don't compress it. Really. Compress single files (e.g.
+  manpages) with gzip. Throw away the crap you don't need. Shrink your
+  dos partition or remove it completely :)
+
+  If you still want to compress Linux data, dmsdos may not be the software
+  you want. The msdos filesystem is extremely unsuited for fast disk access, 
+  umsdos suffers from it too. The CVF structure msdos uses is even more 
+  unsuited, and the time required by msdos online compression may kill the
+  rest of Linux' performance on these filesystems.
+
+  Just to let you know about some other online compression software for Linux:
+  There's a package 'double' available on sunsite for Linux online 
+  compression. There are also compression patches for the ext2 filesystem
+  available under the name 'hufs' and 'e2compr'. I've also heard about a 
+  'zlibc' project which lets you access gzip compressed files as if they were 
+  uncompressed - it works by a patched libc. Look at common Linux ftp sites.
+
+  Like dmsdos, all those packages may have their specific advantages and
+  disadvantages. Some are said to be not 100% stable, but who can claim that
+  his software is really 100% stable :-) Please don't flame at me if the 
+  packages don't do what you want - I haven't tested them and I don't know 
+  much about their qualilty.
+
+
+3. Mount options
+------------------------------------------------------------------------------
+
+Summary: 
+--------
+
+The dmsdos driver currently recognizes the following options:
+
+comp:xxx, cf:xxx, bitfaterrs:xxx, loglevel:xxx, speedup:xxx
+
+(for backwards compatibility, also comp=xxx, cf=xxx, bitfaterrs=xxx and
+loglevel=xxx, speedup=xxx are accepted)
+
+The xxx has to be replaced by an appropriate parameter, of course. All
+options have to be specified separated by plus signs (not commas) in a list 
+in the mount command: 
+'mount -t msdos -o cvf_options=option1+option2+option3 ...'.
+Consider the string 'cvf_options=option1+option2+option3' as *one* FAT
+driver option! For backwards compatibility, also a dot (.) is recognized
+as option separator symbol.
+
+  comp:xxx
+    The comp option selects which compression method to use for compressing 
+    files when they are written to a compressed partition. The default value 
+    (which is used if no comp option is specified) is hard-coded to guess. 
+
+    Don't get confused by this list. Dmsdos usually determines automatically 
+    the right and, if there's a choice, the best compression for you (by 
+    scanning the filesystem and analysing the compressed data written by 
+    dos/win95). But if you explicitely tell dmsdos to use a specific
+    compression, the driver does what you tell it to do. So be careful.
+
+    comp:no     Selects no compression for write access i.e. all files written
+                to a compressed partition are stored in fact uncompressed.
+                This option may speed up write access, but doesn't make much 
+                sense on a compressed filesystem (except for debugging).
+    comp:ds00   Selects DS-0-0 compressed format for write access. This is
+                win95 native format if you don't have drivespace 3. This 
+                format may also be used for Stacker 3 and 4 (though not 
+                recommended for them as it's not the native Stacker format).
+    comp:ds01   Obsolete. DS-0-1 has never been reported to exist. So what.
+    comp:ds02   Selects DS-0-2 compressed format for write access. This is
+                dos 6.0-6.2 (*not* 6.22) format. Under dmsdos, it is rather
+                identical to DS-0-0 except for the compression header.
+    comp:jm00   Selects JM-0-0 compressed format for write access. This is
+                dos 6.22 format and win95 drivespace 3 'Normal' format.
+    comp:jm01   Selects JM-0-1 compressed format for write access. This is
+                win95 drivespace 3 'High' format. Note that it is rather
+                identical to JM-0-0 in dmsdos (but not in win95).
+    comp:sq00   Selects SQ-0-0 compressed format for write access. This is
+                win95 drivespace 3 'Ultra' format. Only drivespace 3 is
+                known to be able to handle this format.
+    comp:sd3    Selects SD-3 compressed format for write access. This is
+                Stacker 3 format. It may be used for Stacker 3 and 4.
+    comp:sd4    Selects SD-4 compressed format for write access. This is
+                Stacker 4 standard format. It may only be used for Stacker 4.
+    comp:guess  Tries to find out automatically which compression method
+                dos used to create the compressed partition and selects the
+                appropriate format. If guessing fails, no compression is used
+                and a message is printed in the syslog.
+
+    WARNING: You *can* specify senseless options in the command line, for 
+    example, mount a doublespace drive and select stacker compression. 
+    You may end up in a mess in that case.
+
+    NOTE: It's not true that JM-0-1 (Drivespace 3 'High') compresses better
+    than JM-0-0 (Drivespace 3 'Normal'), at least under dmsdos. Set the 
+    compression effectivity with the cf:xx option. In fact, dmsdos uses the
+    same routine to compress DS-0-0, DS-0-1, DS-0-2, JM-0-0 and JM-0-1
+    (they are almost equal, so similar that only, for example, the meaning 
+    of one bit is different or some constant offsets differ). It's just
+    true that SQ-0-0 is more powerful than the DS and JM formats, and also
+    SD-4 is more powerful than SD-3. Also, one can say that SD-3 has
+    something in common with the DS and JM formats. Yes, SD-4 and SQ-0-0
+    have some similarities, too, but I really can't say which one is best.
+
+  cf:xx (where xx is a decimal number from 1 to 12)
+    Selects the compression effectivity and speed. Since compression 
+    effectivity always runs in concurrence to speed, try some values and 
+    watch what happens. 1 is fastest but least efficient compression, 12 is 
+    most efficient but slowest compression. The default value can be selected 
+    before compiling by 'make config' (note that the value minus 1 must 
+    be specified there, i.e. the range is from 0 to 11 there).
+
+    If the external dmsdos daemon is running, this option doesn't have an 
+    effect because the daemon doesn't care about this option - it reads the 
+    compression level from its command line instead.
+
+  bitfaterrs:xxx
+    Selects what to do with inconsistencies in the internal filesystem
+    sector allocation table. Default is setting the filesystem read-only.
+
+    bitfaterrs:repair
+                Repair BITFAT mismatches if there are any when mounting the 
+                filesystem read-write. This verifies the BITFAT and corrects
+                allocation errors. It is highly important for write access
+                that the BITFAT has no errors. For read-only access the
+                BITFAT is not needed. In read-only mode, this option is 
+                ignored. This option may be dangerous in case dmsdos has
+                not recognized your filesystem correctly. So try without it
+                the first time until you can be sure.
+    bitfaterrs:ignore
+                Ignores BITFAT mismatches. This is dangerous and can cause
+                awful MDFAT level crosslinks as well as complete data loss.
+                Use this setting only if you know what you are doing.
+    bitfaterrs:setro
+                Sets the filesystem to read-only mode if BITFAT mismatches
+                are detected. This is safe and also the default behaviour.
+    bitfaterrs:nocheck
+                Don't check the filesystem's internal tables when mounting.
+                This speeds up the mount process a lot. This option
+                is *not* recommended, of course, unless you are very sure
+                there are no errors in the filesystem.
+
+    WARNING: Generally, BITFAT mismatches are *severe* filesystem errors.
+    You will destroy your data if you write to a filesystem that contains
+    BITFAT mismatches. Note that Dos seems to check and repair the BITFAT
+    automatically and silently on each bootup, so just booting into Dos may
+    repair those errors.
+
+  loglevel:xxx  
+    Sets the driver's loglevel to xxx (a decimal or, if preceeded by 0x, 
+    hexadecimal number). The number is a 32 bit field. Each bit represents a 
+    family of messages that will be logged when the appropriate bit is set. 
+    See file dmsdos.h for details about the message families (watch out for 
+    LOG_SomeThing defines and what bits they use). The meanings of the bits 
+    are not documented here since they may differ from version to version. 
+
+    WARNING: You are strongly encouraged to increase your kernel's log buffer
+    size to at least 64KB (it's in file linux/kernel/printk.c:
+    '#define LOG_BUF_LEN size_in_bytes', please note that the size *must* be 
+    a power of 2) - otherwise you are likely to lose messages or receive even 
+    complete garbage due to log buffer overruns.
+
+  speedup:xxx   
+    Sets the driver's speedup flags to xxx (note: these flags are always the 
+    same for all CVFs). xxx is a decimal or (if preceeded by 0x) hexadecimal 
+    value. The meanings of these bits are listed below. The speedup is active 
+    when the appropriate bit is set.
+
+    WARNING: You should not use this option or change the default value 
+    unless you know exactly what you are doing. 
+                
+        *** Less speedup than the default may result in painfully 
+            sluggish filesystem access.
+            More speedup than the default may cause dangerous side
+            effects.
+
+    However, speedup may have to be selectively disabled in order to hunt 
+    bugs :)
+
+    bit #0: Leave directories uncompressed
+                   Never compress directories for drivespace 3 and stacker 
+                   (others don't support compressed directories at all).
+                   WARNING: Directories are accessed very often, so it's 
+                   best not to compress them. Usually set this bit.
+
+    bit #1: Leave umsdos EMD file uncompressed
+                   This is only for umsdos upon dmsdos: never compress the 
+                   --linux-.--- special file (it contains extended directory 
+                   information).
+                   WARNING: This file is even more often written than a 
+                   directory since it contains the access times (the 
+                   directory contains only the modification times). You will 
+                   regret compressing this file, even if you own the fastest 
+                   computer of the world. Don't ask, set this bit.
+
+    bit #2: Skip exact search on BITFAT allocation
+                   Search faster but less carefully for free space in bitfat 
+                   at the cost of more fragmentation. This bit is for 
+                   sector allocation code. If you set this bit allocation on 
+                   large CVFs is faster but also causes a little more
+                   fragmentation. On the other hand, searching more carefully
+                   leads to sudden system freezes for up to some seconds on 
+                   large partitions. Set this bit if you cannot tolerate 
+                   them. Usually this bit is cleared.
+
+    bit #3: Fast unmount
+                   Write dirty buffers on unmount immediately without 
+                   compressing them before. This switch defines what happens 
+                   with unwritten dirty clusters that are in the cache when 
+                   the filesystem is unmounted. If the bit is clear it means 
+                   write them back, but compress them before. If it is set, 
+                   it means write them back without compression.  
+                   WARNING: COMPRESSION TAKES SOME TIME, YOU'LL NOTICE IT.
+                   If you are prepared to wait even some minutes (on an old
+                   386SX16 - on a P100 this should be max. one second) on 
+                   unmount you can clear this bit. Usually it is set.
+
+    bit #4: Enable write-back cluster caching (instead of write-through)
+                   If this bit is set the data in the cluster 
+                   cache that have been changed by an application and have to 
+                   be written back to disk are not written back immediately - 
+                   they are kept some time in memory just in order to save 
+                   disk access when the application again changes the data.
+                   There's a small risk of data loss if the system happens to 
+                   crash before the data are written back - but since your 
+                   operating system is Linux a crash is rather unlikely :) 
+                   This bit is usually set. When hunting bugs, it should be
+                   cleared since it may prevent finding a way to reproduce
+                   a bug.
+
+    bit #5: Enable cluster read-ahead
+                   If this bit is set, this causes the driver to initiate a 
+                   low-level disk access for some data when it thinks they 
+                   are most likely needed in a short time later. The trick is 
+                   that the driver doesn't wait for the disk access to 
+                   finish. So the disk can position its head (and so on) 
+                   while the system can do something else. Most likely the 
+                   disk access has finished when the data are actually needed
+                   - this saves some time we otherwise had to wait. Well, at 
+                   least this is the nice idea of read-ahead. However, since 
+                   read-ahead relies on a prediction, there may be situations 
+                   when it is useless or even a loss.
+                   This bit is usually set. When hunting bugs, it should be
+                   cleared since it may prevent finding a way to reproduce
+                   a bug.
+                   
+    bit #6: Fast BITFAT allocation
+                   Switch to very fast sector allocation. This speeds up 
+                   bitfat allocation because the search algorithm that tries 
+                   to avoid fragmentation is simply switched off. BE WARNED,
+                   it causes *much* fragmentation in very short time. The 
+                   "filesystem almost full" warning is suppressed. This 
+                   switch is meant as a last resort if you cannot tolerate 
+                   system slowdowns at all. Don't fill the compressed 
+                   filesystem up to more than 3/4 when this switch is set. 
+                   Write access may fail horribly and cause data loss due to 
+                   too high fragmentation.
+                   This bit is usually cleared. If you are unsure about the 
+                   dangers let it cleared. Only set it if you really know 
+                   what you are doing.
+
+    bit #7: Use daemon if present
+                   Use the daemon for delayed compression in the background.
+                   This bit is for users of the internal daemon since the
+                   internal daemon cannot be disabled by simply killing it.
+                   So clearing this bit is another way to disable the daemon.
+                   This bit is usually set. When hunting bugs, it should be
+                   cleared since it may prevent finding a way to reproduce
+                   a bug. *** This bit only affects daemon *compression*.
+                   Daemon-controlled memory management still works
+                   regardless of this bit.
+
+    bit #8: Avoid fragmented writes
+                   Speedup Bit#8 controls what to do when the filesystem is 
+                   too fragmented for normal write access. Usually all data 
+                   for one cluster are stored in contiguous sectors, but if 
+                   the filesystem is too fragmented there may not be a 'free 
+                   hole' that is large enough for the data. Speedup Bit#8 
+                   controls what to do in that case. If this bit is set 
+                   dmsdos just returns a 'no space left on device' error and
+                   refuses to write to the CVF any more.
+                   Drivespace 3 and Stacker know a hack for that situation: 
+                   they allow storing the data of one cluster in several 
+                   fragments on the disk. If the bit is clear, the driver 
+                   tries to write the data in several fragments. Be warned, 
+                   this makes future filesystem access much slower as it 
+                   needs more disk head movements to read fragmented 
+                   clusters.
+                   *** Note that for Stacker fragmented writes are currently
+                       not implemented. Doublespace and drivespace (version
+                       <=2) do not support this at all. So the bit is
+                       ignored for them.
+
+    Default speedup (187) is reasonable for normal read and moderate write 
+    access. For high-traffic write access you might want to set additionally 
+    bit #2 (speedup:191) or even bit #6 (speedup:255). On quite full
+    or highly fragmented CVFs this makes a *great* difference, but it's up
+    to you to decide between safety and speed.
+
+Note: 
+    You can use the external utility dutil to setup or change dmsdos options
+    later. Look at the following example commands:
+
+        dutil /mnt setcomp xxx       (for changing the comp:xxx option),
+        dutil /mnt setcf xx          (for cf:xx option),
+        dutil /mnt setspeedup xxx    (for speedup:xxx option) and 
+        dutil /mnt setloglevel xxx   (for loglevel:xxx option).
+
+    Just replace the directory name '/mnt' with your mount point in the
+    examples. Besides, you must be root to change dmsdos options via dutil.
+    The bitfaterrs:xxx option cannot be changed with dutil since it only
+    makes sense at mount time :)
+
+    The string 'option1+option2+option3...' in the FAT mount option
+    'cvf_options=option1+option2+option3...' has a hard coded limit of 100
+    characters (this is a limitation of the CVF-FAT interface). The string
+    is silently cut down if it is too long. Don't worry, you won't manage 
+    to break the limit without specifying senseless parameters :)
+
+    For those who want to know everything exactly, the CVF-FAT interface
+    has a further FAT driver option (*not* dmsdos option): cvf_format=xxx.
+    The parameters that the dmsdos module allows for 'xxx' are 'dblspace'
+    (for all doublespace and drivespace versions) and 'stacker' (for all 
+    stacker versions). Usually you don't care about them since the formats 
+    are detected automatically. In short terms: simply never use them.
+    For details about the CVF-FAT interface take a look at 
+    linux/Documentation/filesystems/fat_cvf.txt.
+ 
+    And now a warning: If you want to mount a CVF *be sure* to have the
+    dmsdos module loaded. The plain FAT driver also mounts some CVFs without
+    complaining (but begins to scream loudly when you, for example, do
+    a 'ls' on the mountpoint). As some CVFs look very similar to normal,
+    uncompressed filesystems, the FAT driver has no chance to detect a
+    CVF at mount time (and e.g. print an error) when the dmsdos module is 
+    not loaded.
+
+Some simple examples:
+ 1. Your msdos partition that contains CVFs is on /dev/hda1. You want to
+    mount it under /DOS and the CVF under /mnt.
+      mount -t msdos /dev/hda1 /DOS
+      mount -t msdos -o loop /DOS/dblspace.001 /mnt
+ 2. Like above, but you need umsdos support.
+      mount -t umsdos /dev/hda1 /DOS
+      mount -t msdos -o loop /DOS/dblspace.001 /mnt
+ 3. Like above, but you also have umsdos style long filenames in your CVF
+      mount -t umsdos /dev/hda1 /DOS
+      mount -t umsdos -o loop /DOS/dblspace.001 /mnt
+ 4. Like 1., but you need Win95 long filename support *only inside* the 
+    compressed partition.
+      mount -t msdos /dev/hda1 /DOS
+      mount -t vfat -o loop /DOS/dblspace.001 /mnt
+ 5. Like 1., but you want to feel safe and refuse write access to the
+    compressed partitions only (but the uncompressed host should be writable).
+      mount -t msdos /dev/hda1 /DOS
+      mount -t msdos -o ro,loop /DOS/dblspace.001 /mnt
+ 6. Like 4., but you need Win95 long filenames also in the uncompressed host
+    partition 
+      mount -t vfat /dev/hda1 /DOS
+      mount -t vfat -o loop /DOS/dblspace.001 /mnt
+ 7. You have managed to burn a compressed filesystem onto a CD (This is
+    quite easy - put the large file 'dblspace.001' into an iso9660
+    filesystem and burn it. Be warned, dos can't mount it from CD. Uh...)
+      mount -t iso9660 /dev/cdrom /cdrom
+      mount -t msdos -o loop /cdrom/dblspace.001 /mnt
+ 8. Like 1., but the CVF has been umssynced and contains umsdos long
+    filenames.
+      mount -t msdos /dev/hda1 /DOS
+      mount -t umsdos -o loop /DOS/dblspace.001 /mnt
+
+Some complex examples (I didn't break the long lines herein). The option
+strings might look strange but they are correct:
+ 9. Like 1, but you want the driver to repair bitfat errors automatically.
+      mount -t msdos /dev/hda1 /DOS
+      mount -t msdos -o loop,cvf_options=bitfaterrs:repair /DOS/dblspace.001 /mnt
+ 10. Like 1, but you need more speedup due to high-traffic write access
+     (well, please note that this is not recommended, but it works):
+      mount -t msdos /dev/hda1 /DOS
+      mount -t msdos -o loop,cvf_options=speedup:255 /DOS/dblspace.001 /mnt
+ 11. Like 9 and 10 (repair bitfat errors and more speedup):
+      mount -t msdos /dev/hda1 /DOS
+      mount -t msdos -o loop,cvf_options=bitfaterrs:repair+speedup:255 /DOS/dblspace.001 /mnt
+ 12. Like 1, but disable write access, ignore bitfat error and do debug 
+     logging (be careful, this causes tons of debug messages):
+      mount -t msdos /dev/hda1 /DOS
+      mount -t msdos -o loop,ro,cvf_options=bitfaterrs:ignore+loglevel:0xffffffff /DOS/dblspace.001 /mnt
+ 
+Mounting via /etc/fstab:
+
+  This may be a bit tricky. A typical fstab entry for a CVF looks like this:
+
+      /DOS/drvspace.001 /DOSF msdos     loop  1  0
+      /dev/hda1       /DOS    msdos     defaults   1  0
+
+  Be sure to keep the sixth field (the 'pass number') zero to prevent fsck
+  from checking the CVF (it does not know about CVFs and very likely fails).
+  Also the filesystems in /etc/fstab seem to be mounted in reverse order,
+  but that may depend on your mount or libc version. Try to reorder the
+  lines it it doesn't work.
+
+
+4. Kernel messages
+------------------------------------------------------------------------------
+
+This section has moved to file messages.doc.
+
+
+5. Installation
+------------------------------------------------------------------------------
+       
+This section has moved to file INSTALL.TXT in the main dmsdos directory.
+
+
+6. Troubleshooting
+------------------------------------------------------------------------------
+
+This section has moved to file troubleshooting.doc.
+
+
+7. Defragment procedures
+------------------------------------------------------------------------------
+
+There are three possibilities for fragmentation of a compressed partition:
+  - Msdos FAT level: The CVF itself is a file in a msdos partition that
+    might be broken into several fragments.
+  - Internal FAT level: The files stored in the CVF are fragmented in a
+    similar way like FAT level fragmentation on a real dos partition. Unlike
+    in a real msdos partition, filesystem access does *not* suffer from this.
+    There is no need for defragmenting a CVF at this level (except that you
+    want to make the CVF smaller - then it may be necessary).        
+  - Internal MDFAT level: Worst fragmentation that can happen in a CVF. All
+    write access (not only file creation and deletion) causes MDFAT level
+    fragmentation. If a CVF is too fragmented at this level, write access
+    even fails as if the disk was full. Defragmenting a CVF usually refers 
+    to this kind of fragmentation, which is very different from FAT level
+    fragmentation.
+
+How to defragment a CVF at internal MDFAT level see your dos/win95 or 
+stacker documentation. Dmsdos does not support CVF maintainance.
+
+
+8. How to contribute to dmsdos development
+------------------------------------------------------------------------------
+
+First of all, thanks a lot to all alpha testers and all who have sent problem 
+reports, found bugs in the sources or documentation, suggested solutions to
+some problems and asked questions due to unclear documentation. Without your
+help dmsdos would not have become what it is.
+
+Also many thanks to all who simply mailed they liked dmsdos.
+
+At this place, I must also say many thanks to Gordon (VFAT fs) and Matija
+(UMSDOS fs) for the help to make dmsdos work with the standard 2.1.xx
+kernels.
+
+If you have a problem that is not covered in the documentation please email 
+me. But, *please*, be sure to read the file 'troubleshooting.doc' before. 
+If it's not mentioned there, you may have uncovered a bug that
+should be fixed. Please watch your kernel log (/var/log/messages) for
+strange dmsdos messages too. Please include the following information in your
+mail message:
+
+- Linux kernel version, dmsdos version (see kernel messages).
+- If it doesn't compile, gcc version, as version, libc version, make version.
+- MS-DOS version you a) used to create the compressed partition, b) you
+  currently use.
+- Dmsdos kernel messages that are produced when the problem occurs.
+- Information about your disk hardware (hardware sector size is important - 
+  there are some hacks for hardware sector sizes != 512 bytes in the code)
+- Size of the real (uncompressed) dos partition.
+- dutil output (run it on the dmsdos CVF directory that causes problems).
+- Everything else, of course, you think I need to know about the problem.
+- A valid email address (I wouldn't write this if I hadn't received some
+  mails I couldn't reply to because the return address was rejected).
+
+
+9. The external dmsdos utility 'dutil'
+------------------------------------------------------------------------------
+
+(For a summary, take a look at the dutil manual page (file src/dutil.1).)
+
+Run dutil on a dmsdos mount point to obtain additional information about the
+compressed partition. Example: 'dutil /mnt'. This utility has
+some additional debugging options. These are not described here since they
+are for debugging only. Run dutil with debug options only when you are asked
+by the dmsdos author/maintainer in a response to any problem report.
+
+Note: Debugging options require running dutil as root. Other users can only
+see the general filesystem information dutil prints on the screen. See file
+dblspace_ioctl.c for details on what can be done only by root.
+
+You can use the external utility dutil to setup or change dmsdos options
+later. Use 'dutil /mnt setcomp xxx' (comp:xxx option) and
+'dutil /mnt setcf xx' (cf:xx option). Note to replace the directory name 
+'/mnt' with yours. This also works: 'dutil /mnt setspeedup xxx'
+(speedup:xxx option) and 'dutil /mnt setloglevel xxx' (loglevel:xxx option).
+The dmsdos options can only be changed by root.
+
+To perform a simple filesystem check, use the command
+'dutil /mnt checkfs'. This fs check doesn't do any repairs, but
+immediately reports some fs inconsistencies. There shouldn't be any unless
+the driver complained already at mount time (see kernel log). If there are
+errors and the dmsdos driver didn't find them at mount time, this is a 
+serious dmsdos bug (it implies that data have been destroyed by the dmsdos
+driver) and should be reported. If the command complains about errors but
+the dos fs checker says everything is okay, you should also send a bug
+report.
+
+To sync the write-back cache you can use 'dutil /mnt synccache'.
+By default, the command waits until the data have been passed to the kernel's
+filesystem buffering interface. (If you want to ensure that they are really
+physically written issue a 'sync' afterwards which causes the kernel to
+write all dirty buffers to disk.) You can specify an additional argument !=0 
+in order to pass the cache contents to the daemon instead of writing directly
+to disk (not useful if you want to ensure that the data are written *now*).
+
+Note that dutil displays two different compression ratios - an internal and
+an external one. The internal one is always lower and is used to estimate
+how much space is left on the device. It depends on which information can
+actually be obtained from the MDFAT without scanning the whole disk (would
+take too much time). If you want to compare different versions of compressed
+filesystems to each other (e.g. doublespace vs. stacker) concerning the 
+compression effectivity, always use the external (second) one because it is 
+always calculated in the same manner. The external compression ratio is 
+calculated according to this formula:
+
+ Space that would be used on an equivalent uncompressed msdos filesystem
+------------------------------------------------------------------------- : 1
+                   Space that is used on the disk
+
+'Space' means what file and directory clusters occupy, it does *not* mean:
+FAT, root directory, futher filesystem maintainance information. 
+
+
+10. The dmsdos daemon 'dmsdosd'
+-----------------------------------------------------------------------------
+
+The dmsdos daemon is a program that runs in the background and
+does delayed compression when the system is idle. This prevents the dmsdos
+driver from slowing down your system when compressing large amounts of data. 
+In newer dmsdos versions, the daemon has also some influence on dmsdos
+memory usage (it shrinks the amount of memory dmsdos eats for caching if
+the dmsdos driver has not much to do). This might be an advantage for
+systems that are short on memory.
+
+Actually, the daemon exists in two variants. The first one is a user-level
+process (dmsdosd) that must be started with a command line
+like 'dmsdosd /mnt' or 'dmsdosd /mnt xx', where /mnt is the mount point 
+and 'xx' is the compression level like in the cf:xx mount option. If the
+xx is omitted it defaults to 12 (i.e. maximum compression). Please note
+that this variant of the dmsdos daemon does not care about the dmsdos cf:xx 
+option or the dutil setcf command, but uses its own from its command line. 
+This variant of the dmsdos daemon is called 'external daemon'. For a summary 
+concerning this variant of the dmsdos daemon you can also take a look at the 
+dmsdosd manual page (file src/dmsdosd.1).
+
+The second variant is built inside the kernel and starts up automatically
+when it is needed and exits when it is no longer needed. This variant is 
+called 'internal daemon' and cannot be killed from user space, not even by
+root. It also obeys the cf:xx option and the dutil setcf command.
+
+You can only use one daemon at a time. You must decide before compiling
+dmsdos which variant to use. During dmsdos configuration ('make config')
+you are asked which one you want. Both daemon variants do the same work, but 
+the internal one is more user-friendly (well, you don't have to start it 
+manually :-) ) while the external one is more flexible and seems to eat up 
+less system time (but has other backdraws - you must kill it before you can 
+unmount the filesystem that has been given as a command line argument). If 
+you are using the internal daemon, the external one won't start - it always 
+exits with a "no permission" error.
+
+If you are going to use the external daemon, please note this: DON'T start 
+one daemon for each filesystem. The one single daemon does all the work for 
+the filesystem given in its command line and for all other dmsdos 
+filesystems you have currently mounted and for all other dmsdos filesystems
+you mount later while the daemon is running. To prevent security problems
+only root can start the external daemon (and even more, the driver refuses 
+to talk to a non-root dmsdos daemon via the ioctl interface). The external
+daemon may be killed (by root) at any time, even when it is under hard work.
+Send a SIGINT to it to let it finish its actual work and then exit. Send a
+SIGTERM to it to make it exit immediately. In any case, the daemon catches
+the signals and exits cleanly.
+
+The dmsdos daemon works like this: When it starts up, it tells the dmsdos
+driver not to compress the data when doing write access to the compressed
+filesystem. Instead, the driver writes the *uncompressed* data to the disk
+and maintains a list of clusters that have to be compressed. When the daemon
+has time to do something, it asks the driver for a cluster to compress. Then
+the driver looks up a cluster in its 'clusters-that-must-be-compressed'
+list, reads it from disk and passes it to the daemon. The daemon itself now
+compresses the data. When it has finished compression, it passes the
+compressed cluster back to the driver, which in turn writes it to the disk.
+
+There are two situations the list gets lost and the data that have not yet
+been compressed by the daemon remain uncompressed on the disk:
+
+         1. Rebooting the system clears the whole list.
+         2. Unmounting the filesystem clears all the list entries that
+            contain clusters of the filesystem to be unmounted.
+
+Please note that this kind of "cache" has a limited size. If you exceed that 
+size by writing *much* data at once the dmsdos driver no longer lets the 
+daemon do the job, but starts to compress the data itself. You will notice a 
+moderate system slowdown in that case. In extreme situations you might not 
+even see an immediate reaction on a keystroke, but those cases have become 
+rare. (If you suddenly see a *great* system slowdown this is usually caused
+by too much fragmentation - not by compression.)
+
+The size of this "cache" can be selected during 'make config'. The number 
+specified there means the maximum (i.e. total, not per CVF) number of 
+clusters that can be in the list. If you want to know the amount in bytes, 
+multiply with the cluster size (which is 32KB for drivespace 3 and 8KB for 
+the other compressed filesystems). The dmsdos driver may use up to this 
+amount of _uncompressed_ disk space inside each compressed partition as 
+"cache". You can use dutil to find out how much uncompressed free space is 
+on the disk. If it is less than the "cache" size you shouldn't write more 
+than the amount of uncompressed free space to the disk at once. Otherwise, 
+the disk is getting full with the cached uncompressed data and you receive 
+a 'no space left on device' error.
+
+If there's nothing to compress any more the daemon goes to sleep mode, but
+when the dmsdos driver needs the daemon it tries to awake it immediately.
+Furthermore, the daemon awakes periodically to check for data and inform
+the driver when it is time to release memory.
+
+Please note that using the daemon causes *duplicate* write access to the
+filesystem. This results in a lot of more MDFAT level fragmentation. Thus,
+the daemon cannot really make your system faster. In fact, it only makes 
+your system *appear* faster by doing a kind of load balancing. This load
+balancing avoids unnecessary locks (kind of wait loops) in the driver. It
+means the time some processes would have to wait can be used by other
+processes.
+
+As I'm sometimes asked what to recommend: For a system with read-only or
+very little write access and enough memory you don't need the daemon. For a
+system with moderate write access and an appropriate fast processor the
+internal daemon is best choice. For a system with moderate to high-traffic
+write access to compressed partitions I recommend the external daemon.
+If you have a slow processor and you need CPU time for some other intensive
+computing, it's best to use the external daemon with a nice value (see
+'man nice') - this prevents the daemon from slowing down the other
+processes. If the daemon does not compress fast enough try to lower the
+compression level in its command line. Well, and if you want to write a
+large chunk of data (some 100MB) to a compressed partition at once, disable 
+the daemon before - it cannot help in this situation. It only causes too 
+much fragmentation which in turn slows down the system horribly.
+
+Just another hint: If you want to use the daemon only for memory management
+but not for delayed compression, you can clear speedup bit #7.
+
+You see, there's much room for experimentation here, especially if you use
+the external daemon :) There are some pre-configured dmsdos config files
+which just implement some of the above recommendations. This is explaind
+in INSTALL.TXT so see there for details, please.
+
+
+11. The dmsdos library 'libdmsdos.a'
+-----------------------------------------------------------------------------
+
+This feature is currently highly experimental. 
+
+The dmsdos library is intended to provide some low-level dmsdos functions
+to user processes. The library is not new source code - it's just the
+dmsdos module source compiled in a different way (well, with some tricks).
+The dmsdos library aims towards working with raw CVFs, not filesystems.
+It is usable only for *not* mounted CVFs. Well, for mounted ones there's
+the dmsdos module :)
+
+Rudimentary documentation can be found in file libdmsdos.doc.
+
+
+12. The dmsdos filesystem checker 'dmsdosfsck'
+------------------------------------------------------------------------------
+
+The goal of dmsdosfsck is not having a complete and reliable filesystem
+checker for CVFs. If you want that, use the filesystem maintainance tools
+that came with your CVF software package under Dos (or blame their
+manufacturers if they are not working well...). dmsdosfsck is just meant
+as a kind of workaround for problems that may show up if the dmsdos or
+FAT driver suddenly detects an unexpected inconsistency and might get
+confused. With dmsdosfsck those problems that may confuse the drivers can 
+be detected and corrected before mounting the CVF.
+
+The command line of dmsdosfsck looks like this:
+
+dmsdosfsck [-a] [-r] [-v] [-l] device|file
+
+where -a means repair automatically (uh... be VERY careful), -r means
+repair interactively, -v means be verbose, and -l means list the files
+while processing them. These options are somewhat similar to the well-known
+dosfsck. 
+
+Currently not all errors can be corrected. It just corrects fatal FAT
+errors like loops, crosslinks, illegal values, and unexpected ends of
+chains - things the kernel FAT driver does not like at all and tends to 
+crash or hang if it runs over them. (Well, this is a question of philosophy.
+Should a kernel driver be idiot proof or may it assume the filesystem is
+valid in most cases at the most vital places? I don't want to give an
+answer, but the FAT driver of Linux 2.0.34 seems not 100% idiot proof.)
+So there is really a need for a dmsdosfsck utility here.
+
+Furthermore, it can detect but not correct MDFAT errors, crosslinks,
+damaged MDFAT entries - you must repair them under Dos using the CVF
+maintainance tools that came with your CVF software package. The kernel
+FAT driver does not see these structures, and the dmsdos driver simply
+returns read errors - those errors just cannot confuse drivers or even 
+make the system unusable.
+
+It can detect and correct BITFAT allocation errors - this is necessary
+for write access. (But the dmsdos module already does it if it is told
+to do so at mount time.)
+
+It detects damaged directory entries and can correct them. This is also a
+situation the kernel FAT driver doesn't like at all. Be warned, repairing
+damaged directories is a very critical job which cannot be automated
+completely. Some damaged directories cannot be repaired and will be converted
+into files instead. This gives you a chance to take a low-level disk editor 
+and repair this by hand under Dos later (if you know how to do it). Repaired
+directories are saved without compression so you should be able to analyse
+them under Dos without further help.
+
+It also checks whether one filename is used more than once in a directory. 
+The file can optionally be renamed. This is usually done by appending ~%d
+to the filename where %d is the lowest possible number not causing a
+conflict.
+
+It also detects lost cluster chains but does not correct them. They just
+use space and do nothing evil. For that, use the Dos tools that came....:)
+
+
+  *** Currently, dmsdosfsck must be considered extremely alpha test ***
+
+
+It's far away from complete, but some useful things work. You *can*
+use dmsdosfsck with the generic fsck frontend. You can even
+run your usual fsck when mounting from /etc/fstab at boot time, even on
+CVF partitions. But that's not trivial. If you really want to do such
+things, take a look at the example script 'msdos.fsck-wrapper' which is
+suitable for the generic fsck frontend. Be sure to understand what the
+script does. Change it to your requirements. Then replace the link in
+/sbin/fsck.msdos (or /etc/fs/fsck.msdos) by a link to the script :)
+
+
+13. Authors and email addresses:
+------------------------------------------------------------------------------
+
+CVF-FAT/dmsdos is the official successor of the former dmsdos filesystem. The 
+dmsdos filesystem was initially written from scratch by Frank Gockel, after 
+taking a close look at the THS filesystem (a read-only doublespace fs with
+only DS-0-2 decompression written by Thomas Scheuermann). Stacker support 
+and drivespace 3 'ultra' compression/decompression were added by Pavel Pisa
+as well as improved DS/JM compression and decompression routines. Meanwhile, 
+it contains several parts of code that was directly provided or code that is 
+based on the ideas from a lot of people over the net in order to fix bugs, 
+to improve performance, and to add features.
+
+The dmsdos code is distributed under the GNU General Public Licence
+(see file COPYING).
+
+The dmsdos driver is currently maintained by Pavel Pisa (stacker access,
+SQ compression, meanwhile all other compression too) and me, Frank Gockel 
+(rest of the code).
+
+Pavel's email address is pisa@cvlinux.felk.cvut.cz, my email address is 
+gockel@sent13.uni-duisburg.de.
+
+If you want to contact me via email, please write in English or take a close
+look at the country codes in the email addresses :)

@@ -1,0 +1,372 @@
+This file contains some information about the compressed filesystem layout.
+
+                        The CVF Hacker's Guide :-)
+                      ==============================
+
+WARNING: This is not official M$ specs. In fact, it's a hacker's document.
+         I don't know M$ specs, so this file may contain incorrect 
+         information. Use at your own risk (see the GPL for details).
+
+WARNING 2: Several parts of the compressed filesystem internals are still
+         unknown to me. If this document is inaccurate in some details, it's
+         because I don't know it more exactly. Feel free to add your
+         knowledge. 
+
+
+CVF format overview
+-------------------
+
+version                        compression          SPC(*)   max. size
+dos 6.0/6.2 doublespace        DS-0-2                 16       512MB
+dos 6.22 drivespace            JM-0-0                 16       512MB
+win95 doublespace/drivespace   DS-0-0                 16       512MB
+win95 drivespace 3             JM-0-0,JM-0-1,SQ-0-0   64       2GB
+
+  (*)=Sectors Per Cluster
+
+General filesystem layout
+-------------------------
+
+Superblock       (1 sector)
+BITFAT           (several sectors)
+MDFAT            (~ twice as large as FAT)
+Bootblock        (1 sector)
+FAT (only one)   (several sectors)
+Root directory   (some sectors)
+Data area        (many sectors)
+Final sector     (1 sector)
+
+There's some slack (or "reserved space") between some filesystem structures,
+but I don't know what it is good for. Perhaps M$ don't know either.
+
+Sector counting
+---------------
+
+The Superblock is referred as sector 0. The rest of the sectors are counted
+appropriately.
+
+Superblock layout
+-----------------
+
+Byte positions are counted beginning with 0 for the first byte. Integers are
+in low byte first order. Only important fields are listed here, usual dos
+fields are omitted.
+
+Pos. 3-10: string: signature "MSDBL6.0" or "MSDSP6.0"
+Pos. 45,46: *signed* integer: dcluster offset for MDFAT lookups
+Pos. 36,37: first sector of MDFAT minus 1
+Pos. 17,18: number of entries in root directory
+Pos. 13: sectors per cluster
+Pos. 39,40: sector number of Bootblock
+Pos. 14,15: sector offset of FAT start (relative to Bootblock). I.e. to
+            obtain the sector number of the first FAT sector add Pos. 14,15
+            to Pos. 39,40.
+Pos. 41,42: sector offset of root directory start (relative to Bootblock). To
+            obtain the sector number of the first root directory sector add 
+            Pos. 41,42 to Pos. 39,40.
+Pos. 43,44: sector offset of Data area minus 2 (relative to Bootblock). To
+            obtain the sector number of the first Data area sector add 
+            Pos. 43,44 to Pos. 39,40 and finally add 2.
+Pos. 51: version flag (0=dos 6.0/6.2 or win95 doublespace, 1=??, 
+                       2=dos 6.22 drivespace, 3 or 0 ??=win95 drivespace 3)
+         Hint: drivespace 3 format can be recognized safely by watching
+               the sectors per cluster value. The version flag seems to lie
+               for drivespace 3. 
+Pos. 57-60: usually string "12  " or "16  " as the rest of "FAT12  " and
+            "FAT16  " (the spaces are important), but here seems to be a bug
+            in some doublespace versions. PLEASE IGNORE THIS VALUE, IT 
+            SOMETIMES LIES. Use the Bootblock's value instead.
+Pos. 62-63: Maximum size of the CVF in Megabytes.
+Pos. 32-35: Faked total number of sectors (it is something like the real
+            number of sectors in the data area multiplied with the
+            compression ratio). This value is important because it determines
+            the maximum cluster number that is currently allowed for the
+            CVF according to this formula (don't ask me why):
+
+                        (Pos.33-35)-(Pos.22,23)-(Pos.14,15)-(Pos.17,18)/16
+            max_cluster=--------------------------------------------------- + 1
+                                             (Pos.13)
+
+            (rounded down). Be sure not to exceed the limits due to FAT/MDFAT
+            size or CVF size here. Since this formula has been found by
+            trial and error, it may not be true in all screwy cases.
+
+BITFAT layout
+-------------
+
+The BITFAT is a sector allocation map. Consider it as a list of bits each of
+which represents one sector in the Data area. If a bit is set, the
+appropriate sector contains data - if the bit is clear, the sector is free.
+
+The first bit matches the first sector in the data area (and so on). The
+bits are counted *wordwise* beginning with the most significant bit of the
+word (where "word" means two bytes at once, low byte first).
+
+So substract the number of the first data sector from the number of the data
+sector you want to lookup information in the bitfat. Keep the result in
+memory. Divide the resulting number by 16, round down, multiply with 2. Get 
+the two bytes at this position in the bitfat (counted from its beginning)
+and store them as word. Now watch the least 4 bits of the previosly
+memorized result - they represent the bit number (counted from the most
+significant bit) in the word. This bit corresponds to the data sector.
+
+WARNING: The BITFAT sometimes is incorrect due to a missing system shutdown 
+         under dos. If you want to write to the filesystem, be sure to
+         check (and, if necessary, repair) the BITFAT before. See below
+         how to do this.
+
+MDFAT layout
+------------
+
+MDFAT is organised as a stream of long integers (4 bytes, for drivespace 3:
+5 bytes). The data are sector-aligned - this means for drivespace 3 that the
+last two bytes of a sector are slack. Consider the bytes in usual order
+(low byte first).
+
+The MDFAT contains additional information about a cluster:
+
+     3322222222221111111111            (doublespace/drivespace)
+     10987654321098765432109876543210
+     uchhhhllll?sssssssssssssssssssss
+
+     333333333322222222221111111111    (drivespace 3)
+     9876543210987654321098765432109876543210
+     uchhhhhhllllllf?ssssssssssssssssssssssss
+
+u=1: The cluster is used, u=0: the cluster is unused. In the latter case the
+     whole entry should be zerod. An unused cluster contains per definition
+     only zeros ( C notation: '\0'). This is important if a program insists 
+     on reading unused clusters!
+c=1: The cluster is not compressed, c=0: the cluster is compressed.
+h:   Size of decompressed cluster minus 1 (measured in units of 512 bytes).
+     E.g. 3 means (3+1)*512 bytes.
+l:   Size of compressed cluster data minus 1 (measured in units of 512
+     bytes). If the cluster is not compressed according to the c bit, this
+     value is identical to h.
+f:   fragmented bit for drivespace 3. If it is set the cluster is fragmented
+     and needs some special treatment on read and write access.
+?:   Unknown. Seems to contain random garbage.
+s:   starting sector minus 1. I.e. if you want to read the cluster, read (l+1) 
+     sectors beginning with sector (s+1). If the c bit is zero, the data must
+     be decompressed now.
+     Important: if the cluster on disk is shorter than the filesystem's
+     sectors per cluster value, the missing rest at the end has to be treated 
+     as if it was zerod out.
+
+To lookup information in the MDFAT, take the cluster number, add the
+dcluster offset (which may be negative!) and take the appropriate entry 
+counted from the beginning of the MDFAT. Don't ignore the sector alignment
+for drivespace 3.
+
+Bootblock layout
+----------------
+
+Emulates normal dos filesystem super block. Most dos fields are identical
+to the Superblock except for the FAT16 or FAT12 string. The FAT bitsize string
+that can be found in the Bootblock is correct while the one in the
+Superblock may be garbage. Take a disk viewer and compare Bootblock and
+Superblock yourself. There are slight differences, but I don't know exactly
+where and why. You'd better never change anything in these blocks...
+
+FAT layout
+----------
+
+No need to explain. It's the same like in a normal dos filesystem. It may be
+12 or 16 bit according to the Bootblock, but *not* to the Superblock. This
+seems to be a bug in doublespace - the Superblock's FAT bit size information
+is sometimes wrong, so use the Bootblock's information.
+
+Root directory
+--------------
+
+The same as in a normal dos filesystem. (The root directory is never
+compressed.)
+
+Data area
+---------
+
+Well, that's the actual space for the data.
+
+Final sector
+------------
+
+Contains the signature "MDR". Must not be used by data. To find it you must
+know the size of the CVF file. There's no pointer in the Superblock that
+points to this sector.
+
+Compressed clusters
+-------------------
+
+Compressed data (when the c bit is 0 in the MDFAT entry of a cluster) are
+identified by a compression header. The header consists of 4 bytes which are
+at the beginning of the compressed cluster data. The headers consist of two
+bytes specifying the compression scheme and two bytes version number, and
+usually look like this:
+
+'D', 'S', 0x00, 0x02, I write it as 'DS-0-2'
+'J', 'M', 0x00, 0x00
+'S', 'Q', 0x00, 0x00
+
+The version number seems to be ignored though M$ claim that, for example,
+'High' (JM-0-1) compresses better than 'Normal' (JM-0-0). That's nonsense
+from the compressed format point of view, the format is in fact the same.
+Maybe the original M$ software uses different *compression algorithms* 
+which may be more or less efficient, but they're not using not different 
+*compression schemes*. So in fact there are three schemes: DS, JM, and SQ.
+DS and JM are quite similar, for a decompression algorithm see the dmsdos
+or thsfs sources (both are GPL code, you may reuse it).
+
+As far as I know, dos 6.x versions of doublespace/drivespace never compress
+directories and never cut them off (if only the first sectors of the cluster
+are used, it is in fact possible to cut the cluster since the unused slack 
+is, per definition, to be treated as if it was zerod out). It is unknown
+whether these versions can read compressed or shortened directories, but it
+is sure they never compress or shorten them. So I just recommend not to do it
+either. drivespace 3 usually cuts off directories and sometimes even
+compresses them though compression of directories is a great performance loss.
+win95 doublespace/drivespace (not drivespace 3) never cuts directories but
+also compresses them sometimes.
+
+Fragmented clustes
+------------------
+
+To make things more complex, M$ have invented these strange things.
+Unfortunately, they need some special treatment.
+
+A fragmented cluster can be recognized by watching the 'f' bit in the MDFAT.
+This bit only exists in drivespace 3 format.
+
+The first sector of the cluster contains a fragmentation list. This list
+contains entries each of which use 4 bytes. The first one is the
+fragmentation count - it specifies into how many fragments the cluster is
+devided. It must be > 1 and <=64.
+
+The following entries are pointers to fragments of data like this:
+
+    3322222222221111111111
+    10987654321098765432109876543210
+    lllllluussssssssssssssssssssssss
+
+s: start sector minus 1 - the fragment begins at sector (s+1).
+u: unused and zero (?)
+l: sector count minus 1 - the fragment contains (l+1) sectors beginning
+   with sector (s+1). This means raw data if compressed.
+
+The first entry always points to the fragmentation list itself. I.e.
+the s and l fields of the first fragmentation list entry are always the same
+as the ones in the MDFAT entry. The first fragment is not restricted to
+contain *only* the fragmentation list, however.
+
+Now it becomes slightly difficult because the data are stored differently
+depending on whether the cluster is compressed or not. If the cluster is
+compressed the raw (compressed) data begin immediately after the last entry
+of the fragmentation list. The byte position can be calculated by multiplying
+the fragmentation count with 4. Further raw data can be found in the other
+fragments in order.
+
+If the cluster is not compressed, the (uncompressed) data begin in the
+sector that follows the sector containing the fragmentation list. If the
+first fragment has only the length of 1 sector the data begin in the second
+fragment. Further data are in the fragments in order.
+
+General rules for cluster access
+--------------------------------
+
+I'm assuming you want to access cluster number x (x!=0 i.e. not root directory
+- this one should be clear without further explanation).
+
+How to read cluster x from the compressed filesystem
+----------------------------------------------------
+ 
+  * Get and decode the MDFAT entry for the cluster: lookup entry number 
+    (x+dcluster). dcluster and start of the MDFAT can be obtained from the
+    Superblock.
+
+  * If the MDFAT entry is unused (u bit clear), just return a cluster full of
+    zeros (0x00).
+
+  * Read (l+1) sectors beginning with sector (s+1).
+
+  * If the cluster is fragmented ... uuhhhhh ... you'd better issue an
+    error and encourage the user to boot win95 and defragment the drive.
+    Otherwise read and interpret the fragmentation list now.
+
+  * If the data are compressed (c bit clear) decompress them.
+
+  * If the cluster is shortened (i.e. h+1 < sectors per cluster) zero out
+    the rest of the cluster in memory. The sector per cluster value can be
+    obtained from the Superblock.
+
+How to write cluster x to the compressed filesystem
+---------------------------------------------------
+
+WARNING: Be sure you can trust your BITFAT, i.e. have it checked before.
+         See below how to do this.
+
+  * Be sure to know whether the cluster may be shortened. The size in
+    sectors minus 1 will become the h value of the MDFAT entry later.
+
+  * If you want, compress the data. Be sure the data really become smaller.
+    Determine the size of the compressed data in sectors and subtract 1 -
+    this will become the l value of the MDFAT entry later. If you don't
+    want to compress the data or the data turn out to be incompressible,
+    set the l to the same value as h and use the uncompressed original data.
+    DON'T ACTUALLY WRITE TO THE MDFAT AT THIS POINT!
+
+  * Delete the old cluster x that may have been written earlier (see below).
+
+  * Search for (l+1) free continuous sectors in the BITFAT. Be prepared for
+    failure here (i.e. if the disk is full or too fragmented). Allocate the 
+    sectors by setting the appropriate bits in the BITFAT. Now you can create
+    the MDFAT entry and write it to disk - please note to subtract 1 from the
+    sector number when creating the s value of the MDFAT entry. Also don't
+    forget to set the c bit if the data are not compressed.
+
+  * Write the (l+1) sectors to disk beginning with sector (s+1).
+
+How to delete cluster x in a compressed filesystem
+--------------------------------------------------
+
+WARNING: Be sure you can trust your BITFAT, i.e. have it checked before.
+         See below how to do this.
+
+  * Get the appropriate MDFAT entry (x+dcluster). If it is unused (u bit
+    clear) there's nothing to do.
+
+  * If the cluster is fragmented, scan and check the fragmentation list
+    and free up all the fragments.
+
+  * Otherwise free up (l+1) sectors beginning with sector (s+1) in the BITFAT 
+    by clearing the appropriate bits. Be sure to do a range checking before so
+    you don't corrupt the filesystem if there's garbage in the s field of
+    the MDFAT entry.
+
+  * Zero out the MDFAT entry completely. Don't just clear the used bit.
+
+How to check and repair the BITFAT
+----------------------------------
+
+Dos seems to recalculate the BITFAT on each bootup. This points out that
+even M$ programmers didn't trust it, so you shouldn't do either if you plan
+to write to the compressed partition.
+
+It's easy. Just scan the complete MDFAT for used entries (u bit set). You
+get from the l and the s values (don't forget to add 1 in each case) which
+sectors are allocated. Doing this for the whole MDFAT, you get a list of 
+which sectors are used and which are free. Then you can compare this list to
+the BITFAT. If you just keep the list in memory in the same bit encoding as
+used in the real BITFAT, you can just write the complete list to disk and
+replace the BITFAT by it. Uhh, yes, you may need up to 512 KB memory for
+the data for this purpose...
+
+If you are using drivespace 3 please keep in mind that you also have to
+take care of fragmented clusters (i.e. check the fragmentation bit and scan
+the fragmentation list if necessary).
+
+Further related documents about compressed filesystems
+------------------------------------------------------
+
+ - thsfs source (sunsite and mirrors)
+ - dmsdosfs source (sunsite and mirrors)
+ - Bill Gates' secret drawers
+ - Murphy's law

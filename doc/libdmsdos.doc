@@ -1,0 +1,124 @@
+This is documentation for the dmsdos library.                        22Apr1998
+
+
+The dmsdos library, libdmsdos.a, provides the dmsdos interface that is known
+from the kernel to a user-level process. This is acchieved by compiling the
+dmsdos code simply in a different way (well, with some rather dirty tricks).
+
+The library is intended to export the following functions:
+
+open_cvf
+close_cvf
+
+Well, these two ones above are new, but the rest should be well known to
+you:
+
+dbl_bitfat_value
+dbl_fat_nextcluster
+dbl_mdfat_value
+dmsdos_read_cluster
+dmsdos_write_cluster
+raw_bread
+raw_brelse
+raw_getblk
+raw_mark_buffer_dirty
+raw_set_uptodate
+simple_check
+stac_bitfat_state
+
+In fact, it exports much more, but only these listed here are guaranteed
+to be kept in future versions. Well, one thing should be important to know:
+The library does NOT export virtual sector management. It will never do.
+
+The functions are just used like in the kernel. For prototypes, see file
+dmsdos.h. How to use them see the sources. :) Seriously, if you aren't
+a dmsdos hacker forget about the library.
+
+The first two, open_cvf and close_cvf, are special. They are called instead
+of mounting and unmounting the CVF.
+
+How to "mount" a CVF (example code):
+
+    struct super_block*sb;
+    sb=open_cvf("CVF_Filename",rwflag /*0=RDONLY or 1=RDWR*/);
+    if(sb==NULL)
+    { fprintf(stderr,"open CVF failed\n");
+      exit(1);
+    }
+
+Keep the sb pointer. It must be passed to a lot of functions. It can be used
+in the same way as in the kernel. The sb pointer is used to distinguish
+between several open CVFs (in fact, in sb->s_dev the file descriptor is
+stored).
+
+After use, the CVF must be "unmounted" again:
+
+    close_cvf(sb);
+
+If you want to see more example code, look at the dcread utility source
+(file dcread.c in the src directory).
+
+Notes:
+    * The user-level functions are single-threaded. You cannot run several
+      processes on the same CVF unless all are only reading. The library 
+      uses flock in order to detect such situations and just denies access
+      in that case. You can however use different CVFs in parallel, even
+      read-write, even in one program.
+    * You should use this library only to access a CVF that is currently not
+      mounted. You *cannot* use it on a CVF that is mounted read-write. If
+      the CVF is currently mounted read-only, the library allows read-only
+      access to the CVF. The library scans /etc/mtab in order to check this.
+      This check is not perfect, though. It also does not prevent mount 
+      from mounting a CVF that is used by the library. So just be careful.
+    * You must not touch CVFs that are currently used by dosemu with
+      wholedisk or partition access. I don't know how to test for that
+      situation, so the library doesn't check for this. Well, as dosemu
+      refuses to run if the underlying dos partition is mounted, that
+      situation should never occur :)
+    * If you do not intend to write to the CVF, open it in read-only mode.
+      Then the CVF is not locked exclusively and other processes are allowed
+      to read the CVF at the same time.
+    * The library prints the "kernel" messages to stderr. It obeys the
+      loglevel variable.
+    * The first call of open_cvf initializes the library and prints some
+      version information to stderr.
+    * open_cvf does not do a filesystem check. If you do want the same
+      simple filesystem check that dmsdos usually does when mounting, call
+      simple_check afterwards.
+    * open_cvf may open the filesystem read-only though you request
+      read-write access. This happens if write access is denied or if the
+      dmsdos subsystem detects unexpected problems with the CVF. You may 
+      not like this behaviour, but it's best for long life of your CVFs :)
+      Programmers please check sb->s_flags for the MS_RDONLY flag after
+      calling open_cvf to be sure.
+    * To compile your application using the dmsdos library you should under
+      no cirumstances define the macro __KERNEL__ for the whole program.
+      It causes problems with libc6. Just define __KERNEL__ for those
+      include files that don't work without and undefine it afterwards.
+
+As an idea what the dmsdos library might be good for:
+
+    * A mtools clone for CVFs, for example called dtools.
+    * A fsck.dmsdos.
+    * A defragmentation program.
+    * For debugging dmsdos at user level (it's the same source code).
+    * An external fs for midnight commander.
+    * ... add your favourite idea here :)
+
+Support for a shared dmsdos library
+-----------------------------------
+
+libdmsdos can now be compiled as a shared library. Just enter a 
+'make libdmsdos.so' in the src directory. Note that the default installation
+does not compile the shared library. This is intended. If you are not
+an experienced shared library hacker please be careful. It's easy to screw
+up some binaries with shared libraries :)
+
+You should not use the dmsdos shared library for now as there's currently no
+standard that ensures that future versions will be backwards compatible.
+Link statically with libdmsdos.a unless disk space or memory is very critical.
+
+WARNING: If there's a shared dmsdos library lying around, gcc defaults to
+link *dynamically* all programs that need this library. For example, if 
+libdmsdos.so is present and you recompile dmsdosfsck, the binary will be
+dynamically linked with that library. This can be very confusing :(
