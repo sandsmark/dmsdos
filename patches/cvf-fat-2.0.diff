@@ -1,0 +1,414 @@
+diff -u -r -N linux-2.3.99-pre3/fs/fat/cvf.c linux-2.3.99-pre3-cvf-fat-2.0/fs/fat/cvf.c
+--- linux-2.3.99-pre3/fs/fat/cvf.c	Mon Aug  9 20:43:49 1999
++++ linux-2.3.99-pre3-cvf-fat-2.0/fs/fat/cvf.c	Fri Apr 14 13:17:46 2000
+@@ -4,7 +4,7 @@
+  * written 1997,1998 by Frank Gockel <gockel@sent13.uni-duisburg.de>
+  *
+  * please do not remove the next line, dmsdos needs it for verifying patches
+- * CVF-FAT-VERSION-ID: 1.2.0
++ * CVF-FAT-VERSION-ID: 2.0.0
+  *
+  */
+  
+@@ -21,6 +21,7 @@
+ 
+ #define MAX_CVF_FORMATS 3
+ 
++extern struct address_space_operations fat_aops;
+ struct buffer_head *default_fat_bread(struct super_block *,int);
+ struct buffer_head *default_fat_getblk(struct super_block *, int);
+ struct buffer_head *bigblock_fat_bread(struct super_block *, int);
+@@ -52,10 +53,10 @@
+ 	size_t count,
+ 	loff_t *ppos);
+ 
+-struct cvf_format default_cvf = {
++struct cvf_format default_transparent = {
+ 	0,	/* version - who cares? */	
+-	"plain",
+-	0,	/* flags - who cares? */
++	"none-default",
++	CVF_TRANSPARENT,	/* flags - who cares? */
+ 	NULL,
+ 	NULL,
+ 	NULL,
+@@ -70,15 +71,17 @@
+ 	NULL,
+ 	default_fat_bmap,
+ 	generic_file_read,
+-	default_fat_file_write,
++	generic_file_write,
++	generic_file_mmap,
++	&fat_aops,
+ 	NULL,
+ 	NULL
+ };
+ 
+-struct cvf_format bigblock_cvf = {
++struct cvf_format bigblock_transparent = {
+ 	0,	/* version - who cares? */	
+-	"big_blocks",
+-	0,	/* flags - who cares? */
++	"none-bigblocks",
++	CVF_TRANSPARENT|CVF_BIGBLOCK,	/* flags - who cares? */
+ 	NULL,
+ 	NULL,
+ 	NULL,
+@@ -92,8 +95,10 @@
+ 	default_fat_access,
+ 	NULL,
+ 	default_fat_bmap,
+-	NULL,
+-	default_fat_file_write,
++	generic_file_read, /* why not generic_file_read ?*/
++	generic_file_write,
++	generic_file_mmap,
++	&fat_aops,
+ 	NULL,
+ 	NULL
+ };
+diff -u -r -N linux-2.3.99-pre3/fs/fat/fatfs_syms.c linux-2.3.99-pre3-cvf-fat-2.0/fs/fat/fatfs_syms.c
+--- linux-2.3.99-pre3/fs/fat/fatfs_syms.c	Mon Mar 13 21:35:39 2000
++++ linux-2.3.99-pre3-cvf-fat-2.0/fs/fat/fatfs_syms.c	Fri Apr 14 13:17:46 2000
+@@ -52,6 +52,7 @@
+ EXPORT_SYMBOL(unlock_fat);
+ EXPORT_SYMBOL(fat_dir_ioctl);
+ EXPORT_SYMBOL(fat_add_entries);
++EXPORT_SYMBOL(fat_add_cluster);
+ EXPORT_SYMBOL(fat_dir_empty);
+ EXPORT_SYMBOL(fat_truncate);
+ 
+diff -u -r -N linux-2.3.99-pre3/fs/fat/file.c linux-2.3.99-pre3-cvf-fat-2.0/fs/fat/file.c
+--- linux-2.3.99-pre3/fs/fat/file.c	Sun Feb 27 05:33:42 2000
++++ linux-2.3.99-pre3-cvf-fat-2.0/fs/fat/file.c	Fri Apr 14 13:17:46 2000
+@@ -33,7 +33,7 @@
+ struct file_operations fat_file_operations = {
+ 	read:		fat_file_read,
+ 	write:		fat_file_write,
+-	mmap:		generic_file_mmap,
++	mmap:		fat_file_mmap,
+ 	fsync:		file_fsync,
+ };
+ 
+@@ -90,22 +90,12 @@
+ 	size_t count,
+ 	loff_t *ppos)
+ {
++	int retval;
+ 	struct inode *inode = filp->f_dentry->d_inode;
+ 	struct super_block *sb = inode->i_sb;
+-	return MSDOS_SB(sb)->cvf_format
++	retval = MSDOS_SB(sb)->cvf_format
+ 			->cvf_file_write(filp,buf,count,ppos);
+-}
+-
+-ssize_t default_fat_file_write(
+-	struct file *filp,
+-	const char *buf,
+-	size_t count,
+-	loff_t *ppos)
+-{
+-	struct inode *inode = filp->f_dentry->d_inode;
+-	int retval;
+-
+-	retval = generic_file_write(filp, buf, count, ppos);
++			
+ 	if (retval > 0) {
+ 		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+ 		MSDOS_I(inode)->i_attrs |= ATTR_ARCH;
+@@ -131,3 +121,11 @@
+ 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+ 	mark_inode_dirty(inode);
+ }
++
++int fat_file_mmap(struct file * filp, struct vm_area_struct * vma)
++{       
++	struct inode *inode = filp->f_dentry->d_inode;
++	return MSDOS_SB(inode->i_sb)->cvf_format
++                                ->cvf_mmap(filp,vma);
++                                
++}
+\ No newline at end of file
+diff -u -r -N linux-2.3.99-pre3/fs/fat/inode.c linux-2.3.99-pre3-cvf-fat-2.0/fs/fat/inode.c
+--- linux-2.3.99-pre3/fs/fat/inode.c	Tue Mar 21 20:30:08 2000
++++ linux-2.3.99-pre3-cvf-fat-2.0/fs/fat/inode.c	Fri Apr 14 13:17:46 2000
+@@ -33,7 +33,7 @@
+ #include <asm/uaccess.h>
+ #include <asm/unaligned.h>
+ 
+-extern struct cvf_format default_cvf, bigblock_cvf;
++extern struct cvf_format default_transparent, bigblock_transparent;
+ 
+ /* #define FAT_PARANOIA 1 */
+ #define DEBUG_LEVEL 0
+@@ -425,12 +425,15 @@
+ 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+ 	char *p;
+ 	int data_sectors,logical_sector_size,sector_mult,fat_clusters=0;
+-	int debug,error,fat,cp;
++	int debug;
++	int error = 0;
++	int fat,cp;
+ 	int blksize = 512;
+ 	int fat32;
+ 	struct fat_mount_options opts;
+ 	char buf[50];
+-	int i;
++	int cvf_index=-1;
++	/* int i; */
+ 	char cvf_format[21];
+ 	char cvf_options[101];
+ 
+@@ -501,14 +504,15 @@
+ 	sbi->cluster_size = b->cluster_size*sector_mult;
+ 	if (!sbi->cluster_size || (sbi->cluster_size & (sbi->cluster_size-1))) {
+ 		printk("fatfs: bogus cluster size\n");
+-		brelse(bh);
+-		goto out_invalid;
++		error = 1;
++		/* brelse(bh);goto out_invalid; */
++	}else{
++		for (sbi->cluster_bits=0;
++		     1<<sbi->cluster_bits<sbi->cluster_size;
++		     sbi->cluster_bits++)
++			;
++		sbi->cluster_bits += SECTOR_BITS;
+ 	}
+-	for (sbi->cluster_bits=0;
+-	     1<<sbi->cluster_bits<sbi->cluster_size;
+-	     sbi->cluster_bits++)
+-		;
+-	sbi->cluster_bits += SECTOR_BITS;
+ 	sbi->fats = b->fats;
+ 	sbi->fat_start = CF_LE_W(b->reserved)*sector_mult;
+ 	if (!b->fat_length && b->fat32_length) {
+@@ -560,7 +564,7 @@
+ 		data_sectors = CF_LE_L(b->total_sect);
+ 	}
+ 	data_sectors = data_sectors * sector_mult - sbi->data_start;
+-	error = !b->cluster_size || !sector_mult;
++	error |= !sector_mult;
+ 	if (!error) {
+ 		sbi->clusters = b->cluster_size ? data_sectors/
+ 		    b->cluster_size/sector_mult : 0;
+@@ -586,15 +590,18 @@
+ 				/* on odd sectors. */
+ 	sb->s_blocksize_bits = blksize == 512 ? 9 : (blksize == 1024 ? 10 : 11);
+ 	if (!strcmp(cvf_format,"none"))
+-		i = -1;
++		cvf_index = -1;
+ 	else
+-		i = detect_cvf(sb,cvf_format);
+-	if (i >= 0)
+-		error = cvf_formats[i]->mount_cvf(sb,cvf_options);
++		cvf_index = detect_cvf(sb,cvf_format);
++	if (cvf_index >= 0) {
++		++cvf_format_use_count[cvf_index];
++		sbi->cvf_format = cvf_formats[cvf_index];
++ 		error = cvf_formats[cvf_index]->mount_cvf(sb,cvf_options);
++	}
+ 	else if (sb->s_blocksize == 512)
+-		sbi->cvf_format = &default_cvf;
++		sbi->cvf_format = &default_transparent;
+ 	else
+-		sbi->cvf_format = &bigblock_cvf;
++		sbi->cvf_format = &bigblock_transparent;
+ 	if (error || debug) {
+ 		/* The MSDOS_CAN_BMAP is obsolete, but left just to remember */
+ 		printk("[MS-DOS FS Rel. 12,FAT %d,check=%c,conv=%c,"
+@@ -614,7 +621,7 @@
+ 		       sbi->root_cluster,sbi->free_clusters);
+ 		printk ("Transaction block size = %d\n",blksize);
+ 	}
+-	if (i<0) if (sbi->clusters+2 > fat_clusters)
++	if (cvf_index<0) if (sbi->clusters+2 > fat_clusters)
+ 		sbi->clusters = fat_clusters-2;
+ 	if (error)
+ 		goto out_invalid;
+@@ -631,7 +638,7 @@
+ 	if (! sbi->nls_disk) {
+ 		/* Fail only if explicit charset specified */
+ 		if (opts.codepage != 0)
+-			goto out_fail;
++			goto out_free_cvf;
+ 		sbi->options.codepage = 0; /* already 0?? */
+ 		sbi->nls_disk = load_nls_default();
+ 	}
+@@ -659,10 +666,6 @@
+ 	sb->s_root = d_alloc_root(root_inode);
+ 	if (!sb->s_root)
+ 		goto out_no_root;
+-	if(i>=0) {
+-		sbi->cvf_format = cvf_formats[i];
+-		++cvf_format_use_count[i];
+-	}
+ 	return sb;
+ 
+ out_no_root:
+@@ -671,8 +674,15 @@
+ 	unload_nls(sbi->nls_io);
+ out_unload_nls:
+ 	unload_nls(sbi->nls_disk);
++out_free_cvf:	
++	if(cvf_index>=0) {
++		cvf_formats[cvf_index]->unmount_cvf(sb);
++		--cvf_format_use_count[cvf_index];
++	}
+ 	goto out_fail;
+ out_invalid:
++	if(cvf_index>=0)
++		--cvf_format_use_count[cvf_index];
+ 	if (!silent)
+ 		printk("VFS: Can't find a valid MSDOS filesystem on dev %s.\n",
+ 			kdevname(sb->s_dev));
+@@ -746,7 +756,7 @@
+ {
+ 	return generic_block_bmap(mapping,block,fat_get_block);
+ }
+-static struct address_space_operations fat_aops = {
++struct address_space_operations fat_aops = {
+ 	readpage: fat_readpage,
+ 	writepage: fat_writepage,
+ 	prepare_write: fat_prepare_write,
+@@ -815,7 +825,8 @@
+ 		inode->i_size = CF_LE_L(de->size);
+ 	        inode->i_op = &fat_file_inode_operations;
+ 	        inode->i_fop = &fat_file_operations;
+-		inode->i_mapping->a_ops = &fat_aops;
++		/*inode->i_mapping->a_ops = &fat_aops;*/
++		inode->i_mapping->a_ops=MSDOS_SB(inode->i_sb)->cvf_format->cvf_aops;
+ 		MSDOS_I(inode)->mmu_private = inode->i_size;
+ 	}
+ 	if(de->attr & ATTR_SYS)
+diff -u -r -N linux-2.3.99-pre3/fs/fat/misc.c linux-2.3.99-pre3-cvf-fat-2.0/fs/fat/misc.c
+--- linux-2.3.99-pre3/fs/fat/misc.c	Thu Feb 10 21:16:58 2000
++++ linux-2.3.99-pre3-cvf-fat-2.0/fs/fat/misc.c	Fri Apr 14 13:17:34 2000
+@@ -279,9 +279,11 @@
+ 	sector = MSDOS_SB(sb)->data_start+(nr-2)*cluster_size;
+ 	last_sector = sector + cluster_size;
+ 	if (MSDOS_SB(sb)->cvf_format &&
+-	    MSDOS_SB(sb)->cvf_format->zero_out_cluster)
++	    MSDOS_SB(sb)->cvf_format->zero_out_cluster) {
++		/* CVF zeroes full cluster only */
+ 		MSDOS_SB(sb)->cvf_format->zero_out_cluster(inode,nr);
+-	else
++		res=fat_bread(sb,fat_bmap(inode,inode->i_blocks));
++	}else
+ 	for ( ; sector < last_sector; sector++) {
+ 		#ifdef DEBUG
+ 			printk("zeroing sector %d\n",sector);
+diff -u -r -N linux-2.3.99-pre3/include/linux/fat_cvf.h linux-2.3.99-pre3-cvf-fat-2.0/include/linux/fat_cvf.h
+--- linux-2.3.99-pre3/include/linux/fat_cvf.h	Mon Aug  9 20:43:49 1999
++++ linux-2.3.99-pre3-cvf-fat-2.0/include/linux/fat_cvf.h	Fri Apr 14 13:17:46 2000
+@@ -2,6 +2,8 @@
+ #define _FAT_CVF
+ 
+ #define CVF_USE_READPAGE  0x0001
++#define CVF_TRANSPARENT   0x8000
++#define CVF_BIGBLOCK      0x4000
+ 
+ struct cvf_format
+ { int cvf_version;
+@@ -30,8 +32,7 @@
+   ssize_t (*cvf_file_read) ( struct file *, char *, size_t, loff_t *);
+   ssize_t (*cvf_file_write) ( struct file *, const char *, size_t, loff_t *);
+   int (*cvf_mmap) (struct file *, struct vm_area_struct *);
+-  int (*cvf_readpage) (struct inode *, struct page *);
+-  int (*cvf_writepage) (struct inode *, struct page *);
++  struct address_space_operations*cvf_aops;
+   int (*cvf_dir_ioctl) (struct inode * inode, struct file * filp,
+                         unsigned int cmd, unsigned long arg);
+   void (*zero_out_cluster) (struct inode*, int clusternr);
+diff -u -r -N linux-2.3.99-pre3/include/linux/msdos_fs.h linux-2.3.99-pre3-cvf-fat-2.0/include/linux/msdos_fs.h
+--- linux-2.3.99-pre3/include/linux/msdos_fs.h	Mon Mar 13 21:35:39 2000
++++ linux-2.3.99-pre3-cvf-fat-2.0/include/linux/msdos_fs.h	Fri Apr 14 13:17:46 2000
+@@ -271,6 +271,7 @@
+ extern ssize_t fat_file_read(struct file *, char *, size_t, loff_t *);
+ extern ssize_t fat_file_write(struct file *, const char *, size_t, loff_t *);
+ extern void fat_truncate(struct inode *inode);
++extern int fat_file_mmap(struct file * filp, struct vm_area_struct * vma);
+ 
+ /* msdos.c */
+ extern struct super_block *msdos_read_super(struct super_block *sb,void *data, int silent);
+diff -u -r -N linux-2.3.99-pre3/Documentation/filesystems/fat_cvf.txt linux-2.3.99-pre3-cvf-fat-2.0/Documentation/filesystems/fat_cvf.txt
+--- linux-2.3.99-pre3/Documentation/filesystems/fat_cvf.txt	Fri Nov 20 18:19:46 1998
++++ linux-2.3.99-pre3-cvf-fat-2.0/Documentation/filesystems/fat_cvf.txt	Tue Apr 18 11:35:01 2000
+@@ -1,5 +1,5 @@
+-This is the main documentation for the CVF-FAT filesystem extension.  18Nov1998
+-
++This is the main documentation for the CVF-FAT filesystem extension.  15Apr2000
++CVF-FAT-VERSION-ID: 2.0.0
+ 
+ Table of Contents:
+ 
+@@ -32,14 +32,13 @@
+ 2. Restrictions
+ ------------------------------------------------------------------------------
+ 
+-- BMAP problems
++- BMAP/MMAP problems
+ 
+   CVF filesystems cannot do bmap. It's impossible in principle. Thus
+   all actions that require bmap do not work (swapping, writable mmapping).
+-  Read-only mmapping works because the FAT driver has a hack for this
+-  situation :) Well, writable mmapping should now work using the readpage
+-  interface function which has been hacked into the FAT driver just for 
+-  CVF-FAT :)
++  Writable mmap could work through large address_operations hacks, but
++  they have not yet been implemented in CVF-FAT for kernel 2.3.99. So
++  mmap is read-only and you have to live with it for now :)
+   
+ - attention, DOSEmu users 
+ 
+@@ -127,12 +126,15 @@
+       describing the CVF format the module implements. This text is used
+       for the cvf_format option. This name must also be unique.
+   - flags:
+-      Bit coded flags, currently only used for a readpage/mmap hack that 
+-      provides both mmap and readpage functionality. If CVF_USE_READPAGE
+-      is set, mmap is set to generic_file_mmap and readpage is caught
+-      and redirected to the cvf_readpage function. If it is not set,
+-      readpage is set to generic_readpage and mmap is caught and redirected
+-      to cvf_mmap. (If you want writable mmap use the readpage interface.)
++      Currently without function. Only used for information purpose.
++      CVF_TRANSPARENT: marks a cvf structure for transparent access (i.e.
++                       plain FAT filesystem).
++      CVF_BIGBLOCK:    indicates that the cvf module is capable of handling
++                       block sizes larger than 512 bytes. *As the loop
++                       driver can do blocksize conversion, a cvf module 
++                       usually does not need to handle this.*
++      CVF_USE_READPAGE: indicates that mmap uses the new readpage interface
++                       and thus supports writable mmap.
+   - detect_cvf:
+       A function that is called to decide whether the filesystem is a CVF of
+       the type the module supports. The detect_cvf function must return 0
+@@ -158,23 +160,22 @@
+   - [...]:
+       All other interface functions are "caught" FAT driver functions, i.e.
+       are executed by the FAT driver *instead* of the original FAT driver
+-      functions. NULL means use the original FAT driver functions instead.
++      functions. If you want to use the original FAT driver functions,
++      hang then in here (please no longer use NULL for this purpose).
+       If you really want "no action", write a function that does nothing and 
+-      hang it in instead.
++      hang it in instead. Consider the meaning of NULL undefined. 
+   - cvf_zero_cluster:
+       The cvf_zero_cluster function is called when the fat driver wants to
+       zero out a (new) cluster. This is important for directories (mkdir).
+       If it is NULL, the FAT driver defaults to overwriting the whole
+       cluster with zeros. Note that clusternr is absolute, not relative
+-      to the provided inode.
++      to the provided inode. Note that since kernel 2.3.99, this function is
++      only called when a *directory* cluster is handled.
+ 
+ Notes:
+-  1. The cvf_bmap function should be ignored. It really should never
++     The cvf_bmap function should be ignored. It really should never
+      get called from somewhere. I recommend redirecting it to a panic
+      or fatal error message so bugs show up immediately.
+-  2. The cvf_writepage function is ignored. This is because the fat
+-     driver doesn't support it. This might change in future. I recommend
+-     setting it to NULL (i.e use default).
+ 
+ int register_cvf_format(struct cvf_format*cvf_format);
+   If you have just set up a variable containing the above structure,
