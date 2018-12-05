@@ -98,8 +98,8 @@ int display_dir_cluster(int nr, int rek, char*prefix)
 { unsigned char*data;
   int i,j;
 
-  /*printf("display_dir_cluster called with nr=%d rek=%d prefix=%s\n",
-         nr,rek,prefix);*/
+  printf("display_dir_cluster called with nr=%d rek=%d prefix=%s\n",
+         nr,rek,prefix);
 
   if(nr==0)
   { data=get_root_dir();
@@ -112,9 +112,13 @@ int display_dir_cluster(int nr, int rek, char*prefix)
     i=dmsdos_read_cluster(sb,data,nr);
     if(i<0){free(data);return -1;}
   }
+
+  j=0;
+  while(data[j] == 0 && j<i) { j++; }
   
-  for(j=0;j<dblsb->s_sectperclust*512;j+=32)
-  { unsigned char*pp;
+  for(;j<dblsb->s_sectperclust*512;j+=32)
+  {
+    unsigned char*pp;
     unsigned int x;
     char filename[15]="";
     int nstart;
@@ -122,7 +126,7 @@ int display_dir_cluster(int nr, int rek, char*prefix)
     char datestr[16][4]={"?00","Jan","Feb","Mar","Apr","May","Jun",
                          "Jul","Aug","Sep","Oct","Nov","Dec",
                          "?13","?14","?15"};  
-    if(data[j]==0)break;
+    if(data[j]==0)continue;
     if(data[j]==0xe5)continue;
     if(data[j+11]&8)continue;
     if(data[j]=='.')continue;
@@ -137,7 +141,6 @@ int display_dir_cluster(int nr, int rek, char*prefix)
     if(data[j+11]&1)printf("-");else printf("w");
     printf("xr-xr-x 1 0 0"); /* bogus values :) */
   
-    /*
     printf("  ");
     if(data[j+11]&1)printf("R");else printf(" ");
     if(data[j+11]&2)printf("H");else printf(" ");
@@ -147,7 +150,6 @@ int display_dir_cluster(int nr, int rek, char*prefix)
     if(data[j+11]&32)printf("A");else printf(" ");
     if(data[j+11]&64)printf("?");else printf(" ");
     if(data[j+11]&128)printf("?");else printf(" ");
-    */
 
     pp=&(data[j+28]);
     size=CHL(pp);
@@ -155,19 +157,19 @@ int display_dir_cluster(int nr, int rek, char*prefix)
 
     pp=&(data[j+24]);
     x=CHS(pp);
-    /*printf(" %02d.%02d.%02d",x&31,(x>>5)&15,(x>>9)+80);*/
+    printf(" %02d.%02d.%02d",x&31,(x>>5)&15,(x>>9)+80);
     printf(" %s",datestr[(x>>5)&15]);
     printf(" %02d",x&31);
     printf(" %04d",(x>>9)+1980); /* y2k compliant :) */
     
     pp=&(data[j+22]);
     x=CHS(pp);
-    /*printf("  %02d:%02d:%02d",x>>11,(x>>5)&63,(x&31)<<1);*/
-    printf(" %02d:%02d",x>>11,(x>>5)&63);
+    /*printf("  %02d:%02d:%02d",x>>11,(x>>5)&63,(x&31)<<1);
+    printf(" %02d:%02d",x>>11,(x>>5)&63);*/
     
     pp=&(data[j+26]);
     nstart=CHS(pp);
-    /*printf(" %5d",nstart);*/
+    /*printf(" %5d",nstart); */
 
     printf(" %s%s\n",prefix,filename);
         
