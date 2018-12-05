@@ -755,7 +755,7 @@ struct buffer_head* dblspace_bread(struct super_block*sb,int vsector)
   { err:
     printk(KERN_ERR "DMSDOS: illegal virtual sector %d, can't map to real sector\n",
            vsector);
-    *(int*)0=0;
+    *(int *)0=0;
     return NULL;
   }
   dbl_clust=((vsector-FAKED_DATA_START_OFFSET)/dblsb->s_sectperclust)+2;

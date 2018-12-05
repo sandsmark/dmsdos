@@ -687,7 +687,7 @@ int dblspace_fat_access(struct super_block*sb, int clusternr, int newval)
 
 int dblspace_bmap(struct inode*inode, int block)
 {
- #ifdef __FOR_KERNEL_2_3_10
+ #ifdef __FOR_KERNEL_2_3_99
   return dblspace_smap(inode,block);
  #else
   printk(KERN_WARNING "DMSDOS: bmap called, unsupported!\n");

@@ -30,13 +30,12 @@ See file COPYING for details.
 
 #include"dmsdos.h"
 
-#ifdef __FOR_KERNEL_2_3_10
- #include "dblspace_fileops.c-2.3.10"
-#else 
- #ifdef  __FOR_KERNEL_2_1_80
-  #include "dblspace_fileops.c-2.1.80"
- #else
-  #include "dblspace_fileops.c-2.0.33"
- #endif
+#ifdef __FOR_KERNEL_2_3_99
+#include"dblspace_fileops.c-2.3.99"
+#else
+#ifdef __FOR_KERNEL_2_1_80
+#include"dblspace_fileops.c-2.1.80"
+#else
+#include"dblspace_fileops.c-2.0.33"
 #endif
-
+#endif

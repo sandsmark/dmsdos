@@ -3,6 +3,10 @@ Known bugs:
 -----------
 
 - Support for 2.3.XX is broken now. It is uder development and is targeted
+  to 2.3.99 and higher. MMAP support for 2.3.XX is untested and MMAP may
+  lead to Oops.
+
+- Support for 2.3.XX is broken now. It is uder development and is targeted
   to 2.3.30 and higher. MMAP support for 2.3.XX is missing and MMAP will
   lead to Oops.
 
@@ -58,14 +62,14 @@ Kernel bugs related to using dmsdos
 
 - fat add cluster / fat extend dir for 2.3.xx
   Priority: Serious.
-  Affected kernels: 2.2.?-2.2.13+, 2.3.?-2.3.30+
+  Affected kernels: 2.2.?-2.2.13+, all 2.3.xx
   Fixed since: --not yet fixed, hopefully fixed in 2.2.15 and 2.3.31--
-  Symptom: File or directory (only dir for 2.3.x) cannot be enlargered.
+  Symptom: File or directory (only dir for 2.3.x) cannot be enlarged.
   Fix: See file patches/DIFFS.TXT for a patch.
 
 - fat read super
   Priority: Serious.
-  Affected kernels: 2.3.?-2.3.30+
+  Affected kernels: all 2.3.xx
   Fixed since: --not yet fixed, hopefully fixed in 2.3.31--
   Symptom: Oops during CVF mount phase.
   Fix: See file patches/DIFFS.TXT for a patch.

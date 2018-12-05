@@ -1025,14 +1025,18 @@ struct cvf_format dblspace_format = {
   dblspace_fat_access,        /* fat_access */
   NULL,                       /* statfs */
   dblspace_bmap,              /* bmap */
- #ifndef __FOR_KERNEL_2_3_10
+#ifndef __FOR_KERNEL_2_3_99
   dblspace_smap,              /* smap */
- #endif
+#endif
   dblspace_file_read,         /* file_read */
   dblspace_file_write,        /* file_write */
   MMAP,                       /* mmap */
+#ifndef __FOR_KERNEL_2_3_99
   READPAGE,                   /* readpage */
   NULL,                       /* writepage */
+#else
+  NULL,                       /* address_space_operations */
+#endif
   dmsdos_ioctl_dir,           /* dir ioctl */
   dblspace_zero_new_cluster   /* zero_new_cluster */
 };
@@ -1056,14 +1060,18 @@ struct cvf_format stacker_format = {
   dblspace_fat_access,        /* fat_access */
   NULL,                       /* statfs */
   dblspace_bmap,              /* bmap */
- #ifndef __FOR_KERNEL_2_3_10
+#ifndef __FOR_KERNEL_2_3_99
   dblspace_smap,              /* smap */
- #endif
+#endif
   dblspace_file_read,         /* file_read */
   dblspace_file_write,        /* file_write */
   MMAP,                       /* mmap */
+#ifndef __FOR_KERNEL_2_3_99
   READPAGE,                   /* readpage */
   NULL,                       /* writepage */
+#else
+  NULL,                       /* address_space_operations */
+#endif          
   dmsdos_ioctl_dir,           /* dir ioctl */
   dblspace_zero_new_cluster   /* zero_new_cluster */
 };

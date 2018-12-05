@@ -44,15 +44,22 @@ echo " not found, ok."
 if [ -f /usr/src/linux/fs/fat/cvf.c ];
 then
 	echo "Kernel has already CVF-FAT support."
-	grep CVF-FAT-VERSION-ID /usr/src/linux/fs/fat/cvf.c > /dev/null
-	if [ $? = 1 ];
-	then
-		echo "But the CVF-FAT version in your kernel is an older version."
-		echo "You may want to update it. I will _not_ do this for you."
-                echo "See the installation instructions for details."
-		echo
-		echo "Press Enter to continue."
-		read junk
+
+	#check for newer kernel
+        if [ "$VP" = "2.3" -o "$VP" = "2.4" ];
+        then
+	. patch-2.3.sh
+	else
+		grep CVF-FAT-VERSION-ID /usr/src/linux/fs/fat/cvf.c > /dev/null
+		if [ $? = 1 ];
+		then
+			echo "But the CVF-FAT version in your kernel is an older version."
+			echo "You may want to update it. I will _not_ do this for you."
+                	echo "See the installation instructions for details."
+			echo
+			echo "Press Enter to continue."
+			read junk
+		fi
 	fi
 else
 	if [ "$VP" = "2.0" ];

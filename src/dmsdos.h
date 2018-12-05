@@ -52,28 +52,19 @@ See file COPYING for details.
 
 #if LINUX_VERSION_CODE >= LVC(2,1,78)
  #define __FOR_KERNEL_2_1_80
- #if LINUX_VERSION_CODE < LVC(2,1,80)
-  #define READPAGE_DENTRY
- #else
+ #if LINUX_VERSION_CODE >= LVC(2,1,80)
   #define FAT_GET_CLUSTER
-  #if LINUX_VERSION_CODE < LVC(2,3,0)
-    #define READPAGE_INODE
-  #else
-   #if LINUX_VERSION_CODE < LVC(2,3,10)
-    #define READPAGE_FILE
-   #else
-    #define __FOR_KERNEL_2_3_10
-    #if LINUX_VERSION_CODE >= LVC(2,3,30)
-     #define __FOR_KERNEL_2_3_30
-     #define READPAGE_DENTRY
-     #define HAS_SB_CLUSTER_BITS
-    #endif
-   #endif
-  #endif
+ #else
+  #define READPAGE_DENTRY
  #endif
 #endif
 #if (LINUX_VERSION_CODE >= LVC(2,1,0)) && (LINUX_VERSION_CODE < LVC(2,1,78))
  #error dmsdos 0.9.x needs kernel >= 2.1.80 or use 2.0.33
+#endif
+
+#if LINUX_VERSION_CODE >= LVC(2,3,99)
+#define __FOR_KERNEL_2_3_99
+#define HAS_SB_CLUSTER_BITS
 #endif
 
 #ifdef FAT_GET_CLUSTER
@@ -222,8 +213,8 @@ See file COPYING for details.
 #define DMSDOS_MINOR      9
 #define DMSDOS_ACT_REL    2
 #define DMSDOS_COMP_REL   2
-#define DMSDOS_PL         "2"
-#define DMSDOS_EXTRA      "(alpha test)"
+#define DMSDOS_PL         "3"
+#define DMSDOS_EXTRA      "-pre2(alpha test)"
 
 #define DMSDOS_VERSION ((DMSDOS_MAJOR<<16)|(DMSDOS_MINOR<<8)|DMSDOS_ACT_REL)
 #define DMSDOS_LOWEST_COMPATIBLE_VERSION ((DMSDOS_MAJOR<<16)|(DMSDOS_MINOR<<8)|DMSDOS_COMP_REL)
@@ -609,21 +600,11 @@ int dblspace_file_write(struct inode *inode,struct file *filp,const char *buf,
 int dblspace_mmap(struct inode*inode,struct file*file,
                   struct vm_area_struct*vma);
 #endif
-
 #ifdef READPAGE_DENTRY
- int dblspace_readpage(struct dentry*dentry, struct page *page);
+int dblspace_readpage(struct dentry*dentry, struct page *page);
 #else
- #ifdef READPAGE_FILE
-  int dblspace_readpage(struct file *file, struct page *page);
- #else
-  #ifdef READPAGE_INODE 
-   int dblspace_readpage(struct inode *inode, struct page *page);
-  #else
-   #error Unknown readpage parameters
-  #endif
- #endif
+int dblspace_readpage(struct inode *inode, struct page *page);
 #endif
-
 int dmsdos_ioctl_dir(struct inode *dir,struct file *filp,
                      unsigned int cmd, unsigned long data);
 #endif /* __KERNEL__ */

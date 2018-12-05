@@ -28,6 +28,9 @@ ifeq ($(CONFIG_M686),y)
 CPUFLAGS= -m486 -DCPU=686 -DUSE_ASM
 endif
 # this one is new in 2.3.x kernels...
+ifeq ($(CONFIG_MK6),y)
+CPUFLAGS= -m486 -DCPU=586 -DUSE_ASM
+endif
 ifeq ($(CONFIG_MK7),y)
 CPUFLAGS= -m486 -DCPU=686 -DUSE_ASM
 endif
@@ -140,7 +143,7 @@ DBL_OBJS =  dblspace_compr.o dblspace_tables.o \
 $(DBL_OBJS): dmsdos.h dmsdos-config.h
 
 dblspace_fileops.o : dblspace_fileops.c dblspace_fileops.c-2.0.33 \
-		     dblspace_fileops.c-2.1.80 dblspace_fileops.c-2.3.10
+		     dblspace_fileops.c-2.1.80 dblspace_fileops.c-2.3.99
 
 dmsdos.o: $(DBL_OBJS)
 	ld -r -o dmsdos.o $(DBL_OBJS)

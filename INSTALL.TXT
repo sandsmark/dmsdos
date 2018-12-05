@@ -16,26 +16,32 @@ you, try 'Manual Installation'.
       See file patches/DIFFS.TXT where to find a patch to fix this
       (patches/msdos-rmdir-bugfix.diff).
 
-    * All current kernels from the 2.0, 2.1 and 2.2 series have a bug that 
+    * All kernels from the 2.0, 2.1 and 2.2.x(x<3) series have a bug that 
       can do write access to a FAT filesystem though it is mounted read-only.
       Though it only occurs in a rare situation, this bug can especially be
       triggered by dmsdos. Also see file patches/DIFFS.TXT where to find a 
       patch to fix this (patches/fat-truncate-bugfix.diff).
 
-    * All current 2.2 kernels (this means at least up to 2.2.2; 2.2.3 has
-      not been released yet at the time of writing) (and maybe late 2.1 
+    * All 2.2.x(x<3) kernels (and maybe late 2.1 
       kernels too) have a serious bug in the vfat driver that can cause 
       system hang ("kernel panic: VFS: LRU list corrupted") due to filesystem 
       buffer list corruption. Also see file patches/DIFFS.TXT where to find a 
       patch to fix this (patches/vfat-brelse-bugfix.diff). IT IS VITAL FOR
       USING DMSDOS IN A VFAT PARTITION TO HAVE THIS BUG FIXED.
 
+    * At least kernel 2.2.13 and 2.2.14 have a bug in CVF write access support
+      (you always get "no space left on decive" and "DMSDOS: fat_add_cluster
+      failed" messages). See file patches/DIFFS.TXT for a patch.
+
     These bugs are not fixed automatically during installation. If you are
     in doubt, please check the diff files and your kernel source. You can use
     dmsdos without these bugfixes, but you may crash or hang your system or
     lose data. YOU HAVE BEEN WARNED.
 
-    
+WARNING: Support for 2.3.99 and newer is currently highly experimental and
+may not work for you. If you want a stable dmsdos subsystem, use a 2.2.x
+kernel.
+
 A. Easy Installation
 ====================
 
@@ -54,8 +60,7 @@ A. Easy Installation
 
   2.1 and 2.2 kernels do not need a patch, but you may choose to update the
   CVF-FAT interface (though it still works with the old one). The updated 
-  files have not been included into the official kernel yet (at the time of
-  writing, current=2.2.2). I hope they go into 2.2.3 or 2.2.4. :) A 
+  files have been included into the official kernel 2.2.3. A 
   description of how and what to update can be found in patches/cvf.c.README.
 
   And, of course, you should ensure you have fixed the kernel FAT driver bugs 
@@ -144,6 +149,10 @@ A. Easy Installation
       script again at any time later if you want to play with the options. 
       See 'Manual instalation' section 'Compiling the sources' for details.
 
+      IMPORTANT NOTE FOR 2.3 and 2.4 kernels:
+      Go into "dmsdos expert configuration", there select "misc options"
+      and disable "writable mmap support". Otherwise the code fails to
+      compile.
 
   3. Completing installation
   --------------------------
@@ -307,6 +316,11 @@ B. Manual Installation
 
     The text-based 'make config' can also use a pre-configured file. Just copy
     the config.what-you-like to .config and run 'make config'.
+
+    IMPORTANT NOTE FOR 2.3 and 2.4 kernels:
+    Go into "dmsdos expert configuration", there select "misc options"
+    and disable "writable mmap support". Otherwise the code fails to
+    compile.
 
     Then continue with these steps:
 
