@@ -1,3 +1,21 @@
+The project is long time abandoned but it can be still usable to rescue
+data from old STACKER and DOUBLESPACE volumes.
+
+The version dmsdos-0.9.2.3-pre2-alt2 is based on patches found at
+
+http://packages.altlinux.org/en/Sisyphus/srpms/dmsdos/get
+
+ 2012-06-07 Fr. Br. George <george at altlinux.ru> 0.9.2.3-alt2
+    - Fix gcc4.6 build
+
+ 2012-03-25 Fr. Br. George <george at altlinux.ru> 0.9.2.3-alt1
+    - Initial build
+
+The modified version disables kernel code build which allows
+to build userspace tools for volume dump.
+
+*** Old Entries ***
+
 New in this release (since dmsdos 0.9.2.1):
 
 * THIS RELEASE IS EXPERIMENTAL AND ITS USAGE WITH 2.3.x

@@ -29,8 +29,6 @@ See file COPYING for details.
 #include<stdio.h>
 #include<string.h>
 #include<malloc.h>
-#include<asm/unaligned.h>
-#include<asm/types.h>
 #include<unistd.h>
 #include<fcntl.h>
 

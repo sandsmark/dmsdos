@@ -10,7 +10,7 @@
 -include /usr/src/linux/.config
 #
 # guess some special flags for CPU type - used for optimization only
-CPUFLAGS=
+CPUFLAGS=-U__linux__ -fPIC
 ifeq ($(CONFIG_M386),y)
 CPUFLAGS= -m386 -DCPU=386 -DUSE_ASM
 endif
@@ -75,7 +75,7 @@ LIBC6FLAGS=
 #
 # CFLAGS for dmsdos module
 # note: some macro expansions require at least -O
-CFLAGS= -Wall -Wstrict-prototypes -O3 -fomit-frame-pointer -D__KERNEL__ -DMODULE
+CFLAGS= -Wstrict-prototypes -O3 -fomit-frame-pointer
 CFLAGS+= $(CPUFLAGS)
 #
 # The next lines add some stuff automatically for people using modversions
@@ -86,15 +86,15 @@ endif
 #
 # CFLAGS for the dmsdos daemon
 # note: some macro expansions require at least -O
-DCFLAGS= -Wall -O3 -D__DMSDOS_DAEMON__
+DCFLAGS= -O3 -D__DMSDOS_DAEMON__
 DCFLAGS+= $(CPUFLAGS)
 #
 # CFLAGS for the dmsdos library
 # note: some macro expansions require at least -O
-LCFLAGS= -Wall -O -ggdb -D__DMSDOS_LIB__ -DUSE_FLOCK
+LCFLAGS= -O -ggdb -D__DMSDOS_LIB__ -DUSE_FLOCK
 LCFLAGS+= $(CPUFLAGS) $(LIBC6FLAGS)
 # uncomment the next line if you want a shared library
-# LIB_SHARED = 1
+#LIB_SHARED = 1
 #
 # locations where to install the module, the executables and the manpages
 # note: `uname -r` expands to the *currently running* kernel version - if it
@@ -108,6 +108,8 @@ EXEC_PREFIX=/usr/local/bin
 
 ##########################################################################
 # The rest of this file are rules how to build which programs.
+
+without_kernel: dcread dmsdosfsck mcdmsdos cvflist cvftest
 
 all: dmsdos-config.h dmsdos.o dutil dmsdosd $(LIBDMSDOS) dcread dmsdosfsck \
      mcdmsdos cvflist cvftest
@@ -171,9 +173,7 @@ mrproper: clean
 
 install: all
 	./check.sh
-	install dmsdos.o -m 644 $(MODULE_PREFIX)/dmsdos.o
-	install dutil $(EXEC_PREFIX)/dutil
-	install dmsdosd $(EXEC_PREFIX)/dmsdosd
+	install dcread $(EXEC_PREFIX)/dcread
 	install dmsdosfsck $(EXEC_PREFIX)/dmsdosfsck
 	install mcdmsdos $(EXEC_PREFIX)/mcdmsdos
 	install cvflist $(EXEC_PREFIX)/cvflist
@@ -222,24 +222,19 @@ else
 LIBDMSDOS = libdmsdos.so.0.9.2
 
 $(LIBDMSDOS): $(LIB_OBJS)
-	ld --shared --soname=$(LIBDMSDOS) -o $(LIBDMSDOS) $^
+	gcc --shared -Xlinker --soname=$(LIBDMSDOS) -o $(LIBDMSDOS) $^
 	ln -s $(LIBDMSDOS) libdmsdos.so
 
 endif
 
 dcread: dcread.c $(LIBDMSDOS) dmsdos.h dmsdos-config.h
-	$(CC) -Wall -ggdb -o dcread dcread.c -L. -ldmsdos
 
 mcdmsdos: mcdmsdos.c $(LIBDMSDOS) dmsdos.h dmsdos-config.h
-	$(CC) -Wall -ggdb -o mcdmsdos mcdmsdos.c -L. -ldmsdos
 
 dmsdosfsck: dmsdosfsck.c $(LIBDMSDOS) dmsdos.h dmsdos-config.h
-	$(CC) -Wall -o dmsdosfsck dmsdosfsck.c -L. -ldmsdos
 
 cvftest: cvftest.c
-	$(CC) -Wall -o cvftest cvftest.c
 
 cvflist: cvflist.c
-	$(CC) -Wall -o cvflist cvflist.c
 
 -include depend

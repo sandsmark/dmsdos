@@ -48,7 +48,7 @@ int scan(char*arg)
 
 void error(void)
 { perror("ioctl failed");
-  exit();
+  exit(1);
 }
 
 int main(int argc, char*argv[])
