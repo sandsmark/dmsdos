@@ -76,15 +76,15 @@ void unlock_bitfat(void) {}
 
 #else
 
-struct semaphore mdfat_sem=MUTEX;   /* Must be initialized to green light */
+DECLARE_MUTEX(mdfat_sem);   /* Must be initialized to green light */
 void lock_mdfat(void) {down(&mdfat_sem);}
 void unlock_mdfat(void) {up(&mdfat_sem);}
 
-struct semaphore dfat_sem=MUTEX;   /* Must be initialized to green light */
+DECLARE_MUTEX(dfat_sem);   /* Must be initialized to green light */
 void lock_dfat(void) {down(&dfat_sem);}
 void unlock_dfat(void) {up(&dfat_sem);}
 
-struct semaphore bitfat_sem=MUTEX;   /* Must be initialized to green light */
+DECLARE_MUTEX(bitfat_sem);   /* Must be initialized to green light */
 void lock_bitfat(void) {down(&bitfat_sem);}
 void unlock_bitfat(void) {up(&bitfat_sem);}
 
@@ -350,7 +350,7 @@ int dbl_mdfat_value(struct super_block* sb,int clusternr,
             raw_brelse(sb,bh);                              
           }
         }
-       give_up:
+       give_up:  ;
       }
   
       unlock_mdfat();
@@ -549,7 +549,7 @@ LOG_DFAT("DMSDOS: FAT lookup: cluster=%d value(low=%d high=%d)\n",
           raw_brelse(sb,bh);                              
         }
       }
-     give_up:
+     give_up:  ;
   }
   unlock_dfat();
   if(dblsb->s_16bitfat)return res>=0xFFF7 ? -1 : res;
@@ -669,17 +669,30 @@ int dblspace_fat_access(struct super_block*sb, int clusternr, int newval)
   
   if(sb->s_flags&MS_RDONLY)
   { printk(KERN_ERR "DMSDOS: dblspace_fat_access: READ-ONLY filesystem\n");
-    return -EROFS;
+    /* This is a bad hack in order to work around a problem with the
+       FAT driver: The FAT driver assumes fat_access never fails. Thus
+       returning -EROFS results in an endless loop (i.e. system hang)
+       at least in fat_free. We return -1 here in order to simulate EOF 
+       which should break any loop in the FAT driver. */
+    return /* -EROFS */ -1;
   }
             
   if(newval==0)delete_cache_cluster(sb,clusternr);
   dbl_fat_nextcluster(sb,clusternr,&newval);
+  if(cl<0)return -1; /* see comment above -- just to be sure :) */
+                     /* if cl _is_ -1 (EOF) this is ok. */
+                     /* if it is a negative error it is replaced by EOF. */
   return cl;
 }
 
 int dblspace_bmap(struct inode*inode, int block)
-{ printk(KERN_WARNING "DMSDOS: bmap called, unsupported!\n");
+{
+ #ifdef __FOR_KERNEL_2_3_10
+  return dblspace_smap(inode,block);
+ #else
+  printk(KERN_WARNING "DMSDOS: bmap called, unsupported!\n");
   return -EIO;
+ #endif
 }
 
 int dblspace_smap(struct inode*inode, int block)

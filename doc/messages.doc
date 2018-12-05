@@ -848,6 +848,19 @@ DMSDOS: unable to read emulated boot block
 DMSDOS: zero_new_cluster: ch_noread failed???
   O/B: Don't know. Really. This shouldn't happen.
 
+VFS: LRU list corrupted
+VFS: free list corrupted
+(or similar)
+  P/B/O: You are very suffering from the vfat brelse bug (this is a serious
+    bug in some 2.2.x and maybe late 2.1.x kernels). This bug is triggered
+    by dmsdos. Ensure you have applied the vfat-brelse-bugfix.diff or you
+    are using a kernel where the bug is fixed (in 2.2.2 it is not yet fixed).
+    See file patches/DIFFS.TXT or INSTALL.TXT for details.
+
+    If not, this indicates probably a leak in dmsdos virtual sector code.
+    Please send a bug report to the current dmsdos maintainer and be prepared
+    to be asked for some tests in order to track down the bug.
+
 (*) ['no memory' messages:]
     There was a problem in previous dmsdos versions that caused these
     messages rarely though there was enough memory free. I've tried to fix

@@ -45,7 +45,7 @@ extern unsigned long dmsdos_speedup;
 extern int cfaktor;
 void panic(char*);
 #include <malloc.h>
-#include<asm/types.h>
+#include <asm/types.h>
 #include <asm/byteorder.h>
 #define MALLOC malloc
 #define FREE   free
@@ -57,14 +57,18 @@ void panic(char*);
 #include"lib_interface.h"
 #include<malloc.h>
 #include<errno.h>
-#include <asm/byteorder.h>
 #endif
 
 int c_maxtrycount[12]={ 1, 2, 3, 4, 6, 8,10,14,18,22,28,40};
 
+#ifdef __GNUC__
 #define INLINE static inline
+#else
+/* non-gnu compilers do not like inline */
+#define INLINE static
+#endif
 
-#if !defined(cpu_to_le16) && defined(__i386__)
+#if !defined(cpu_to_le16)
  /* for old kernel versions - works only on i386 */
  #define cpu_to_le16(v) (v)
 #endif

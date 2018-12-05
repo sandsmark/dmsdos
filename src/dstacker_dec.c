@@ -59,9 +59,14 @@ See file COPYING for details.
 #include<malloc.h>
 #include<string.h>
 #include<errno.h>
-#include<asm/byteorder.h>
 #endif
 
+#ifdef __GNUC__
+#define INLINE static inline
+#else
+/* non-gnu compilers may not like inline */
+#define INLINE static
+#endif
 
 #ifdef DMSDOS_CONFIG_STAC
 
@@ -79,7 +84,7 @@ __asm__ /*__volatile__*/(\
 	:"0" (D),"1" (S),"2" (C) \
 	:"memory")
 
-static inline __u16 swap_bytes_in_word(__u16 x)
+INLINE __u16 swap_bytes_in_word(__u16 x)
 	{
 	__asm__("xchgb %b0,%h0"		/* swap bytes		*/
 		: "=q" (x)
@@ -90,11 +95,14 @@ static inline __u16 swap_bytes_in_word(__u16 x)
 
 #else
 
+#ifdef __GNUC__
+/* non-gnu compilers may not like warning directive */
 #warning USE_GNU_ASM_I386 not defined, using "C" equivalent
+#endif
 
 #define M_MOVSB(D,S,C) for(;(C);(C)--) *((__u8*)(D)++)=*((__u8*)(S)++)
 
-static inline __u16 swap_bytes_in_word(__u16 x)
+INLINE __u16 swap_bytes_in_word(__u16 x)
 	{
 	return ((x & 0x00ff) << 8) | ((x & 0xff00) >> 8);
 	}
@@ -106,8 +114,6 @@ static inline __u16 swap_bytes_in_word(__u16 x)
     #define le16_to_cpu(v) (v)
     #define be16_to_cpu(v) (swap_bytes_in_word(v))
 #endif
-
-#define INLINE static inline
 
 /***************************************************************************/
 /***************************************************************************/

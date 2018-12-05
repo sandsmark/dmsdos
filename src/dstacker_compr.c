@@ -56,8 +56,6 @@ See file COPYING for details.
 #include<malloc.h>
 #include<string.h>
 #include<errno.h>
-#include <asm/byteorder.h>
-#include<asm/unaligned.h>
 #endif
 
 
@@ -72,6 +70,13 @@ See file COPYING for details.
 #define MALLOC malloc
 #define FREE free
 int printk(const char * fmt, ...) __attribute__ ((format (printf, 1, 2)));
+#endif
+
+#ifdef __GNUC__
+#define INLINE static inline
+#else
+/* non-gnu compilers may not like inline */
+#define INLINE static
 #endif
 
 #define MAX(a,b) (((a) > (b)) ? (a) : (b))
@@ -96,9 +101,9 @@ __asm__ /*__volatile__*/(\
 	:"0" (D),"1" (S),"2" (C) \
 	)
 
-static inline __u16 swap_bytes_in_word(__u16 x)
+INLINE __u16 swap_bytes_in_word(__u16 x)
 	{
-	__asm__("xchgb %b0,%h0"		/* swap bytes		*/
+	__asm__("xchgb %b0,%h0"         /* swap bytes           */
 		: "=q" (x)
 		:  "0" (x));
 	return x;
@@ -106,12 +111,15 @@ static inline __u16 swap_bytes_in_word(__u16 x)
 
 #else
 
+#ifdef __GNUC__
+/* non-gnu compilers may not like warning directive */
 #warning USE_GNU_ASM_I386 not defined, using "C" equivalent
+#endif
 
 #define M_FIRSTDIFF(D,S,C) for(;(*(__u8*)(D)==*(__u8*)(S))&&(C);\
-                           (__u8*)(D)++,(__u8*)(S)++,(C)--)
+			   (__u8*)(D)++,(__u8*)(S)++,(C)--)
 
-static inline __u16 swap_bytes_in_word(__u16 x)
+INLINE __u16 swap_bytes_in_word(__u16 x)
 	{
 	return ((x & 0x00ff) << 8) | ((x & 0xff00) >> 8);
 	}
@@ -134,15 +142,13 @@ static inline __u16 swap_bytes_in_word(__u16 x)
 #define C_ST_u16(p,v) {put_unaligned(v,((__u16*)p)++);}
 #define C_LD_u16(p,v) {v=get_unaligned(((__u16*)p)++);}
 
-#define INLINE static inline
-
 /* for reading and writting from/to bitstream */
 typedef
  struct {
-   __u32 buf;	/* bit buffer */
-     int pb;	/* not read bits count in buffer */
-   __u16 *pd;	/* first not readed input data */
-   __u16 *pe;	/* after end of data */
+   __u32 buf;   /* bit buffer */
+     int pb;    /* not read bits count in buffer */
+   __u16 *pd;   /* first not readed input data */
+   __u16 *pe;   /* after end of data */
  } bits_t;
 
 /*************************************************************************/
@@ -159,8 +165,8 @@ typedef
 
 typedef
  struct {
-  __u16 cod[0x180];	/* characters codes */
-  __u8  ln[0x180];	/* characters lens */
+  __u16 cod[0x180];     /* characters codes */
+  __u8  ln[0x180];      /* characters lens */
  }huf_wr_t;
 
 #ifdef MAX_COMP
@@ -274,7 +280,7 @@ unsigned sd4_complz(void* pin,int lin,void* pout,int lout,int flg,count_t* ch_cn
 
  /*
  printk("There we are,work_mem=%X hash_hist=%X pin=%X lin=%X pend=%X pout=%X\n",
-         work_mem,hash_hist,pin,lin,pend,pout);
+	 work_mem,hash_hist,pin,lin,pend,pout);
  */
 
  if(lout<0x20) goto return_error; /* some minimal space for lz interform buffer */
@@ -320,7 +326,7 @@ unsigned sd4_complz(void* pin,int lin,void* pout,int lout,int flg,count_t* ch_cn
     { 
      delay_best=0;
      while((delay_cn<delay_count)&&(pi+max_match<pend)&&
-           (max_match<0x100))
+	   (max_match<0x100))
      {
       pi++;delay_cn++;
       hash_cur=sd4_newhash(pi,hash_tab,hash_hist,hash_mask);
@@ -329,22 +335,22 @@ unsigned sd4_complz(void* pin,int lin,void* pout,int lout,int flg,count_t* ch_cn
       {
        if(pi-hash_cur>=0xAA0) break;  /* longer offsets are not allowed */
        if((hash_cur[0]==pi[0])&&(hash_cur[1]==pi[1])&&
-          /* pi[2]=hash_cur[2] from hash function */
-          (hash_cur[max_match-1]==pi[max_match-1])&&
-          (hash_cur[max_match]==pi[max_match])&&
-          (hash_cur!=max_hash+delay_cn-delay_best))
+	  /* pi[2]=hash_cur[2] from hash function */
+	  (hash_cur[max_match-1]==pi[max_match-1])&&
+	  (hash_cur[max_match]==pi[max_match])&&
+	  (hash_cur!=max_hash+delay_cn-delay_best))
        {  /* do not test actual max match */
-        match=pend-pi;           /* length of rest of data */
-        pd=pi+2;
-        pc=hash_cur+2;
-        M_FIRSTDIFF(pd,pc,match);/* compare */
-        match=pd-pi;             /* found match length */
-        if((match>max_match+delay_cn)&&((match>=6)||(pi-hash_cur<0x800)))
-        {
-         max_hash=hash_cur;max_match=match; /* find maximal hash */
-         delay_best=delay_cn;
-         if(pd>pend+1)break;     /* match to end of block */
-        };
+	match=pend-pi;           /* length of rest of data */
+	pd=pi+2;
+	pc=hash_cur+2;
+	M_FIRSTDIFF(pd,pc,match);/* compare */
+	match=pd-pi;             /* found match length */
+	if((match>max_match+delay_cn)&&((match>=6)||(pi-hash_cur<0x800)))
+	{
+	 max_hash=hash_cur;max_match=match; /* find maximal hash */
+	 delay_best=delay_cn;
+	 if(pd>pend+1)break;     /* match to end of block */
+	};
        };
        pc=hash_cur;
       }while(--try_cn&&((hash_cur=hash_hist[(unsigned)pc&hash_mask])<pc)); 
@@ -592,12 +598,12 @@ int sd4_comp(void* pin,int lin, void* pout, int lout, int flg)
  
  if((lz_length=sd4_complz(pin,lin,pout,lout,flg,ch_cn))==0) goto return_error;
  {
-  unsigned ch_blcn[16];	  /* bitlength couts for codes */
+  unsigned ch_blcn[16];   /* bitlength couts for codes */
   int i,j;
   int bl_dat;
-  unsigned *bl_buf;	  /* prepared data of table 2 with tokens */
+  unsigned *bl_buf;       /* prepared data of table 2 with tokens */
   count_t act_bl;
-  count_t bl_cn[0x16];	  /* occurecces of bit lens */
+  count_t bl_cn[0x16];    /* occurecces of bit lens */
   unsigned bl_blcn[0x16]; /* bitlength couts for bit lens */
   int min_bl, max_bl;
   __u8* lz_pos;
@@ -822,13 +828,13 @@ INLINE hash_t sd3_newhash(__u8 *p,hash_t* hash_tab,hash_t* hash_hist,unsigned ha
 
 int sd3_comp(void* pin,int lin, void* pout, int lout, int flg)
 {
- bits_t bits;		  /* output bitstream */
+ bits_t bits;             /* output bitstream */
  int try_count;           /* number of compares to find best match */
  int hash_skiped;         /* last bytes of repetition are hashed too */
  hash_t *hash_tab; 
-        /* [0x400] pointers to last occurrence of same hash, index hash */
+	/* [0x400] pointers to last occurrence of same hash, index hash */
  hash_t *hash_hist;
-        /* [0x800] previous occurences of hash, index actual pointer&hash_mask */ 
+	/* [0x800] previous occurences of hash, index actual pointer&hash_mask */ 
  unsigned hash_mask=0x7FF;/* mask for index into hash_hist */
  __u8 *pi, *pc, *pd, *pend;
  hash_t hash_cur;
@@ -936,7 +942,7 @@ int sd3_comp(void* pin,int lin, void* pout, int lout, int flg)
    Decision can be made with ifdef __KERNEL__ .
    
    Hi Frank,
-             I know, that it is different from doublespace, but I
+	     I know, that it is different from doublespace, but I
    decide change this, because stacker 4 compression likes know
    exactly free space in output buffer. It uses this space for
    intermediate data representation ( which is always shorter 
@@ -948,8 +954,14 @@ int sd3_comp(void* pin,int lin, void* pout, int lout, int flg)
 
 */
 
+#if 0
+/* this confuses some compilers in the memset command below */  
 int stac_compress(void* pin,int lin, void* pout, int lout,
-                  int method, int cfaktor)
+		  int method, int cfaktor)
+#else
+int stac_compress(unsigned char* pin,int lin, unsigned char* pout, int lout,
+		  int method, int cfaktor)
+#endif
 {  int ret=-1;
    int i;
    if(((i=lin%512)!=0)||!lin) /* useless but stacker like it */
@@ -1020,8 +1032,8 @@ int stac_compress(void* pin,int lin, void* pout, int lout,
 #if defined(__KERNEL__)||defined(__DMSDOS_LIB__)
 
 int stac_write_cluster(struct super_block*sb,
-                       unsigned char* clusterd, int length, int clusternr,
-                       int near_sector, int ucflag)
+		       unsigned char* clusterd, int length, int clusternr,
+		       int near_sector, int ucflag)
 { 
   int method;
   unsigned char* clusterk;
@@ -1048,8 +1060,8 @@ int stac_write_cluster(struct super_block*sb,
   /*if(ucflag==UC_TEST) return -EIO;*/
   if(ucflag==UC_TEST)
   { if( dblsb->s_full==0 &&
-        /* well, this is estimated */
-        dblsb->s_sectperclust*CCACHESIZE+100<dblsb->s_free_sectors
+	/* well, this is estimated */
+	dblsb->s_sectperclust*CCACHESIZE+100<dblsb->s_free_sectors
       ) return 0;
     else return -ENOSPC;
   }
@@ -1075,13 +1087,13 @@ int stac_write_cluster(struct super_block*sb,
   { /* raw compressed data from daemon */
     length=-ucflag;
     method=UNCOMPRESSED^1; /* not uncompressed */ /* is this correct ??? */
-                           /* Hi Pavel,
-                              Please check the code whether it works 
-                              correctly for daemon writes. I think this may
-                              cause a FREE(data not to free) at the very
-                              end. I added a ucflag>=0 test there to avoid
-                              the problem.
-                            */
+			   /* Hi Pavel,
+			      Please check the code whether it works 
+			      correctly for daemon writes. I think this may
+			      cause a FREE(data not to free) at the very
+			      end. I added a ucflag>=0 test there to avoid
+			      the problem.
+			    */
     clusterk=clusterd;
   }
   else if(method!=UNCOMPRESSED)
@@ -1093,10 +1105,10 @@ int stac_write_cluster(struct super_block*sb,
     else
     { /* We test possible compression */
       /* stacker needs length before compression to be 
-         multiple of SECTOR_SIZE */
+	 multiple of SECTOR_SIZE */
       if(((i=length%SECTOR_SIZE)!=0)||!length)
       { memset(clusterd+length,0,SECTOR_SIZE-i);
-        i=length+SECTOR_SIZE-i;
+	i=length+SECTOR_SIZE-i;
       } else i=length;
 
       cfaktor=dblsb->s_cfaktor;
@@ -1104,25 +1116,25 @@ int stac_write_cluster(struct super_block*sb,
 
       if(method==SD_4)
       { LOG_CLUST("DMSDOS: stac_write_cluster: compressing sd4...\n");
-        i=sd4_comp(clusterd,i,clusterk,max_clen,comp_rat_tab[cfaktor]);
-        LOG_CLUST("DMSDOS: stac_write_cluster: compressing finished\n");
+	i=sd4_comp(clusterd,i,clusterk,max_clen,comp_rat_tab[cfaktor]);
+	LOG_CLUST("DMSDOS: stac_write_cluster: compressing finished\n");
       }
       else if(method==SD_3)
       { LOG_CLUST("DMSDOS: stac_write_cluster: compressing sd3...\n");
-        i=sd3_comp(clusterd,i,clusterk,max_clen,comp_rat_tab[cfaktor]);
-        LOG_CLUST("DMSDOS: stac_write_cluster: compressing finished\n");
+	i=sd3_comp(clusterd,i,clusterk,max_clen,comp_rat_tab[cfaktor]);
+	LOG_CLUST("DMSDOS: stac_write_cluster: compressing finished\n");
       }
       else if(method==DS_0_0)
       { LOG_CLUST("DMSDOS: stac_write_cluster: compressing ds00...\n");
-        i=dbl_compress(clusterk,clusterd,(i+511)/512,method,cfaktor)*512;
-        LOG_CLUST("DMSDOS: stac_write_cluster: compressing finished\n");
+	i=dbl_compress(clusterk,clusterd,(i+511)/512,method,cfaktor)*512;
+	LOG_CLUST("DMSDOS: stac_write_cluster: compressing finished\n");
       }
       else i=0;
 
       LOG_CLUST("DMSDOS: Cluster %i compressed from %i to %i\n",clusternr,length,i);
       if((i<=0)||(i>=length)||(i>max_clen-SECTOR_SIZE))
       { method=UNCOMPRESSED;
-        FREE(clusterk);
+	FREE(clusterk);
       }
       else length=i;
     }
@@ -1133,7 +1145,7 @@ int stac_write_cluster(struct super_block*sb,
   val=stac_cwalk_init(&cw,sb,clusternr,3);
   if (val<0)
   { printk(KERN_ERR "DMSDOS: stac_write_cluster: alloc error in cluster %d\n",
-              clusternr);
+	      clusternr);
     res=-EIO; 
     goto error_return;
   };
@@ -1154,24 +1166,24 @@ int stac_write_cluster(struct super_block*sb,
     mde.size_hi_minus_1=size-1;
     if(method==UNCOMPRESSED)
       if(size==dblsb->s_sectperclust)
-        mde.flags=2;
+	mde.flags=2;
       else
-        mde.flags=0x23;
+	mde.flags=0x23;
     else
       mde.flags=2;
 
     LOG_CLUST("DMSDOS: stac_write_cluster: Replace size %2i flg 0x%02X cluster %i\n",
-           size,mde.flags,clusternr);
+	   size,mde.flags,clusternr);
     sect=stac_replace_existing_cluster(sb,clusternr,near_sector,&mde);
     LOG_CLUST("DMSDOS: stac_write_cluster: stac_replace_existing_cluster returned %d\n",
-           sect);
+	   sect);
 
     if(sect<0) {res=-ENOSPC;goto error_return;};
 
     val=stac_cwalk_init(&cw,sb,clusternr,3);
     if ((val<0)||(length>cw.bytes_in_clust))
     { printk(KERN_ERR "DMSDOS: stac_write_cluster: alloc error in cluster %d\n",
-                clusternr);
+		clusternr);
       res=-EIO; 
       goto error_return;
     };
@@ -1184,23 +1196,23 @@ int stac_write_cluster(struct super_block*sb,
       if(bh==NULL)res=-EIO;
       else
       { if(count+cw.bytes>cw.bytes_in_clust)
-        { printk(KERN_ERR "DMSDOS: stac_write_cluster: internal cw error 1 cluster=%d\n",
-                  clusternr);
-          raw_brelse(sb,bh);
-          stac_cwalk_done(&cw);
-          goto error_return;
-        };
-        if(count+cw.bytes<=length)
-          memcpy(bh->b_data+cw.offset,clusterk+count,cw.bytes);
-        else
-        { if((i=length-count)>0)
-          { memcpy(bh->b_data+cw.offset,clusterk+count,i);
-            memset(bh->b_data+cw.offset+i,0,cw.bytes-i);
-          } else memset(bh->b_data+cw.offset,0,cw.bytes);
-        };
-        raw_set_uptodate(sb,bh,1);/*getblk needs this*/
-        raw_mark_buffer_dirty(sb,bh,1);
-        raw_brelse(sb,bh);
+	{ printk(KERN_ERR "DMSDOS: stac_write_cluster: internal cw error 1 cluster=%d\n",
+		  clusternr);
+	  raw_brelse(sb,bh);
+	  stac_cwalk_done(&cw);
+	  goto error_return;
+	};
+	if(count+cw.bytes<=length)
+	  memcpy(bh->b_data+cw.offset,clusterk+count,cw.bytes);
+	else
+	{ if((i=length-count)>0)
+	  { memcpy(bh->b_data+cw.offset,clusterk+count,i);
+	    memset(bh->b_data+cw.offset+i,0,cw.bytes-i);
+	  } else memset(bh->b_data+cw.offset,0,cw.bytes);
+	};
+	raw_set_uptodate(sb,bh,1);/*getblk needs this*/
+	raw_mark_buffer_dirty(sb,bh,1);
+	raw_brelse(sb,bh);
       };
       count+=cw.bytes;
     }
@@ -1208,7 +1220,7 @@ int stac_write_cluster(struct super_block*sb,
   stac_cwalk_done(&cw);
   if((count<length)||(count!=cw.bytes_in_clust))
     printk(KERN_ERR "DMSDOS: stac_write_cluster: internal cw error 2 cluster=%d\n",
-                  clusternr);
+		  clusternr);
 
  error_return:
   if(method!=UNCOMPRESSED&&ucflag>=0)FREE(clusterk);

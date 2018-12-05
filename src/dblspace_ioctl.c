@@ -56,8 +56,8 @@ int rlist=0;
 int wlist=0;
 
 #ifdef INTERNAL_DAEMON
-struct wait_queue * daemon_wait = NULL;
-struct wait_queue * daemon_exit_wait=NULL;
+DECLARE_WAIT_QUEUE_HEAD(daemon_wait);
+DECLARE_WAIT_QUEUE_HEAD(daemon_exit_wait);
 int daemon_go_home=0;
 int internal_daemon_counter=0;
 #else
@@ -68,7 +68,7 @@ int daemon_task_nr;
 void dumpcache(void);
 void dump_ccache(void);
 
-struct semaphore listaccess_sem=MUTEX;   /* Must be initialized to green light */
+DECLARE_MUTEX(listaccess_sem);   /* Must be initialized to green light */
 void lock_listaccess(void) {down(&listaccess_sem);}
 void unlock_listaccess(void) {up(&listaccess_sem);}
 

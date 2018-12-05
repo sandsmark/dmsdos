@@ -1,3 +1,4 @@
+
 # If you want or need to change something herein, please look approx. 30 lines
 # below for the 'User Config Section'
 
@@ -20,15 +21,7 @@ endif
 ifeq ($(CONFIG_M586),y)
 CPUFLAGS= -m486 -DCPU=586 -DUSE_ASM
 endif
-# this one is new in 2.2.x kernels...
-ifeq ($(CONFIG_M586TSC),y)
-CPUFLAGS= -m486 -DCPU=586 -DUSE_ASM
-endif
 ifeq ($(CONFIG_M686),y)
-CPUFLAGS= -m486 -DCPU=686 -DUSE_ASM
-endif
-# this one is new in 2.3.x kernels...
-ifeq ($(CONFIG_MK7),y)
 CPUFLAGS= -m486 -DCPU=686 -DUSE_ASM
 endif
 #
@@ -59,10 +52,6 @@ CC=gcc
 ifeq ($(SMP),1)
 CPUFLAGS+= -D__SMP__
 endif
-# 2.2.x kernels have this one...
-ifeq ($(CONFIG_SMP),y)
-CPUFLAGS+= -D__SMP__
-endif
 #
 # The next lines are for libc6 and enable some compatibility hacks -
 # uncomment the line with -D__FOR_LIBC6 if the code does not compile
@@ -88,10 +77,8 @@ DCFLAGS+= $(CPUFLAGS)
 #
 # CFLAGS for the dmsdos library
 # note: some macro expansions require at least -O
-LCFLAGS= -Wall -O -ggdb -D__DMSDOS_LIB__ -DUSE_FLOCK
+LCFLAGS= -Wall -O -ggdb -D__DMSDOS_LIB__
 LCFLAGS+= $(CPUFLAGS) $(LIBC6FLAGS)
-# uncomment the next line if you want a shared library
-# LIB_SHARED = 1
 #
 # locations where to install the module, the executables and the manpages
 # note: `uname -r` expands to the *currently running* kernel version - if it
@@ -106,7 +93,7 @@ EXEC_PREFIX=/usr/local/bin
 ##########################################################################
 # The rest of this file are rules how to build which programs.
 
-all: dmsdos-config.h dmsdos.o dutil dmsdosd $(LIBDMSDOS) dcread dmsdosfsck \
+all: dmsdos-config.h dmsdos.o dutil dmsdosd libdmsdos.a dcread dmsdosfsck \
      mcdmsdos cvflist cvftest
 
 min: dmsdos-config.h dmsdos.o dutil
@@ -131,16 +118,13 @@ depend:
 	@touch depend
 
 DBL_OBJS =  dblspace_compr.o dblspace_tables.o \
-	    dblspace_alloc.o dblspace_dec.o dblspace_virtual.o \
-	    dblspace_buffer.o dblspace_methsq.o \
-	    dblspace_chk.o dblspace_interface.o \
-	    dstacker_alloc.o dstacker_compr.o dstacker_dec.o \
-	    dblspace_fileops.o dblspace_ioctl.o
+            dblspace_alloc.o dblspace_dec.o dblspace_virtual.o \
+            dblspace_buffer.o dblspace_methsq.o \
+            dblspace_chk.o dblspace_interface.o \
+            dstacker_alloc.o dstacker_compr.o dstacker_dec.o \
+            dblspace_fileops.o dblspace_ioctl.o
 
 $(DBL_OBJS): dmsdos.h dmsdos-config.h
-
-dblspace_fileops.o : dblspace_fileops.c dblspace_fileops.c-2.0.33 \
-		     dblspace_fileops.c-2.1.80 dblspace_fileops.c-2.3.10
 
 dmsdos.o: $(DBL_OBJS)
 	ld -r -o dmsdos.o $(DBL_OBJS)
@@ -149,7 +133,7 @@ dutil: dutil.c dmsdos.h dmsdos-config.h
 	$(CC) $(DCFLAGS) -o dutil dutil.c
 
 DAEMON_OBJS = daemon_actions.do dblspace_compr.do dstacker_compr.do \
-	      dblspace_methsq.do
+              dblspace_methsq.do
 
 $(DAEMON_OBJS): dmsdos.h dmsdos-config.h
 
@@ -159,8 +143,8 @@ dmsdosd: $(DAEMON_OBJS)
 	$(CC) -o dmsdosd $^
 
 clean:
-	rm -f *.o *.a *.i *.s *.lo *.do *.so *.so.* dutil dmsdosd dcread \
-	      dmsdosfsck cvftest cvflist mcdmsdos
+	rm -f *.o *.a *.i *.s *.lo *.do *.so dutil dmsdosd dcread \
+              dmsdosfsck cvftest cvflist mcdmsdos
 
 mrproper: clean
 	rm -f core *~ depend
@@ -196,41 +180,30 @@ messages:
 	diff -d -U 0 -w /tmp/messdoc /tmp/messsrc | grep DMSDOS
 
 LIB_OBJS =  lib_interface.lo dblspace_interface.lo dblspace_dec.lo \
-	    dblspace_compr.lo dblspace_methsq.lo dblspace_alloc.lo \
-	    dblspace_chk.lo dblspace_tables.lo dstacker_compr.lo \
-	    dstacker_dec.lo dstacker_alloc.lo
+            dblspace_compr.lo dblspace_methsq.lo dblspace_alloc.lo \
+            dblspace_chk.lo dblspace_tables.lo dstacker_compr.lo \
+            dstacker_dec.lo dstacker_alloc.lo
 
 $(LIB_OBJS): dmsdos.h dmsdos-config.h lib_interface.h
 
-ifndef LIB_SHARED
-
-LIBDMSDOS = libdmsdos.a
-
 %.lo: %.c ; $(CC) -o $@ $(LCFLAGS) -c $<
 
-$(LIBDMSDOS): $(LIB_OBJS)
-	ar rcs $(LIBDMSDOS) $^
-	ranlib $(LIBDMSDOS)
+dmsdos_library.lo: $(LIB_OBJS)
+	ld -r -o dmsdos_library.lo $^
 
-else
+libdmsdos.a: dmsdos_library.lo
+	ar rcs libdmsdos.a dmsdos_library.lo
 
-%.lo: %.c ; $(CC) --shared -o $@ $(LCFLAGS) -c $<
+libdmsdos.so: dmsdos_library.lo
+	ld -shared -o libdmsdos.so dmsdos_library.lo
 
-LIBDMSDOS = libdmsdos.so.0.9.2
-
-$(LIBDMSDOS): $(LIB_OBJS)
-	ld --shared --soname=$(LIBDMSDOS) -o $(LIBDMSDOS) $^
-	ln -s $(LIBDMSDOS) libdmsdos.so
-
-endif
-
-dcread: dcread.c $(LIBDMSDOS) dmsdos.h dmsdos-config.h
+dcread: dcread.c libdmsdos.a dmsdos.h dmsdos-config.h
 	$(CC) -Wall -ggdb -o dcread dcread.c -L. -ldmsdos
 
-mcdmsdos: mcdmsdos.c $(LIBDMSDOS) dmsdos.h dmsdos-config.h
+mcdmsdos: mcdmsdos.c libdmsdos.a dmsdos.h dmsdos-config.h
 	$(CC) -Wall -ggdb -o mcdmsdos mcdmsdos.c -L. -ldmsdos
 
-dmsdosfsck: dmsdosfsck.c $(LIBDMSDOS) dmsdos.h dmsdos-config.h
+dmsdosfsck: dmsdosfsck.c libdmsdos.a dmsdos.h dmsdos-config.h
 	$(CC) -Wall -o dmsdosfsck dmsdosfsck.c -L. -ldmsdos
 
 cvftest: cvftest.c

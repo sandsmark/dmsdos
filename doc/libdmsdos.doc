@@ -1,4 +1,4 @@
-This is documentation for the dmsdos library.                        22Apr1998
+This is documentation for the dmsdos library.                        10Sep1998
 
 
 The dmsdos library, libdmsdos.a, provides the dmsdos interface that is known
@@ -7,37 +7,37 @@ dmsdos code simply in a different way (well, with some rather dirty tricks).
 
 The library is intended to export the following functions:
 
-open_cvf
-close_cvf
-
-Well, these two ones above are new, but the rest should be well known to
-you:
-
-dbl_bitfat_value
-dbl_fat_nextcluster
-dbl_mdfat_value
-dmsdos_read_cluster
-dmsdos_write_cluster
-raw_bread
-raw_brelse
-raw_getblk
-raw_mark_buffer_dirty
-raw_set_uptodate
-simple_check
-stac_bitfat_state
+  open_cvf
+  close_cvf
+  dbl_bitfat_value
+  dbl_fat_nextcluster
+  dbl_mdfat_cluster2sector
+  dbl_mdfat_value
+  dmsdos_read_cluster
+  dmsdos_write_cluster
+  raw_bread
+  raw_brelse
+  raw_getblk
+  raw_mark_buffer_dirty
+  raw_set_uptodate
+  simple_check
+  stac_bitfat_state
 
 In fact, it exports much more, but only these listed here are guaranteed
 to be kept in future versions. Well, one thing should be important to know:
 The library does NOT export virtual sector management. It will never do.
 
 The functions are just used like in the kernel. For prototypes, see file
-dmsdos.h. How to use them see the sources. :) Seriously, if you aren't
-a dmsdos hacker forget about the library.
+dmsdos.h. How to use them see the sources. There's some example code
+how to use the library (dcread.c).
 
 The first two, open_cvf and close_cvf, are special. They are called instead
 of mounting and unmounting the CVF.
 
 How to "mount" a CVF (example code):
+
+    #include "lib_interface.h"
+    #include "dmsdos.h"
 
     struct super_block*sb;
     sb=open_cvf("CVF_Filename",rwflag /*0=RDONLY or 1=RDWR*/);
@@ -64,22 +64,18 @@ Notes:
       uses flock in order to detect such situations and just denies access
       in that case. You can however use different CVFs in parallel, even
       read-write, even in one program.
-    * You should use this library only to access a CVF that is currently not
-      mounted. You *cannot* use it on a CVF that is mounted read-write. If
-      the CVF is currently mounted read-only, the library allows read-only
-      access to the CVF. The library scans /etc/mtab in order to check this.
-      This check is not perfect, though. It also does not prevent mount 
-      from mounting a CVF that is used by the library. So just be careful.
-    * You must not touch CVFs that are currently used by dosemu with
-      wholedisk or partition access. I don't know how to test for that
-      situation, so the library doesn't check for this. Well, as dosemu
-      refuses to run if the underlying dos partition is mounted, that
-      situation should never occur :)
+    * You should use this library only to access a CVF that is currently 
+      _not_ mounted. There's a high risk of destroying the CVF or even 
+      crashing the system otherwise.
+    * You should not touch CVFs that are currently used by dosemu with
+      wholedisk or partition access. Again there's a high risk of destroying
+      the CVF or crashing dosemu otherwise.
     * If you do not intend to write to the CVF, open it in read-only mode.
       Then the CVF is not locked exclusively and other processes are allowed
       to read the CVF at the same time.
     * The library prints the "kernel" messages to stderr. It obeys the
-      loglevel variable.
+      loglevel variable. The only way to make libdmsdos quiet is to
+      direct stderr into a file or to /dev/null.
     * The first call of open_cvf initializes the library and prints some
       version information to stderr.
     * open_cvf does not do a filesystem check. If you do want the same
@@ -93,32 +89,526 @@ Notes:
       calling open_cvf to be sure.
     * To compile your application using the dmsdos library you should under
       no cirumstances define the macro __KERNEL__ for the whole program.
-      It causes problems with libc6. Just define __KERNEL__ for those
-      include files that don't work without and undefine it afterwards.
+      It causes problems with libc6.
 
 As an idea what the dmsdos library might be good for:
 
-    * A mtools clone for CVFs, for example called dtools.
-    * A fsck.dmsdos.
-    * A defragmentation program.
+    * A mtools clone for CVFs, for example called dtools. (A simple program,
+      dcread, exists but its quatilty cannot be compared to mtools. Sorry.)
+    * A fsck.dmsdos. (An incomplete alpha test version exists.)
+    * A defragmentation program. (Not yet written.)
     * For debugging dmsdos at user level (it's the same source code).
-    * An external fs for midnight commander.
+    * An external fs for midnight commander. (A read-only interface program,
+      mcdmsdos, exists.)
     * ... add your favourite idea here :)
+    * ... I've even received mail about whether it would be possible to
+      port libdmsdos to Win32 and use it for a Win95/98/NT driver :))
 
 Support for a shared dmsdos library
 -----------------------------------
 
-libdmsdos can now be compiled as a shared library. Just enter a 
-'make libdmsdos.so' in the src directory. Note that the default installation
-does not compile the shared library. This is intended. If you are not
-an experienced shared library hacker please be careful. It's easy to screw
-up some binaries with shared libraries :)
+libdmsdos can be compiled as a shared library. You must edit the
+Makefile in the src directory for that purpose. Note that the default 
+installation does not compile the shared library. This is intended. If 
+you are not an experienced shared library hacker please be careful. It's 
+easy to screw up some binaries with shared libraries :)
 
 You should not use the dmsdos shared library for now as there's currently no
 standard that ensures that future versions will be backwards compatible.
 Link statically with libdmsdos.a unless disk space or memory is very critical.
 
 WARNING: If there's a shared dmsdos library lying around, gcc defaults to
-link *dynamically* all programs that need this library. For example, if 
+linking *dynamically* all programs that need this library. For example, if 
 libdmsdos.so is present and you recompile dmsdosfsck, the binary will be
-dynamically linked with that library. This can be very confusing :(
+dynamically linked against that library. This can be very confusing and may
+not do what you want :(
+
+Built-in direct translation access mode
+---------------------------------------
+
+This feature has been added to the library for convenience. It only works
+for FAT12 or FAT16 MSDOS filesystems. It does not work, for example, for
+CVFs on a cdrom or in a FAT32 or non-FAT filesystem.
+
+The dmsdos library can access a CVF that resides in an uncompressed FAT12 or 
+FAT16 MSDOS host partition even if the uncompressed host partition is not 
+mounted (this was programmed in fact by cut'n'paste of some old dmsdosfs 
+functions). If there are more than one CVF in that partition, the first 
+valid CVF found in the root directory of the uncompressed host partition
+is used. If you want to select one of more CVFs, append a colon and the
+extension of the CVF to the filename.
+
+For example, if your uncompressed host partition is /dev/hda1 and you want
+to access the CVF DRVSPACE.001 on that partition, use "/dev/hda1:001" as
+filename when calling open_cvf. If DRVSPACE.001 is the only CVF inside
+/dev/hda1 you can even use "/dev/hda1" and it will find the CVF.
+
+This special feature allows, for example, dmsdosfsck to check a CVF in
+a partition that has not yet been mounted. This may be useful at boot time
+to check CVFs :)
+
+Standard C library functions that libdmsdos needs
+-------------------------------------------------
+
+If you want to use libdmsdos in an environment where the standard C library
+functions are not available then you must write an emulation for all these 
+functions and link your code against it instead of the standard C library. 
+The emulation needn't be full-featured like the C library. Look at the source 
+if you are in doubt.
+
+  close (4)
+  errno
+  exit (3)
+  flock (only if compiled with -DUSE_FLOCK) (4)
+  sopen (only if compiled with -DUSE_SOPEN) (4) (8)
+  fprintf (2)
+  free (6)
+  lseek (1) (7)
+  malloc (6)
+  memcpy
+  memmove
+  memset
+  open (only if _not_ compiled with -DUSE_SOPEN) (8)
+  read (1)
+  strcat
+  strerror
+  strncat
+  strncmp
+  strncpy
+  strrchr
+  time (5)
+  vsprintf (2) (9)
+  write (1)
+
+  (1) only used in aligned 512 byte blocks
+  (2) only used for logging to stderr, no other files are used
+  (3) used for abort in case of fatal error
+  (4) locking may be left out
+  (5) a time-proportional counter would be enough, needn't be exact
+  (6) called quite often, be aware of possible memory fragmentation
+  (7) only used on 512 byte boundaries with SEEK_SET, also used to find out 
+      file size with SEEK_END
+  (8) must parse filename (invent your own syntax if necessary)
+  (9) a free, portable emulation is in linux/lib/vsprint.c
+
+If possible, please avoid hacking around in dmsdos kernel code if the library
+does not work in your environment (unless it's a bug). The only files that 
+should be modified due to OS or compiler differences are lib_interface.c and 
+lib_interface.h. Please surround your changes with appropriate #ifdef's so 
+the modified code still compiles under all those environments where it worked
+before. Please do not violate portability of the code. Hardware comes and 
+goes, OSses are born and die, but portable code survives :)
+
+
+dmsdos library reference guide
+------------------------------
+
+All functions need the header files lib_interface.h and dmsdos.h. Error
+checking is not always possible. This is because some of the low-level kernel
+functions dmsdos calls when running as kernel module never fail. In user
+space, there may be failures, however. This means, libdmsdos is currently
+not 100% error-safe. As a workaround (that works under the standard C library)
+you can set errno to NO_ERROR before calling the function and afterwards 
+check whether it has changed to an error value.
+
+  open_cvf:
+
+    struct super_block* open_cvf(char*filename,int rwflag)
+
+    Opens CVF described by filename. rwflag is 0 for read-only, otherwise
+    the file is opened read-write. The file is locked read-only or 
+    read-write, depending on rwflag (by calling flock or sopen).
+
+    filename is interpreted in a special way if it contains a colon.
+    See chapter 'Built-in direct translation access mode' above. The colon 
+    and the rest of the string after it are stripped off before the filename
+    is forwarded to the libc function open or sopen.
+
+    Return Value: Pointer to valid super_block structure (which can be
+    interpreted as a kind of file handle), NULL if failed.
+
+    Note: Keep the super_block pointer. Most dmsdos functions need it in
+    order to identify the CVF.
+
+    Note: The CVF may be opened read-only though you opened it in read-write
+    mode. This happens if the dmsdos code detects unexpected errors in the
+    CVF. Please check sb->s_flags for the MS_RDONLY bit after calling
+    open_cvf.
+
+  close_cvf:
+
+    void close_cvf(struct super_block*sb)
+
+    Closes the CVF. If necessary, the file is unlocked before.
+
+  dbl_bitfat_value:
+
+    int dbl_bitfat_value(struct super_block*sb,int sectornr,int*new)
+
+    Reads or writes bitfat value that belongs to sector sectornr.
+    *** This is a low-level function you are probably never interested in.
+    Bitfat values are CVF format specific. You do not need to know them
+    unless debugging write access :))
+
+    If new is NULL the value is read and returned.
+    Otherwise the actual value is replaced with that one found in *new.
+
+    Return value: read access: read value. write access: undefined. A
+    negative value indicates an error.
+ 
+  dbl_fat_nextcluster:
+
+    int dbl_fat_nextcluster(struct super_block*sb,int clusternr,int*new)
+
+    Reads or writes the FAT entry for cluster clusternr. (You should know
+    what a FAT is, otherwise please read a good book on Dos disk access.)
+
+    If new is NULL the value is read and returned.
+    Otherwise the actual value is replaced with that one found in *new.
+
+    Return value: read access: read value. write access: undefined. 
+    -1 means the cluster is marked as last cluster in a file or an error
+    occured. Errors may also be represented by other negative results.
+
+    Note: -1 can also be used for write access in order to indicate end of
+    file mark. It is automatically converted to the right value for the FAT
+    size.
+
+    Note: if clusternr is invalid a -1 is returned. This usually makes
+    runaway FAT reading loops break as if there was an EOF in the cluster 
+    chain. There's no means to find out whether a -1 is an error or an EOF
+    except making sure a valid cluster number is given.
+
+  dbl_mdfat_cluster2sector:
+
+    int dbl_mdfat_cluster2sector(struct super_block*sb,int clusternr)
+
+    This is a low-level function that reads the mdfat and extracts the
+    starting sector information from it. It may be useful for write
+    access with dmsdos_write_cluster. It returns the starting sector number
+    of cluster clusternr.
+    *** Do not use the standard formula that is used in a normal FAT
+    filesystem (multiplying the cluster number with the number of sectors
+    per cluster and adding some offsets) - that formula is not valid in a
+    compressed filesystem. Use dbl_mdfat_cluster2sector instead.
+
+    Return value: starting sector of the cluster clusternr. If negative,
+    an error occured.
+    
+    Note: see dmsdos_write_cluster what this function is useful for.
+
+  dbl_mdfat_value:
+
+    int dbl_mdfat_value(struct super_block* sb,int clusternr,
+                        Mdfat_entry*new,Mdfat_entry*mde)
+
+    Reads or writes the mdfat/allocmap entry that belongs to cluster
+    clusternr.
+    *** This is a low-level function you are probably never interested in.
+    Mdfat values are CVF format specific. You do not need to know them
+    unless debugging dmsdos :))
+
+    If new is NULL the value is read and stored in *mde.
+    Otherwise the actual value is replaced with that one found in *new.
+
+    Return value: A negative value indicates an error.
+    Note: consider *mde as undefined after write access.
+
+  dmsdos_read_cluster:
+
+    int dmsdos_read_cluster(struct super_block*sb,
+                            unsigned char*clusterd, int clusternr)
+
+    Reads cluster clusternr in clusterd. The dmsdos library handles all
+    low-level access including decompression of the data.
+
+    *** Be sure to have reserved enough memory for the data that this
+    function writes into clusterd. Usually, use a full cluster size.
+    How to determine the full cluster size see the dcread example code.
+
+    Return value: number of bytes actually read (clusters may be shorter
+    than the full size in a CVF, which is not possible in an uncompressed
+    FAT filesystem). Usually, you can ignore this unless you use write
+    access. (A cluster may even have length zero.) Just in case, if the
+    cluster is shorter than full size the unused slack is zero'd out. On 
+    error, a negative value is returned.
+
+    Note: This function cannot read the root directory (cluster 0). You must
+    use low-level disk access for that (i.e. raw_bread). See also the dcread
+    example code.
+
+  dmsdos_write_cluster:
+
+    int dmsdos_write_cluster(struct super_block*sb, unsigned char* clusterd,
+                             int length, int clusternr, int near_sector, 
+                             int ucflag)
+
+    Writes cluster clusternr from clusterd back to disk. The dmsdos
+    library handles all low-level disk access including compression.
+
+    length is the position of the last valid byte plus 1 in clusterd.
+    This is usually the value that dmsdos_read_cluster returned when you
+    read this cluster before unless you modified some bytes beyond that 
+    value. The idiot-proof value is always the full cluster size.
+    *** Warning: if length is too low, the data may be truncated during
+    write access. If it is too high disk space is wasted.
+
+    ucflag is a flag that indicates whether libdmsdos should try to
+    compress the data. 0 means try to compress, 1 means write the data
+    without compression. Please do not use other values than 0 and 1
+    (they do exist but have some very special meanings).
+
+    near_sector can be used to control where libdmsdos tries to place
+    the data on disk. For good performance on large files, it should
+    be set to the start sector value of the cluster that preceeds the
+    actual cluster in the file. The start sector value can be obtained with
+    dbl_mdfat_cluster2sector on that preceeding cluster. (This way actually
+    helps avoiding low-level fragmentation _and_ file data fragmentation in 
+    the CVF.)
+    *** Do not use the standard formula that is used in a normal FAT
+    filesystem (multiplying the cluster number with the number of sectors
+    per cluster and adding some offsets) - that formula is not valid in a
+    compressed filesystem.
+
+    The near_sector value is just meant as a hint. If there's not enough 
+    free space on the disk around near_sector, dmsdos writes the data 
+    somewhere else. If near_sector is set to zero, dmsdos uses an internal 
+    way to find out a good value that avoids low-level fragmentation but
+    that is not necessarily good for performance on the file that is being
+    written. Nevertheless, 0 always works.
+
+    WARNING: If you are writing a directory cluster you should not compress
+    the data (it would hurt performance a lot). Some of the original CVF Dos
+    software versions never compress directories, so you shouldn't do
+    either (it may cause compatibility problems otherwise). You also should 
+    always use full cluster size for directories on some CVF versions. In 
+    order to feel safe you can use the DIR_MAY_BE_COMPRESSED and 
+    DIR_MAY_BE_SHORT macros. Have a look at their definition in file
+    dmsdos.h.
+
+    Return value: A negative value indicates an error.
+
+    Note: The data in clusterd are not destroyed by this function.
+
+  raw_bread:
+
+    struct buffer_head* raw_bread(struct super_block*sb,int block)
+
+    Read a 512 byte block from the CVF. The data are read without further
+    modification. Block numbering scheme begins with zero.
+
+    Return value: pointer to a buffer_head structure that contains the 512 
+    bytes of data that represent the data block. The data are in
+    buffer_head->b_data in an unsigned character array (see the dcread
+    example). On error, NULL is returned.
+
+    Note: The data are returned in dynamically allocated memory. If you
+    do not need the data any more, you must free them by calling raw_brelse
+    in the buffer_head structure pointer.
+
+    Note: You may modify the data. You must call raw_mark_buffer_dirty
+    after modification (this writes the data back to disk) and before
+    raw_brelse.
+
+    Note: If you want to overwrite the whole block, use raw_getblk instead
+    of raw_bread (this leaves out the unnecessary disk read access).
+
+  raw_brelse:
+
+    void raw_brelse(struct super_block*sb,struct buffer_head*bh)
+
+    Release dynamic memory for the data read by raw_bread.
+
+  raw_getblk:
+
+    struct buffer_head* raw_getblk(struct super_block*sb,int block)
+
+    Like raw_bread, but leaves out the actual disk access. This is intended
+    to leave out unnecessary disk read access if you want to overwrite the 
+    whole block. Consider the data as undefined. See raw_bread.
+
+    Note: raw_getblk should be followed by a call of raw_set_uptodate
+    for compatibility. See there.
+
+  raw_mark_buffer_dirty:
+
+    void raw_mark_buffer_dirty(struct super_block*sb,struct buffer_head*bh,
+                               int dirty_val)
+
+    Write data back to disk after they have been modified.
+
+    dirty_val must be always 1 (due to a misunderstanding/bug in dmsdos).
+
+    Note: This function does not indicate an error. This is bad, but it is 
+    because the Linux kernel interface also does not return error codes with
+    this function. As a hack (that works with libc) you can set errno to 
+    NO_ERROR and check it afterwards, but note that this will not work in 
+    the dmsdos kernel driver. Usually, there cannot be an error during that
+    kind of write access unless the disk has bad sectors.
+
+  raw_set_uptodate:
+
+    void raw_set_uptodate(struct super_block*sb,struct buffer_head*bh,int v)
+
+    No longer used (does nothing in libdmsdos).
+
+    For compatibility with the kernel driver, this should be called with 
+    v=1 after raw_getblk on the buffer_head pointer that raw_getblk returned
+    (unless it's NULL due to failure).
+
+  simple_check:
+
+    int simple_check(struct super_block*sb,int repair)
+
+    Check some internal filesystem tables for consistency.
+
+    If repair is 1 libdmsdos tries to correct errors (the CVF must have been
+    opened read-write in that case). If it is 0 the tables are just checked.
+
+    Return value: a negative value indicates an error, i.e. either the
+    tables are inconsistent or the errors, if any, could not be repaired.
+
+    Note: It is strongly recommended to run simple_check immediately after
+    opening the CVF if you want to write to it. Do not write to a CVF if
+    simple_check fails on it (you may detroy some files in the CVF). As
+    CVFs are known to be very prone to so-called bitfat errors, you probably
+    want to give the program that you are writing a kind of "expert option" 
+    that lets simple_check run with repair=1. The same warnings apply as to
+    the dmsdos mount option bitfaterrs:repair :))
+
+  stac_bitfat_state:
+
+    int stac_bitfat_state(struct super_block*sb,int new_state)
+
+    Stacker has a kind of clean/dirty flag that indicates whether the CVF
+    was correctly unmounted. This function can be used to manipulate it.
+    *** This is a low-level function you should not use unless you are a
+    dmsdos and Stacker expert. See the dmsdos source code.
+
+    Note: Do not call this function on non-Stacker CVFs.
+
+
+Programming notes
+-----------------
+
+In a normal libdmsdos application, you open the CVF with open_cvf. If you
+intend to write to the CVF later, you should call simple_check after that
+and refuse write access if an error is found.
+
+Then you use dmsdos_read_cluster and dmsdos_write_cluster to access the
+CVF. Only for the root directory you need raw_bread, raw_mark_buffer_dirty
+and raw_brelse. For following files you need to read the FAT with
+dbl_fat_nextcluster.
+
+You write to the FAT with dbl_fat_nextcluster in order to truncate files or 
+append data to them, or even to delete files and directories and to create 
+new ones - all like in a usual FAT filesystem.
+
+If you are done, don't forget to close the CVF with close_cvf.
+
+Here is a simple example that illustrates the usage of all important
+libdmsdos functions. You should not compile and execute this example as
+it's not always correct C syntax. Things like error handling have been left
+out to simplify the code (which is not good). Furthermore, the program just 
+pokes around in the CVF which would be bad for your data :)
+
+
+    #include "lib_interface.h"
+    #include "dmsdos.h"
+
+    struct super_block*sb;
+    struct Dblsb*dblsb;
+
+    /* open the CVF read-write */
+    sb=open_cvf("dblspace.001",1);
+    if(sb==NULL)...error...
+
+    /* check the CVF */
+    if(simple_check(sb,0)<0)...error...
+
+    /* read and display cluster 2 as hex numbers */
+    int i;
+    int size;
+    int full_size;
+    unsigned char* clusterd;
+
+    /* determine full size */
+    dblsb=MSDOS_SB(sb)->private_data;
+    full_size=dblsp->s_sectperclust*512;
+
+    clusterd=malloc(full_size);
+    if(clusterd==NULL)...error...
+
+    size=dmsdos_read_cluster(sb,clusterd,2);
+    if(size<0)...error...
+    for(i=0;i<size;++i) printf("%x ",clusterd[i]);
+    printf("\n");
+
+    /* modify one byte at position 4234 and write cluster 2 back */
+    int pos;
+
+    pos=4234;
+    clusterd[4234]=123;
+    if(size<=pos)size=pos+1; /* adapt size */
+
+    if(dmsdos_write_cluster(sb,clusterd,size,2,0,0)<0)...error...
+
+    free(clusterd);  /* free memory that is no longer needed */
+
+    /* determine which cluster follows cluster 2 in fat */
+    int fatval;
+
+    fatval=dbl_fat_nextcluster(sb,2,NULL);
+    if(fatval==0) printf("cluster 2 is unused\n");
+    else if(fatval==-1) printf("cluster 2 is marked as EOF\n");
+    else printf("cluster 2 is followed by cluster %d in FAT\n");
+
+    /* mark it as EOF */
+    int new;
+
+    new=-1;
+    dbl_fat_nextcluster(sb,2,&new);
+
+    /* read root directory */
+    int i;
+    unsigned char*data;
+    int number;
+    struct buffer_head*bh;
+
+    dblsb=MSDOS_SB(sb)->private_data;
+    number=dblsb->s_rootdirentries*32/512;
+    startblock=dblsb->s_rootdir;
+
+    data=malloc(number*512);
+    if(data==NULL)...error...
+
+    for(i=0;i<number;++i)
+    { bh=raw_bread(sb,startblock+i);
+      if(bh==NULL)...error...
+      memcpy(data+i*512,bh->b_data,512);
+      raw_brelse(sb,bh);
+    }
+    /* complete root directory is now in data */
+
+    /* modify root directory */
+    ...modify data where you like...
+
+    /* write it back completely */
+    for(i=0;i<number;++i)
+    { bh=raw_getblk(sb,startblock+i); /* or raw_bread(...) */
+      if(bh==NULL)...error...
+      raw_set_uptodate(sb,bh,1);      /* leave out if raw_bread used above */
+      memcpy(bh->data,data+i*512,512);
+      raw_mark_buffer_dirty(sb,bh,1);
+      raw_brelse(sb,bh);
+    }
+
+    free(data); /* free memory that is no longer needed */
+
+    /* we are done */
+    close_cvf(sb);
+
+
+For a piece of code that actually compiles and runs and does something
+eventually useful and ... does not kill your data :-)) see the dcread 
+example program (file dcread.c).

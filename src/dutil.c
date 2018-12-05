@@ -51,7 +51,7 @@ void error(void)
   exit();
 }
 
-void main(int argc, char*argv[])
+int main(int argc, char*argv[])
 { Dblsb dblsb;
   int fd;
   int ret;
@@ -89,13 +89,13 @@ void main(int argc, char*argv[])
     printf("       %s (directory) checkfs [(repair)]\n",argv[0]);
     printf("       %s (directory) setloglevel (value)\n",argv[0]);
     printf("       %s (directory) setspeedup (value)\n",argv[0]);
-    return;
+    return 0;
   }
   
   fd=open(argv[1],O_RDONLY);
   if(fd<0)
   { perror(argv[1]);
-    return;
+    return 2;
   }
   
   /* this hack enables reverse version check */
@@ -107,7 +107,7 @@ void main(int argc, char*argv[])
   if(ret<0)
   { printf("This is not a DMSDOS directory.\n");
     close(fd);
-    return;
+    return 2;
   }
   printf("You are running DMSDOS driver version %d.%d.%d.\n",(ret&0xff0000)>>16,
          (ret&0x00ff00)>>8,ret&0xff);
@@ -117,12 +117,12 @@ void main(int argc, char*argv[])
   if(ret&0x0f000000)
   { printf("\nSorry, this utility is too old for the actual DMSDOS driver version.\n");
     close(fd);
-    return;
+    return 2;
   }
-  if(ret<0x00000901)
-  { printf("\nSorry, this utility requires at least DMSDOS driver version 0.9.1.\n");
+  if(ret<0x00000902)
+  { printf("\nSorry, this utility requires at least DMSDOS driver version 0.9.2.\n");
     close(fd);
-    return;
+    return 2;
   }
   if(ret!=DMSDOS_VERSION)printf(" but should still work.\n\n");
   else printf("\n");
@@ -150,13 +150,13 @@ void main(int argc, char*argv[])
     { if(ioctl(fd,DMSDOS_DUMPCACHE,w)<0)error();
       printf("Cache status written to syslog.\n");
       close(fd);
-      return;
+      return  0;
     }
     if(strcmp(argv[2],"logstat")==0)
     { if(ioctl(fd,DMSDOS_LOG_STATISTICS,w)<0)error();
       printf("Statistics written to syslog.\n");
       close(fd);
-      return;
+      return 0;
     }
     if(strcmp(argv[2],"memory")==0)
     { if(ioctl(fd,DMSDOS_REPORT_MEMORY,w)<0)error();
@@ -165,7 +165,7 @@ void main(int argc, char*argv[])
       if(w[1]>0)printf("%8ld (estimated)\n",w[1]);
       else printf("   -unknown- \n");
       printf("Buffer cache:  %8ld            maximum: %8ld\n",w[2],w[3]);
-      return;
+      return 0;
     }
   
   }
@@ -186,14 +186,14 @@ void main(int argc, char*argv[])
         printf("The filesystem has been set to read-only mode.\n");
       }
       close(fd);
-      return;
+      return 0;
     }
     if(strcmp(argv[2],"synccache")==0)
     { printf("Syncing cluster cache....be patient, this may take some time...\n");
       if(ioctl(fd,DMSDOS_SYNC_CCACHE,(argc==4) ? scan(argv[3]) : 0)<0)error();
       printf("Cluster cache synced.\n");
       close(fd);
-      return;
+      return 0;
     }
 
   }
@@ -415,5 +415,5 @@ void main(int argc, char*argv[])
   else printf("??? syntax error in command line.\n");
   
   close(fd);
-  
+  return 0;
 }

@@ -33,18 +33,43 @@ See file COPYING for details.
 #define LVC(x,y,z) ((x)*65536+(y)*256+(z))
 
 #ifdef __KERNEL__
+
 #ifndef LINUX_VERSION_CODE
-#include<linux/version.h>
+ #include<linux/version.h>
+#endif
+#if LINUX_VERSION_CODE == LVC(2,2,1)
+ /* this works around a bug in Linux 2.2.1 */
+ #include<asm/page.h>
+#endif
 #include<asm/semaphore.h>
 #include<linux/fs.h>
+#if LINUX_VERSION_CODE < LVC(2,3,3)
+ #define init_MUTEX(sem) (*sem=MUTEX)
+ #define DECLARE_MUTEX(name) struct semaphore name=MUTEX
+ #define DECLARE_WAIT_QUEUE_HEAD(name) \
+  	struct wait_queue * name=NULL
 #endif
 
 #if LINUX_VERSION_CODE >= LVC(2,1,78)
  #define __FOR_KERNEL_2_1_80
- #if LINUX_VERSION_CODE >= LVC(2,1,80)
-  #define FAT_GET_CLUSTER
- #else
+ #if LINUX_VERSION_CODE < LVC(2,1,80)
   #define READPAGE_DENTRY
+ #else
+  #define FAT_GET_CLUSTER
+  #if LINUX_VERSION_CODE < LVC(2,3,0)
+    #define READPAGE_INODE
+  #else
+   #if LINUX_VERSION_CODE < LVC(2,3,10)
+    #define READPAGE_FILE
+   #else
+    #define __FOR_KERNEL_2_3_10
+    #if LINUX_VERSION_CODE >= LVC(2,3,30)
+     #define __FOR_KERNEL_2_3_30
+     #define READPAGE_DENTRY
+     #define HAS_SB_CLUSTER_BITS
+    #endif
+   #endif
+  #endif
  #endif
 #endif
 #if (LINUX_VERSION_CODE >= LVC(2,1,0)) && (LINUX_VERSION_CODE < LVC(2,1,78))
@@ -59,46 +84,146 @@ See file COPYING for details.
 
 #include "dmsdos-config.h"
 /* hacks for new Configure */
+#ifndef DMSDOS_EXPERT
+#define USE_VMALLOC
+#define LISTSIZE 1024
+#define MDFATCACHESIZE 40
+#define DFATCACHESIZE 20
+#define BITFATCACHESIZE 10
+#define MAX_CACHE_TIME 60
+#define CCACHESIZE 64
+#define MAX_CCACHE_TIME 240
+#define MAX_READA 64
+#define USE_READA_LIST
+#define READA_LIST_SIZE 256
+#define READA_THRESHOLD 4095
+#define DEFAULT_LOGLEVEL 0
+#define DEFAULT_CF 11
+#define DMSDOS_USE_READPAGE
+#define IDMSDOSD_TIME 30
+#define SP_BIT0 /* never compress dir */
+#define SP_BIT1 /* never compress EMD */
+#define SP_BIT4 /* write-back caching */
+#define SP_BIT5 /* read-ahead */
+#define SP_BIT7 /* daemon compresses */
+#endif /* DMSDOS_EXPERT */
+
 #ifndef SP_BIT0
 #define SP_BIT0 0
+#else
+#undef SP_BIT0
+#define SP_BIT0 1
 #endif
+
 #ifndef SP_BIT1
 #define SP_BIT1 0
+#else
+#undef SP_BIT1
+#define SP_BIT1 1
 #endif
+
 #ifndef SP_BIT2
 #define SP_BIT2 0
+#else
+#undef SP_BIT2
+#define SP_BIT2 1
 #endif
+
 #ifndef SP_BIT3
 #define SP_BIT3 0
+#else
+#undef SP_BIT3
+#define SP_BIT3 1
 #endif
+
 #ifndef SP_BIT4
 #define SP_BIT4 0
+#else
+#undef SP_BIT4
+#define SP_BIT4 1
 #endif
+
 #ifndef SP_BIT5
 #define SP_BIT5 0
+#else
+#undef SP_BIT5
+#define SP_BIT5 1
 #endif
+
 #ifndef SP_BIT6
 #define SP_BIT6 0
+#else
+#undef SP_BIT6
+#define SP_BIT6 1
 #endif
+
 #ifndef SP_BIT7
 #define SP_BIT7 0
+#else
+#undef SP_BIT7
+#define SP_BIT7 1
 #endif
+
 #ifndef SP_BIT8
 #define SP_BIT8 0
+#else
+#undef SP_BIT8
+#define SP_BIT8 1
 #endif
+
 #ifndef DEFAULT_SPEEDUP
-#define DEFAULT_SPEEDUP ((SP_BIT7<<7)|(SP_BIT6<<6)|(SP_BIT5<<5)|(SP_BIT4<<4)|(SP_BIT3<<3)|(SP_BIT2<<2)|(SP_BIT1<<1)|(SP_BIT0))
+#define DEFAULT_SPEEDUP ((SP_BIT8<<8)|(SP_BIT7<<7)|(SP_BIT6<<6)|(SP_BIT5<<5)|(SP_BIT4<<4)|(SP_BIT3<<3)|(SP_BIT2<<2)|(SP_BIT1<<1)|(SP_BIT0))
 #endif
 #ifndef DEFAULT_COMP
 #define DEFAULT_COMP GUESS
 #endif
+#ifndef LISTSIZE
+#define LISTSIZE 1024
+#endif
+#ifndef MDFATCACHESIZE
+#define MDFATCACHESIZE 40
+#endif
+#ifndef DFATCACHESIZE
+#define DFATCACHESIZE 20
+#endif
+#ifndef BITFATCACHESIZE
+#define BITFATCACHESIZE 10
+#endif
+#ifndef MAX_CACHE_TIME
+#define MAX_CACHE_TIME 60
+#endif
+#ifndef CCACHESIZE
+#define CCACHESIZE 64
+#endif
+#ifndef MAX_CCACHE_TIME
+#define MAX_CCACHE_TIME 240
+#endif
+#ifndef MAX_READA
+#define MAX_READA 64
+#endif
+#ifndef READA_LIST_SIZE
+#define READA_LIST_SIZE 256
+#endif
+#ifndef READA_THRESHOLD
+#define READA_THRESHOLD 4095
+#endif
+#ifndef DEFAULT_LOGLEVEL
+#define DEFAULT_LOGLEVEL 0
+#endif
+#ifndef DEFAULT_CF
+#define DEFAULT_CF 11
+#endif
+#ifndef IDMSDOSD_TIME
+#define IDMSDOSD_TIME 30
+#endif
+
 
 #define DMSDOS_MAJOR      0
 #define DMSDOS_MINOR      9
-#define DMSDOS_ACT_REL    1
-#define DMSDOS_COMP_REL   1
-#define DMSDOS_PL         "5"
-#define DMSDOS_EXTRA      "(beta test)"
+#define DMSDOS_ACT_REL    2
+#define DMSDOS_COMP_REL   2
+#define DMSDOS_PL         "2"
+#define DMSDOS_EXTRA      "(alpha test)"
 
 #define DMSDOS_VERSION ((DMSDOS_MAJOR<<16)|(DMSDOS_MINOR<<8)|DMSDOS_ACT_REL)
 #define DMSDOS_LOWEST_COMPATIBLE_VERSION ((DMSDOS_MAJOR<<16)|(DMSDOS_MINOR<<8)|DMSDOS_COMP_REL)
@@ -212,7 +337,6 @@ typedef struct {
   int s_lastnear;
   int s_lastbig;
   int s_free_sectors;
-/*  struct semaphore mdfat_alloc_sem;*/
   void * mdfat_alloc_semp;
 } Dblsb;
 
@@ -279,8 +403,13 @@ int stac_replace_existing_cluster(struct super_block*sb, int cluster,
                              Mdfat_entry*);
 int dbl_compress(unsigned char* clusterk, unsigned char* clusterd, 
                       int size, int method,int);
+#if 0
 int stac_compress(void* pin,int lin, void* pout, int lout,
                   int method, int cfaktor);
+#else
+int stac_compress(unsigned char* pin,int lin, unsigned char* pout, int lout,
+                  int method, int cfaktor);
+#endif
 int sq_comp(void* pin,int lin, void* pout, int lout, int flg);
 int dbl_decompress(unsigned char*clusterd, unsigned char*clusterk,
                Mdfat_entry*mde);
@@ -480,11 +609,21 @@ int dblspace_file_write(struct inode *inode,struct file *filp,const char *buf,
 int dblspace_mmap(struct inode*inode,struct file*file,
                   struct vm_area_struct*vma);
 #endif
+
 #ifdef READPAGE_DENTRY
-int dblspace_readpage(struct dentry*dentry, struct page *page);
+ int dblspace_readpage(struct dentry*dentry, struct page *page);
 #else
-int dblspace_readpage(struct inode *inode, struct page *page);
+ #ifdef READPAGE_FILE
+  int dblspace_readpage(struct file *file, struct page *page);
+ #else
+  #ifdef READPAGE_INODE 
+   int dblspace_readpage(struct inode *inode, struct page *page);
+  #else
+   #error Unknown readpage parameters
+  #endif
+ #endif
 #endif
+
 int dmsdos_ioctl_dir(struct inode *dir,struct file *filp,
                      unsigned int cmd, unsigned long data);
 #endif /* __KERNEL__ */

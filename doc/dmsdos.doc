@@ -1,16 +1,16 @@
 dmsdos.doc
 
-This is the main documentation for the DMSDOS CVF module.            18AUG1998
+This is the main documentation for the DMSDOS CVF module.            01MAR1999
 
 ------------------------------------------------------------------------------
 
-                        This is version 0.9.1.5.
+                        This is version 0.9.2.1.
 
-This version has been designed for Linux 2.0.35, but it should run with all 
-kernels from 2.0.29 to 2.0.35. It very likely also works with older ones,
-but it has at least been reported to fail with 2.0.0. For the 2.1.xx series 
-you need at least 2.1.80 though it is recommended to use 2.1.94 or newer.
-Has 2.2 been released yet? :)
+This version has been designed for Linux 2.2.2, but it should run under all
+2.2.x kernels. It also works with kernels from 2.0.29 to 2.0.36. It very 
+likely also works with older ones, but it has at least been reported to fail 
+with 2.0.0. For the 2.1.xx series you need at least 2.1.80 though it is 
+recommended to use 2.1.94 or newer.
 
 Installation notes see file ../INSTALL.TXT.
 
@@ -29,7 +29,8 @@ Contents:
 10. The dmsdos daemon 'dmsdosd'
 11. The dmsdos library 'libdmsdos.a'
 12. The dmsdos filesystem checker 'dmsdosfsck'
-13. Authors and email addresses
+13. The dmsdos Midnight Commander external filesystem utility 'mcdmsdos'
+14. Authors and email addresses
 
 ------------------------------------------------------------------------------
 
@@ -49,8 +50,9 @@ Contents:
    * simple internal fs check on mount (can be switched off)
    * dmsdos daemon for compressing data in the background
    * works with all drivers that base on the fat driver, also with FAT32
-   * stand-alone dmsdos library for CVF related programming (experimental)
+   * stand-alone dmsdos library for CVF related programming
    * stand-alone dmsdosfsck (experimental)
+   * various other utilities
 
    [**] No, don't really think of burning a CVF onto a cdrom. Dos cannot read 
         it unless you copy it to your hard disk. REALLY BAD. Linux+dmsdos can.
@@ -82,8 +84,9 @@ In detail:
   believe that M$ simply copied (bought?) Superstore and renamed it to
   Doublespace without further modifications...
 
-  Dmsdos runs now *below* the msdos/fat filesystem. This makes it compatible
-  with all fat based filesystems including FAT32, NLS and other things :)
+  Since version 0.9.0, dmsdos runs *below* the msdos/fat filesystem. This 
+  makes it compatible with all fat based filesystems including FAT32, NLS 
+  and other things :)
 
   Dmsdos does a lot of internal caching in order to reach a reasonable speed
   with a compressed (and really badly organised, but simple) filesystem. As
@@ -115,7 +118,8 @@ In detail:
   'Stand-alone' means that it works independently from the dmsdos kernel
   module, on *raw* CVFs (i.e. those large files lying around in an 
   uncompressed host partition). It's the same source code, though, just 
-  compiled in a slightly different way. :)
+  compiled in a slightly different way. Meanwhile, it compiles even under
+  Windows :)
 
 
 2. Restrictions
@@ -139,7 +143,7 @@ In detail:
   sudden system freezes reported. Reasons for this include (in rising order):
 
       * Decompressing the data takes some time, but that is supposed to be
-        minimal.
+        minimal. You will probably not notice it.
 
       * Badly written programs issuing many redundant reads. Such programs 
         kill performance on every filesystem, but it's extremely bad under 
@@ -151,29 +155,29 @@ In detail:
         there are tons of fat access necessary to find the end.)
 
       * Huge directories. It's again the fat access problem like above. (In
-        2.1.xx kernels it's faster due to the gain from dentry caching.)
+        2.1/2.2 kernels it's faster due to the gain from dentry caching.)
 
       * Compression on write access. Compression speed depends heavily on 
         the data to compress. In general you can say, the better the data 
         compress the faster the compression.
 
-      * Compressing incompressible data. This only wastes time since the
-        driver throws the compressed data away and uses the uncompressed
-        data if the compressed data turn out to be in fact larger. The only
-        thing you can do against this is disabling compression if you know
-        the data you want to write don't compress any more (e.g. when
-        writing already compressed files).
+      * Compressing incompressible data (on write access). This only wastes
+        time since the driver throws the compressed data away and uses the 
+        uncompressed data if the compressed data turn out to be in fact 
+        larger. The only thing you can do against this is disabling 
+        compression if you know the data you want to write don't compress 
+        any more (e.g. when writing already compressed files).
 
-      * Highly fragmented (at internal MDFAT level) filesystems. This
-        puts the search algorithm that searches for free space in a long
-        loop finding a fitting hole for data to be written. This is probably
-        the most important reason for sudden system freezes. It's also the
-        most annoying one since there's really nothing to do against it.
-        This kind of fragmentation is normal to every compressed filesystem
-        and cannot be avoided. The more you write the worse it becomes.
-        (See below for details on that kind of fragmentation. Note that it's
-        very different from that FAT level fragmentation known from FAT
-        based filesystems.)
+      * Highly fragmented (at internal MDFAT level) filesystems on write
+        access. This puts the search algorithm that searches for free space 
+        in a long loop finding a fitting hole for data to be written. This is
+        probably the most important reason for sudden system freezes. It's 
+        also the most annoying one since there's really nothing to do against
+        it. This kind of fragmentation is normal to every compressed 
+        filesystem and cannot be avoided. The more you write the worse it 
+        becomes. (See below for details on that kind of fragmentation. Note 
+        that it's very different from that FAT level fragmentation known from
+        FAT based filesystems.)
 
   Compression and free sector finding may be fine-tuned with some of
   the dmsdos options. This is not really explained here, see mount
@@ -227,8 +231,8 @@ In detail:
   Of course, they can be read. But currently, they cannot be written.
   If dmsdos needs to rewrite data that are stored in a fragmented or
   suballocated cluster it currently deletes the old data and saves the new
-  data in the usual linear order. Fragmentation write may come soon,
-  suballocation write is more complex and currently considered not very 
+  data in the usual linear order. Fragmented write may come soon,
+  suballocated write is more complex and currently considered not very 
   important for dmsdos. We'll see...
 
   Swapping to a file on the compressed partition
@@ -243,17 +247,17 @@ In detail:
   has to do in order to access the *end* of a large file... yeah, tons
   of fat access...)
 
-  DOSEMU users attention 
-  ----------------------
+  attention, DOSEmu users 
+  -----------------------
 
   You may have to unmount all fat based partitions before running 
-  DOSEMU depending on your configuration. If DOSEMU is configured to use 
-  wholedisk or partition access (this is often the case to let DOSEMU access 
+  DOSEmu depending on your configuration. If DOSEmu is configured to use 
+  wholedisk or partition access (this is often the case to let DOSEmu access 
   compressed partitions) there's a risk of destroying your compressed 
   partitions or crashing your system because of confused drivers.
   
   Let me explain why. Dmsdos does a lot of internal caching, but cache 
-  contents won't be up to date if DOSEMU directly modifies the disk. This 
+  contents won't be up to date if DOSEmu directly modifies the disk. This 
   confuses dmsdos and may mess up your data. On the other hand, dos 
   dblspace/drvspace.bin also has a kind of caching mechanism that gets 
   confused by the Linux dmsdos driver's write access. Confusion even
@@ -263,7 +267,7 @@ In detail:
   lredir or emufs.sys. Refer to this table for configurations that are safe 
   (marked with +) and which are dangerous (marked with -):
 
-         DOSEMU:                 Linux fat-based filesystems:
+         DOSEmu:                 Linux fat-based filesystems:
          --------------          --------------------------------
                                    not       mounted     mounted
                                  mounted       ro          rw
@@ -292,7 +296,22 @@ In detail:
   Win98 compatibility
   -------------------
 
-  Has someone tried? Just let me know :)
+  HEY! Windows People !
+  Everyone uses it in the Windows World(TM) :)) Let me know whether
+  it works, please. (I refuse to buy Win98 just for such a test.)
+  Or have you all switched to WinNT yet ?
+
+  WinNT compatibility
+  -------------------
+
+  No, WinNT does not support compressed FAT partitions. But...
+  :))
+  There's meanwhile a small chance to port dmsdos to WinNT. This is
+  somewhat interesting because neither Doublespace nor Stacker runs under
+  WinNT. But I can't do it myself because of lack of knowledge :( For more
+  information, see file PORT_TO_WIN32. The trick is hacking in the dmsdos
+  library so it compiles under that operating system... I just managed to
+  compile one dmsdos utility, mcdmsdos, under WinNT...
 
   Last but least 
   --------------
@@ -300,8 +319,8 @@ In detail:
   Dmsdos has been written for dos/win95 compatibility. It's just a relict
   from the time when I programmed some software that had to run both under 
   dos and Linux and I had to compress my drive because hard disk space was 
-  rather expensive. Times and prices have changed a lot since then, but 
-  dmsdos has still been improved for fun.
+  rather expensive. Times and prices have changed a lot since then (at least
+  in the country where I live), but dmsdos has still been improved for fun.
 
   If you don't need dos/win95 compatibility, i.e. if you want to compress
   Linux-only data, let me say: DON'T DO IT. Clean up your disk, or buy a
@@ -332,6 +351,17 @@ In detail:
 3. Mount options
 ------------------------------------------------------------------------------
 
+CVF related mount options are usually surrounded by the CVF-FAT interface
+options. These are "cvf_format=xxx" and "cvf_options=yyy". The string "xxx"
+can be "dblspace" for a doublespace or drivespace CVF and "stacker" for a
+stacker CVF. For more information about the "cvf_format=xxx" option,
+especially in cooperation with kerneld and automatic module loading, see
+the dmsdos installation instructions (file INSTALL.TXT) and the generic
+CVF-FAT documentation (file linux/Documentation/filesystems/fat_cvf.txt).
+
+When we speak about dmsdos mount options, we usually mean the string "yyy" in
+"cvf_options=yyy". That's what this chapter describes.
+
 Summary: 
 --------
 
@@ -339,7 +369,7 @@ The dmsdos driver currently recognizes the following options:
 
 comp:xxx, cf:xxx, bitfaterrs:xxx, loglevel:xxx, speedup:xxx
 
-(for backwards compatibility, also comp=xxx, cf=xxx, bitfaterrs=xxx and
+(for backwards compatibility also comp=xxx, cf=xxx, bitfaterrs=xxx and
 loglevel=xxx, speedup=xxx are accepted)
 
 The xxx has to be replaced by an appropriate parameter, of course. All
@@ -562,7 +592,7 @@ as option separator symbol.
                    dangers let it cleared. Only set it if you really know 
                    what you are doing.
 
-    bit #7: Use daemon if present
+    bit #7: Use daemon for background conpression if present
                    Use the daemon for delayed compression in the background.
                    This bit is for users of the internal daemon since the
                    internal daemon cannot be disabled by simply killing it.
@@ -581,7 +611,7 @@ as option separator symbol.
                    hole' that is large enough for the data. Speedup Bit#8 
                    controls what to do in that case. If this bit is set 
                    dmsdos just returns a 'no space left on device' error and
-                   refuses to write to the CVF any more.
+                   refuses to write to the CVF.
                    Drivespace 3 and Stacker know a hack for that situation: 
                    they allow storing the data of one cluster in several 
                    fragments on the disk. If the bit is clear, the driver 
@@ -625,9 +655,11 @@ Note:
     The parameters that the dmsdos module allows for 'xxx' are 'dblspace'
     (for all doublespace and drivespace versions) and 'stacker' (for all 
     stacker versions). Usually you don't care about them since the formats 
-    are detected automatically. In short terms: simply never use them.
-    For details about the CVF-FAT interface take a look at 
-    linux/Documentation/filesystems/fat_cvf.txt.
+    are detected automatically. They may, however, be useful in order to
+    trigger kerneld to load the dmsdos module on demand. For details please
+    look at the dmsdos installation instructions (file INSTALL.TXT) and the
+    generic CVF-FAT interface documentation (file 
+    linux/Documentation/filesystems/fat_cvf.txt).
  
     And now a warning: If you want to mount a CVF *be sure* to have the
     dmsdos module loaded. The plain FAT driver also mounts some CVFs without
@@ -636,6 +668,9 @@ Note:
     uncompressed filesystems, the FAT driver has no chance to detect a
     CVF at mount time (and e.g. print an error) when the dmsdos module is 
     not loaded.
+
+    *** If you always specify a "cvf_format=something" option you never
+        run into that problem.
 
 Some simple examples:
  1. Your msdos partition that contains CVFs is on /dev/hda1. You want to
@@ -959,7 +994,8 @@ in INSTALL.TXT so see there for details, please.
 11. The dmsdos library 'libdmsdos.a'
 -----------------------------------------------------------------------------
 
-This feature is currently highly experimental. 
+This feature is currently experimental, but begins to become more and more
+interesting. 
 
 The dmsdos library is intended to provide some low-level dmsdos functions
 to user processes. The library is not new source code - it's just the
@@ -968,7 +1004,8 @@ The dmsdos library aims towards working with raw CVFs, not filesystems.
 It is usable only for *not* mounted CVFs. Well, for mounted ones there's
 the dmsdos module :)
 
-Rudimentary documentation can be found in file libdmsdos.doc.
+Documentation (including a detailed description of the interface functions)
+can be found in file libdmsdos.doc.
 
 
 12. The dmsdos filesystem checker 'dmsdosfsck'
@@ -1043,7 +1080,52 @@ script does. Change it to your requirements. Then replace the link in
 /sbin/fsck.msdos (or /etc/fs/fsck.msdos) by a link to the script :)
 
 
-13. Authors and email addresses:
+13. The dmsdos Midnight Commander external filesystem utility 'mcdmsdos'
+------------------------------------------------------------------------------
+
+Dmsdos comes with an interface utility that accepts standard Midnight
+Commander commands for reading archive files. The utility is named
+'mcdmsdos' and is compiled during usual dmsdos compile process.
+The utility is currently read-only.
+
+Please refer to the documentation of Midnight Commander for further
+information on how to configure an external filesystem.
+You may want to write a small shell script as a wrapper around mcdmsdos
+in order to suppress output to stderr distorting the screen, e.g.
+
+  #!/bin/sh
+  exec /usr/local/bin/mcdmsdos $@ 2> /dev/null
+
+Furthermore, mcdmsdos can be used as a utility to quickly look at what is
+inside the CVF and to extract single files from a CVF. Today mcdmsdos even
+works in a Win32 environment, so it may be worth to learn its command line
+parameters :))
+
+  mcdmsdos list <CVF_name>
+
+        lists (recursively) the contents of the CVF, i.e. the names of all
+        files that are in that compressed partition are printed.
+
+  mcdmsdos copyout <CVF_name> <path/name_of_file> <outfile>
+
+        extracts the file <path/name_of_file> from the CVF <CVF_name> and
+        writes it to <outfile> (which must be a real file, not stdout).
+
+  mcdmsdos copyin <CVF_name> <path/name_of_file> <infile>
+
+        is expected to copy <infile> into the CVF <CVF_name> at
+        <path/name_of_file> according to Midnight Commander documentation.
+        This command is currently not implemented as the utility is
+        read-only.
+
+If documentation of newer versions of Midnight Commander wants some more
+commands consider the respective operations to fail. I expect something
+like remove, rmdir, mkdir etc. which are missing in the current standard
+(I wrote this utility according to Midnight Commander 3.0 documentation).
+But that doesn't matter as long as mcdmsdos is read-only :)
+
+
+14. Authors and email addresses:
 ------------------------------------------------------------------------------
 
 CVF-FAT/dmsdos is the official successor of the former dmsdos filesystem. The 

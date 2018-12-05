@@ -53,14 +53,16 @@ extern int debug;
 #include"lib_interface.h"
 #include<malloc.h>
 #include<string.h>
-#include<asm/unaligned.h>
-#include <asm/byteorder.h>
 #endif
-
 
 #ifdef DMSDOS_CONFIG_DRVSP3
 
-#define	INLINE	static inline
+#ifdef __GNUC__
+#define INLINE  static inline
+#else
+/* non-gnu compilers may not like inline */
+#define INLINE static
+#endif
 
 /* store and load __u16 in any byteorder on any */
 /* address (odd or even).                       */
@@ -110,11 +112,14 @@ __asm__ /*__volatile__*/(\
 
 #else
 
+#ifdef __GNUC__
+/* non-gnu compilers may not like warning directive */
 #warning USE_GNU_ASM_I386 not defined, using "C" equivalent
+#endif
 
 #define M_MOVSB(D,S,C) for(;(C);(C)--) *((__u8*)(D)++)=*((__u8*)(S)++)
 #define M_FIRSTDIFF(D,S,C) for(;(*(__u8*)(D)==*(__u8*)(S))&&(C);\
-                           (__u8*)(D)++,(__u8*)(S)++,(C)--)
+			   (__u8*)(D)++,(__u8*)(S)++,(C)--)
 
 #endif
 
@@ -130,10 +135,10 @@ __asm__ /*__volatile__*/(\
 /* for reading and writting from/to bitstream */
 typedef
  struct {
-   __u32 buf;	/* bit buffer */
-     int pb;	/* already readed bits from buf */
-   __u16 *pd;	/* first not readed input data */
-   __u16 *pe;	/* after end of data */
+   __u32 buf;   /* bit buffer */
+     int pb;    /* already readed bits from buf */
+   __u16 *pd;   /* first not readed input data */
+   __u16 *pe;   /* after end of data */
  } bits_t;
 
 const unsigned sq_bmsk[]=
@@ -179,25 +184,25 @@ INLINE unsigned sq_rdn(bits_t *pbits,int n)
 /*==============================================================*/
 /* huffman decoding */
 
-#define MAX_SPDA_BITS	10
-#define MAX_SPDA_LEN	(1<<MAX_SPDA_BITS)
-#define MAX_BITS	16
-#define MAX_CODES	0x140
-#define OUT_OVER	0x100
+#define MAX_SPDA_BITS   10
+#define MAX_SPDA_LEN    (1<<MAX_SPDA_BITS)
+#define MAX_BITS        16
+#define MAX_CODES       0x140
+#define OUT_OVER        0x100
 
 typedef
  struct {
-  __s8 ln;			/* character lens .. for tokens -0x40 */
-  __u8 ch;			/* character/token code */
+  __s8 ln;                      /* character lens .. for tokens -0x40 */
+  __u8 ch;                      /* character/token code */
  }huf_chln_t;
 
 typedef
  struct {
-  unsigned cd_ln[MAX_BITS+1];	/* distribution of bits */
-  unsigned cd_ch[MAX_BITS+1];	/* distribution of codes codes */
-  int  bn;			/* chln array convert max bn bits codes */
-  huf_chln_t chln1[MAX_CODES];	/* for codes with more than bn bits */
-  huf_chln_t chln[0];		/* character codes decode array length SPDA_LEN */
+  unsigned cd_ln[MAX_BITS+1];   /* distribution of bits */
+  unsigned cd_ch[MAX_BITS+1];   /* distribution of codes codes */
+  int  bn;                      /* chln array convert max bn bits codes */
+  huf_chln_t chln1[MAX_CODES];  /* for codes with more than bn bits */
+  huf_chln_t chln[0];           /* character codes decode array length SPDA_LEN */
  }huf_rd_t;
 
 #define HUF_RD_SIZE(SPDA_LEN) \
@@ -427,8 +432,8 @@ int sq_dec(void* pin,int lin, void* pout, int lout, int flg)
   int count_3;
   int method;
   unsigned mask;
-  __u8 *code_bln;	/* bitlengths of char, tokens and rep codes [0x150] */
-  huf_rd_t *huf1,*huf2;	/* tables for huffman decoding */
+  __u8 *code_bln;       /* bitlengths of char, tokens and rep codes [0x150] */
+  huf_rd_t *huf1,*huf2; /* tables for huffman decoding */
   char *work_mem;
 
   sq_rdi(&bits,pin,lin);
@@ -452,137 +457,142 @@ int sq_dec(void* pin,int lin, void* pout, int lout, int flg)
     switch(method)
     {
       case 0: 
-        printk(KERN_NOTICE "DMSDOS: dec_sq: submethod not tested - raw read\n");
+	printk(KERN_NOTICE "DMSDOS: dec_sq: submethod not tested - raw read\n");
 	/* go to byte boundary */
 	/* read 16 bits - count of raw bytes */
 	sq_rdn(&bits,(8-bits.pb)&7);
 	replen=sq_rdn(&bits,16);
 	if (replen+sq_rdn(&bits,16)!=0xFFFF) {FREE(work_mem);return 0;};
 	r=(__u8*)bits.pd-(32-bits.pb)/8;
-        if(r+replen>(__u8*)bits.pe) {FREE(work_mem);return 0;};
-        if(p+replen>pend) {FREE(work_mem);return 0;};
+	if(r+replen>(__u8*)bits.pe) {FREE(work_mem);return 0;};
+	if(p+replen>pend) {FREE(work_mem);return 0;};
 	M_MOVSB(p,r,replen); /* copy/repeat function */
 	if((unsigned)r&1) bits.pb=32;
 	else {bits.pb=32+8;r--;};
+#if 0        
+	/* some compilers seem to be confused by this (???) */
 	bits.pd=(typeof(bits.pd))r;
-        break;
+#else
+	bits.pd=(__u16*)r;
+#endif
+	break;
 
       case 1: 
-        printk(KERN_NOTICE "DMSDOS: sq_dec: submethod not tested - fixed huffman\n");
-        /* 0x90*8 0x70*9 0x18*7 8*8 sqt_repbln sqt_repbas 0x101 0x120h */
-        /* 0x1E*5 offset sqt_offbln sqt_offbas 0 0x1Eh */
-        bn_max=9;
-        count_1=0x120;
-        count_2=0x20;
-        i=0;
-        while(i<0x90)  code_bln[i++]=8;
-        while(i<0x100) code_bln[i++]=9;
-        while(i<0x118) code_bln[i++]=7;
-        while(i<0x120) code_bln[i++]=8;
-        while(i<0x140) code_bln[i++]=5;
-        goto case_1_cont;
+	printk(KERN_NOTICE "DMSDOS: sq_dec: submethod not tested - fixed huffman\n");
+	/* 0x90*8 0x70*9 0x18*7 8*8 sqt_repbln sqt_repbas 0x101 0x120h */
+	/* 0x1E*5 offset sqt_offbln sqt_offbas 0 0x1Eh */
+	bn_max=9;
+	count_1=0x120;
+	count_2=0x20;
+	i=0;
+	while(i<0x90)  code_bln[i++]=8;
+	while(i<0x100) code_bln[i++]=9;
+	while(i<0x118) code_bln[i++]=7;
+	while(i<0x120) code_bln[i++]=8;
+	while(i<0x140) code_bln[i++]=5;
+	goto case_1_cont;
       
       case 2:
-        LOG_DECOMP("DMSDOS: sq_dec: submethod huffman\n");
-        count_1=sq_rdn(&bits,5)+0x101;
-        LOG_DECOMP("DMSDOS: count_1 %d\n",count_1);
-        if(count_1>0x11E) 
-        { printk(KERN_INFO "DMSDOS: sq_dec: huff count_1 too big\n");
-          FREE(work_mem);return(0);
-        };
-        count_2=sq_rdn(&bits,5)+1;
-        LOG_DECOMP("DMSDOS: count_2 %d\n",count_2);
-        if(count_2>0x1E) 
-        { printk(KERN_INFO "DMSDOS: sq_dec: huff count_2 too big\n");
-          FREE(work_mem);return(0);
-        };
-        count_3=sq_rdn(&bits,4)+4;
-        LOG_DECOMP("DMSDOS: count_3 %d\n",count_3);
-        bn_max=0;
-        for(i=0;i<count_3;i++)
-        { u=sq_rdn(&bits,3);
-          code_bln[code_index_1[i]]=u;
-          if(u>bn_max)bn_max=u;
-        };
-        while(i<19) code_bln[code_index_1[i++]]=0;code_bln[19]=0xFF;
-        i=sq_rdhufi(huf1,19,bn_max,code_bln);
-        if(!i)
-        { printk(KERN_INFO "DMSDOS: sq_dec: huff error in helper table\n");
-          FREE(work_mem);return 0;
-        };
-        mask=sq_bmsk[huf1->bn]; u1=0; bn_max=0;
-        for(i=0;i<count_1+count_2;)
-        { RDN_PR(bits,u);
-          bits.pb+=huf1->chln[u&mask].ln;
-          u=huf1->chln[u&mask].ch;
-          switch(u)
-          { case 16:		/* 3 to 6 repeats of last */
-              u=sq_rdn(&bits,2)+3;
-              while(u--) code_bln[i++]=u1;
-              break;
-            case 17:		/* 3 to 10 repeats of 0 */
-              u=sq_rdn(&bits,3)+3; u1=0;
-              while(u--) code_bln[i++]=u1;
-              break;
-            case 18:		/* 11 to 139 repeats of 0 */
-              u=sq_rdn(&bits,7)+11; u1=0;
-              while(u--) code_bln[i++]=u1;
-              break;
-            default:
-              code_bln[i++]=u;
-              u1=u;
-              if(u>bn_max) bn_max=u;
-          };
-        };
+	LOG_DECOMP("DMSDOS: sq_dec: submethod huffman\n");
+	count_1=sq_rdn(&bits,5)+0x101;
+	LOG_DECOMP("DMSDOS: count_1 %d\n",count_1);
+	if(count_1>0x11E) 
+	{ printk(KERN_INFO "DMSDOS: sq_dec: huff count_1 too big\n");
+	  FREE(work_mem);return(0);
+	};
+	count_2=sq_rdn(&bits,5)+1;
+	LOG_DECOMP("DMSDOS: count_2 %d\n",count_2);
+	if(count_2>0x1E) 
+	{ printk(KERN_INFO "DMSDOS: sq_dec: huff count_2 too big\n");
+	  FREE(work_mem);return(0);
+	};
+	count_3=sq_rdn(&bits,4)+4;
+	LOG_DECOMP("DMSDOS: count_3 %d\n",count_3);
+	bn_max=0;
+	for(i=0;i<count_3;i++)
+	{ u=sq_rdn(&bits,3);
+	  code_bln[code_index_1[i]]=u;
+	  if(u>bn_max)bn_max=u;
+	};
+	while(i<19) code_bln[code_index_1[i++]]=0;code_bln[19]=0xFF;
+	i=sq_rdhufi(huf1,19,bn_max,code_bln);
+	if(!i)
+	{ printk(KERN_INFO "DMSDOS: sq_dec: huff error in helper table\n");
+	  FREE(work_mem);return 0;
+	};
+	mask=sq_bmsk[huf1->bn]; u1=0; bn_max=0;
+	for(i=0;i<count_1+count_2;)
+	{ RDN_PR(bits,u);
+	  bits.pb+=huf1->chln[u&mask].ln;
+	  u=huf1->chln[u&mask].ch;
+	  switch(u)
+	  { case 16:            /* 3 to 6 repeats of last */
+	      u=sq_rdn(&bits,2)+3;
+	      while(u--) code_bln[i++]=u1;
+	      break;
+	    case 17:            /* 3 to 10 repeats of 0 */
+	      u=sq_rdn(&bits,3)+3; u1=0;
+	      while(u--) code_bln[i++]=u1;
+	      break;
+	    case 18:            /* 11 to 139 repeats of 0 */
+	      u=sq_rdn(&bits,7)+11; u1=0;
+	      while(u--) code_bln[i++]=u1;
+	      break;
+	    default:
+	      code_bln[i++]=u;
+	      u1=u;
+	      if(u>bn_max) bn_max=u;
+	  };
+	};
 
       case_1_cont:
-        /* code_bln+count_1	0x96  count_2 sqt_offbln sqt_offbas */
-        code_bln[count_1+count_2]=0xFF;
-        i=sq_rdhufi(huf2,0x100,8,code_bln+count_1);
-        if(!i)
-        { printk(KERN_INFO "DMSDOS: sq_dec: huff error in offset table\n");
-          FREE(work_mem);return 0;
-        };
-        
-        /* code_bln		0x100 count_1 sqt_repbln sqt_repbas */
-        code_bln[count_1]=0xFF;
-        i=sq_rdhufi(huf1,0x100,bn_max,code_bln);
-        if(!i)
-        { printk(KERN_INFO "DMSDOS: sq_dec: huff error in char and len table\n");
-          FREE(work_mem);return 0;
-        };
-        
-        while((u=sq_rdh(&bits,huf1,&p,pend))!=0)
-        { if(u==OUT_OVER){u=sq_rdh1(&bits,huf1)-0x100;break;};
-          u--;
-          replen=sqt_repbas[u]+sq_rdn(&bits,sqt_repbln[u]);
-          u=sq_rdh1(&bits,huf2);
-          repoffs=sqt_offbas[u]+sq_rdn(&bits,sqt_offbln[u]);
-          if(!repoffs)
-          { printk("DMSDOS: sq_dec: bad repoffs !!!\n\n");
-            FREE(work_mem);return(0);
-          };
-          if ((__u8*)pout+repoffs>p) 
-          { repoffs=p-(__u8*)pout;
-            printk(KERN_INFO "DMSDOS: sq_dec: huff offset UNDER\n");
-          };
-          if (p+replen>pend)
-          { replen=pend-p;
-            printk(KERN_INFO "DMSDOS: sq_dec: huff offset OVER\n");
-          };
-          r=p-repoffs; M_MOVSB(p,r,replen); /* copy/repeat function */
-        };
+	/* code_bln+count_1     0x96  count_2 sqt_offbln sqt_offbas */
+	code_bln[count_1+count_2]=0xFF;
+	i=sq_rdhufi(huf2,0x100,8,code_bln+count_1);
+	if(!i)
+	{ printk(KERN_INFO "DMSDOS: sq_dec: huff error in offset table\n");
+	  FREE(work_mem);return 0;
+	};
+	
+	/* code_bln             0x100 count_1 sqt_repbln sqt_repbas */
+	code_bln[count_1]=0xFF;
+	i=sq_rdhufi(huf1,0x100,bn_max,code_bln);
+	if(!i)
+	{ printk(KERN_INFO "DMSDOS: sq_dec: huff error in char and len table\n");
+	  FREE(work_mem);return 0;
+	};
+	
+	while((u=sq_rdh(&bits,huf1,&p,pend))!=0)
+	{ if(u==OUT_OVER){u=sq_rdh1(&bits,huf1)-0x100;break;};
+	  u--;
+	  replen=sqt_repbas[u]+sq_rdn(&bits,sqt_repbln[u]);
+	  u=sq_rdh1(&bits,huf2);
+	  repoffs=sqt_offbas[u]+sq_rdn(&bits,sqt_offbln[u]);
+	  if(!repoffs)
+	  { printk("DMSDOS: sq_dec: bad repoffs !!!\n\n");
+	    FREE(work_mem);return(0);
+	  };
+	  if ((__u8*)pout+repoffs>p) 
+	  { repoffs=p-(__u8*)pout;
+	    printk(KERN_INFO "DMSDOS: sq_dec: huff offset UNDER\n");
+	  };
+	  if (p+replen>pend)
+	  { replen=pend-p;
+	    printk(KERN_INFO "DMSDOS: sq_dec: huff offset OVER\n");
+	  };
+	  r=p-repoffs; M_MOVSB(p,r,replen); /* copy/repeat function */
+	};
       
-        if(u)
-        { printk(KERN_INFO "DMSDOS: sq_dec: huff BAD last token %x\n",u);
-          FREE(work_mem);return 0;
-        };
-        break;
+	if(u)
+	{ printk(KERN_INFO "DMSDOS: sq_dec: huff BAD last token %x\n",u);
+	  FREE(work_mem);return 0;
+	};
+	break;
       
       case 3:
-        printk(KERN_INFO "DMSDOS: sq_dec: unknown submethod - 3\n");
-        FREE(work_mem);
-        return(0);      
+	printk(KERN_INFO "DMSDOS: sq_dec: unknown submethod - 3\n");
+	FREE(work_mem);
+	return(0);      
     };
   } while((!final_flag)&&(p<pend));
   FREE(work_mem);
@@ -630,8 +640,8 @@ typedef
 
 typedef
  struct {
-  __u16 cod;	/* character code */
-  __u16 ln;	/* character len */
+  __u16 cod;    /* character code */
+  __u16 ln;     /* character len */
  } huf_wr_t;
 
 /*** Generation of character codes ***/
@@ -753,7 +763,7 @@ int sq_huffman(count_t* ch_cn,__u8* ch_blen,unsigned* ch_blcn,int cod_num,ch_tab
 };
 
 INLINE int sq_wrhufi(huf_wr_t *phuf, __u8* ch_blen, 
-                     unsigned* ch_blencn,int cod_num)
+		     unsigned* ch_blencn,int cod_num)
 {
  unsigned i,u,t,blen;
  u=0;
@@ -786,12 +796,12 @@ typedef __u8* hash_t;
 #define TKWR_CHRS(p,v) {if(v<15) *(p++)=TK_CHRS+(__u8)v;\
 			else {*(p++)=TK_CHRS+15;C_ST_u16(p,v);};}
 
-#define HASH_TAB_ENT	(1<<10)
-#define HASH_HIST_ENT	(1<<12)
-#define MAX_OFFS	32768
-#define MAX_OFFS_BLN8	1024
-#define MIN_REP		3
-#define MAX_REP		258
+#define HASH_TAB_ENT    (1<<10)
+#define HASH_HIST_ENT   (1<<12)
+#define MAX_OFFS        32768
+#define MAX_OFFS_BLN8   1024
+#define MIN_REP         3
+#define MAX_REP         258
 
 /* definition of data hash function, it can use max 3 chars */
 INLINE unsigned sq_hash(__u8 *p)
@@ -832,11 +842,11 @@ INLINE unsigned find_token(int token,const unsigned *tab_val,int tab_len)
 unsigned sq_complz(void* pin,int lin,void* pout,int lout,int flg,
 		count_t* ch_cn, count_t* offs_cn, void *work_mem)
 {
- int try_count;		/* number of compares to find best match */
- int hash_skiped;	/* last bytes of repetition are hashed too */
- hash_t *hash_tab;	/* [HASH_TAB_ENT] */
+ int try_count;         /* number of compares to find best match */
+ int hash_skiped;       /* last bytes of repetition are hashed too */
+ hash_t *hash_tab;      /* [HASH_TAB_ENT] */
 	/* pointers to last occurrence of same hash, index hash */
- hash_t *hash_hist;	/* [HASH_HIST_ENT] */
+ hash_t *hash_hist;     /* [HASH_HIST_ENT] */
 	/* previous occurences of hash, index actual pointer&hist_mask */ 
  unsigned hist_mask=(HASH_HIST_ENT-1); /* mask for index into hash_hist */
  __u8 *pi, *po, *pc, *pd, *pend, *poend;
@@ -888,18 +898,18 @@ unsigned sq_complz(void* pin,int lin,void* pout,int lout,int flg,
        (hash_cur[0]==pi[0])&&(hash_cur[1]==pi[1]))
        /* pi[2]=hash_cur[2] from hash function */
     {
-     match=pend-pi;		/* length of rest of data */
+     match=pend-pi;             /* length of rest of data */
      if(match>MAX_REP-2) match=MAX_REP-2;
      pd=pi+2;
      pc=hash_cur+2;
-     M_FIRSTDIFF(pd,pc,match);	/* compare */
-     match=pd-pi;		/* found match length */
+     M_FIRSTDIFF(pd,pc,match);  /* compare */
+     match=pd-pi;               /* found match length */
      if((match>max_match)&&((match>3)||(pi-hash_cur<=MAX_OFFS_BLN8)))
      {
-      max_hash=hash_cur;	/* found maximal hash */
+      max_hash=hash_cur;        /* found maximal hash */
       max_match=match;
-      if(match==MAX_REP)break;	/* longer match cannot be encoded */
-      if(pd>pend+1)break;	/* match to end of block */
+      if(match==MAX_REP)break;  /* longer match cannot be encoded */
+      if(pd>pend+1)break;       /* match to end of block */
      };
     };
     pc=hash_cur;
@@ -912,7 +922,7 @@ unsigned sq_complz(void* pin,int lin,void* pout,int lout,int flg,
    { 
     delay_best=0;
     while((delay_cn<delay_count)&&(pi+max_match<pend)&&
-          (max_match<0x100))
+	  (max_match<0x100))
     {
      pi++;delay_cn++;
      hash_cur=sq_newhash(pi,hash_tab,hash_hist,hist_mask);
@@ -921,10 +931,10 @@ unsigned sq_complz(void* pin,int lin,void* pout,int lout,int flg,
      {
       if(pi-hash_cur>MAX_OFFS) break;  /* longer offsets are not allowed */
       if((hash_cur[max_match]==pi[max_match])&&
-         (hash_cur[max_match-1]==pi[max_match-1])&&
-         (hash_cur[0]==pi[0])&&(hash_cur[1]==pi[1])&&
-         /* pi[2]=hash_cur[2] from hash function */
-         (hash_cur!=max_hash+delay_cn-delay_best))
+	 (hash_cur[max_match-1]==pi[max_match-1])&&
+	 (hash_cur[0]==pi[0])&&(hash_cur[1]==pi[1])&&
+	 /* pi[2]=hash_cur[2] from hash function */
+	 (hash_cur!=max_hash+delay_cn-delay_best))
       {  /* do not test actual max match */
        match=pend-pi;           /* length of rest of data */
        if(match>MAX_REP-2) match=MAX_REP-2;
@@ -934,10 +944,10 @@ unsigned sq_complz(void* pin,int lin,void* pout,int lout,int flg,
        match=pd-pi;             /* found match length */
        if((match>max_match+delay_cn)&&((match>3)||(pi-hash_cur<=MAX_OFFS_BLN8)))
        {
-        max_hash=hash_cur;max_match=match; /* find maximal hash */
-        delay_best=delay_cn;
-        if(match==MAX_REP)break;/* longer match cannot be encoded */
-        if(pd>pend+1)break;     /* match to end of block */
+	max_hash=hash_cur;max_match=match; /* find maximal hash */
+	delay_best=delay_cn;
+	if(match==MAX_REP)break;/* longer match cannot be encoded */
+	if(pd>pend+1)break;     /* match to end of block */
        };
       };
       pc=hash_cur;
@@ -961,20 +971,21 @@ unsigned sq_complz(void* pin,int lin,void* pout,int lout,int flg,
    pi+=max_match;    /* skip repeated bytes */
 
    /* store information about match len into *po */
-   token=find_token(max_match,sqt_repbas,29);	/* for max match */
+   token=find_token(max_match,sqt_repbas,29);   /* for max match */
    ch_cn[token+0x101]++;
    *po++=token+1;
    if(sqt_repbln[token]) *po++=max_match-sqt_repbas[token];
    /* store information about match offset into *po */
-   token=find_token(cn,sqt_offbas,30);	/* for history offset */
+   token=find_token(cn,sqt_offbas,30);  /* for history offset */
    offs_cn[token]++;
    *po++=token;
    if(sqt_offbln[token])
+   {
     if(sqt_offbln[token]<=8) 
      *po++=cn-sqt_offbas[token];
     else
      C_ST_u16(po,cn-sqt_offbas[token]);
-
+   };
    if(hash_skiped&&(pi<pend))
    {
     max_match-=delay_cn;
@@ -1010,19 +1021,19 @@ __u16 sq_comp_rat_tab[]=
   {0x7F9,0x7F9,0x621,0x625,
    0x665,0x669,0x6E9,0x6ED,
    0x7D1,0x7D9,0x6E9,0x47D9,
-   0x46E9};			/* compression ratio to seek lengths */
+   0x46E9};                     /* compression ratio to seek lengths */
 
 typedef
  struct{
-  count_t ch_cn[0x120];		/* counts of characters and rep length codes */
-  count_t offs_cn[0x20];	/* counts of offset codes */
+  count_t ch_cn[0x120];         /* counts of characters and rep length codes */
+  count_t offs_cn[0x20];        /* counts of offset codes */
   union {
    struct {
-    __u8 ch_blen[0x120+0x20];	/* bitlengths of character codes and tokens */
-    __u8 code_buf[0x120+0x20];	/* precompressed decompression table */
+    __u8 ch_blen[0x120+0x20];   /* bitlengths of character codes and tokens */
+    __u8 code_buf[0x120+0x20];  /* precompressed decompression table */
     ch_tab_t ch_tab[0x120+0x20];/* temporrary table for huffman */
-    huf_wr_t ch_huf[0x120];	/* character and token encoding table */
-    huf_wr_t offs_huf[0x20];	/* repeat encoding table */
+    huf_wr_t ch_huf[0x120];     /* character and token encoding table */
+    huf_wr_t offs_huf[0x20];    /* repeat encoding table */
    } a;
    hash_t lz_tabs[HASH_TAB_ENT+HASH_HIST_ENT]; 
   } a;
@@ -1030,21 +1041,21 @@ typedef
 
 int sq_comp(void* pin,int lin, void* pout, int lout, int flg)
 {
- count_t *ch_cn;	/* [0x120] counts of characters and rep length codes */
- count_t *offs_cn;	/* [0x20] counts of offset codes */
- unsigned lz_length;	/* length of intermediate reprezentation */
- __u8* lz_pos;		/* possition of intermediate data in pout */
+ count_t *ch_cn;        /* [0x120] counts of characters and rep length codes */
+ count_t *offs_cn;      /* [0x20] counts of offset codes */
+ unsigned lz_length;    /* length of intermediate reprezentation */
+ __u8* lz_pos;          /* possition of intermediate data in pout */
 
- __u8 *ch_blen;		/* [0x120] bitlengths of character codes and tokens */
- __u8 *offs_blen;	/* [0x20] bitlengths of ofset codes are stored in */
- 			/* end of ch_blen */
+ __u8 *ch_blen;         /* [0x120] bitlengths of character codes and tokens */
+ __u8 *offs_blen;       /* [0x20] bitlengths of ofset codes are stored in */
+			/* end of ch_blen */
  unsigned ch_blcn[MAX_BITS+1]; /* counts of bitlengths of chars */
  unsigned offs_blcn[MAX_BITS+1]; /* counts of bitlengths of offs */
- huf_wr_t *ch_huf;	/* [0x120] character and token encoding table */
- huf_wr_t *offs_huf;	/* [0x20] repeat encoding table */
+ huf_wr_t *ch_huf;      /* [0x120] character and token encoding table */
+ huf_wr_t *offs_huf;    /* [0x20] repeat encoding table */
 
-  ch_tab_t *ch_tab;	/* [0x120+0x20] temporrary table for huffman */
- __u8 *code_buf;	/* [0x120+0x20] precompressed decompression table */
+  ch_tab_t *ch_tab;     /* [0x120+0x20] temporrary table for huffman */
+ __u8 *code_buf;        /* [0x120+0x20] precompressed decompression table */
  count_t code_cn[0x20];
  __u8 code_blen[0x20];
  unsigned code_blcn[MAX_BITS+1];
@@ -1075,7 +1086,7 @@ int sq_comp(void* pin,int lin, void* pout, int lout, int flg)
 
  /* find repetitions in input data block */
  lz_length=sq_complz(pin,lin,pout,lout,sq_comp_rat_tab[flg&0xf],
- 		     ch_cn,offs_cn,work_mem->a.lz_tabs);
+		     ch_cn,offs_cn,work_mem->a.lz_tabs);
  LOG_DECOMP("DMSDOS: sq_comp: lz_length %d\n",lz_length);
  if(lz_length==0) {FREE(work_mem);return(0);};
 
@@ -1155,8 +1166,8 @@ int sq_comp(void* pin,int lin, void* pout, int lout, int flg)
  sq_wrn(&bits,'S',8);
  sq_wrn(&bits,'Q',8);
  sq_wrn(&bits,0,16); 
- sq_wrn(&bits,1,1);	/* final flag */
- sq_wrn(&bits,2,2);	/* huffman */
+ sq_wrn(&bits,1,1);     /* final flag */
+ sq_wrn(&bits,2,2);     /* huffman */
  sq_wrn(&bits,count_1-0x101,5);
  sq_wrn(&bits,count_2-1,5);
  sq_wrn(&bits,count_3-4,4);
@@ -1179,7 +1190,7 @@ int sq_comp(void* pin,int lin, void* pout, int lout, int flg)
     case 16: sq_wrn(&bits,*pi++,2); break;
     case 17: sq_wrn(&bits,*pi++,3); break;
     case 18: sq_wrn(&bits,*pi++,7); break;
-    default:
+    default: ;
    }
   }
  }
@@ -1223,8 +1234,10 @@ int sq_comp(void* pin,int lin, void* pout, int lout, int flg)
     cod=*(lz_pos++);
     sq_wrh(&bits,offs_huf,cod);
     if(sqt_offbln[cod])
+    {
      if(sqt_offbln[cod]<=8) sq_wrn(&bits,*(lz_pos++),sqt_offbln[cod]);
      else { C_LD_u16(lz_pos,len);sq_wrn(&bits,len,sqt_offbln[cod]);};
+    };
    };
   }
   sq_wrh(&bits,ch_huf,TK_END+0x100);

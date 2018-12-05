@@ -51,10 +51,14 @@ See file COPYING for details.
 #include<malloc.h>
 #include<string.h>
 #include<errno.h>
-#include <asm/byteorder.h>
 #endif
 
+#ifdef __GNUC__
 #define INLINE static inline
+#else
+/* non-gnu compilers may not like inline */
+#define INLINE static
+#endif
 
 /* we always need DS decompression */
 
@@ -75,7 +79,10 @@ __asm__ /*__volatile__*/(\
 
 #else
 
+#ifdef __GNUC__
+/* non-gnu compilers may not like warning directive */
 #warning USE_GNU_ASM_I386 not defined, using "C" equivalent
+#endif
 
 #define M_MOVSB(D,S,C) for(;(C);(C)--) *((__u8*)(D)++)=*((__u8*)(S)++)
 

@@ -19,7 +19,7 @@ echo -n "Do you want me to do this ? (Y/N) "
 read ANS junk
 if [ "$ANS" = y -o "$ANS" = Y ];
 then
-	cat magic >> /etc/magic
+	cat patches/magic >> /etc/magic
 fi
 
 exit 0

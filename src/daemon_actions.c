@@ -277,8 +277,8 @@ int main(int argc, char*argv[])
     close(fd);
     return 1;
   }
-  if(ret<0x00000901)
-  { printf("\nSorry, this program requires at least DMSDOS driver version 0.9.1.\n");
+  if(ret<0x00000902)
+  { printf("\nSorry, this program requires at least DMSDOS driver version 0.9.2.\n");
     close(fd);
     return 1;
   }

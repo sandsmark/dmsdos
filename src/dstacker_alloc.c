@@ -55,7 +55,6 @@ See file COPYING for details.
 #include<errno.h>
 #endif
 
-
 #ifdef DMSDOS_CONFIG_STAC
 
 /* initializes Stac_cwalk structure, which can be used for sequential

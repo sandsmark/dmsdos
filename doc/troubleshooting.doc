@@ -51,6 +51,17 @@ for some hints (thanks a lot to all of you!).
   missing ones in the same way. Then recompile the fat module (or the
   kernel if your fat support isn't modular).
 
+- It causes a kernel panic with the message "VFS: LRU list corrupted".
+
+  You are very suffering from the vfat brelse bug (this is a serious
+  bug in some 2.2.x and maybe late 2.1.x kernels). This bug is triggered
+  by dmsdos. Ensure you have applied the vfat-brelse-bugfix.diff.
+  See file patches/DIFFS.TXT or INSTALL.TXT for details.
+  
+  If not, this indicates probably a leak in dmsdos virtual sector code.
+  Please send a bug report to the current dmsdos maintainer and be prepared
+  to be asked for some tests in order to track down the bug.
+
 - It crashes and writes a register dump to the syslog.
 
   If you did not load the module with the -m flag this time, you are out 

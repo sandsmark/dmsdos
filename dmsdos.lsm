@@ -1,35 +1,39 @@
 Begin3
 Title:		dmsdos
-Version:	0.9.1.5
-Entered-date:	18AUG1998
+Version:	0.9.2.2
+Entered-date:	04DEC1999
 Description:	dmsdos: reads and writes compressed dos filesystems (CVF-FAT)
                 * read and write access to compressed partitions (files like 
                   dblspace.xxx, drvspace.xxx and stacvol.xxx). The following 
                   configurations are supported:
                        - DoubleSpace / DriveSpace (msdos 6.x)
-                       - DoubleSpace / DriveSpace (win95)
-                       - DriveSpace 3 (win95 with Plus! pack)
+                       - DoubleSpace / DriveSpace (older win95 releases)
+                       - DriveSpace 3 (win95 with Plus! pack or newer win95)
                        - Stacker 3
                        - Stacker 4
                 * Works with FAT32, NLS, codepages etc. (tested with fat32 
                   patches version 0.2.8 under Linux 2.0.33 and with fat32 in
-                  standard 2.1.xx kernels and 2.0.34+35) 
+                  standard 2.1.xx kernels and 2.0.[34-36], also tested with
+                  2.2.[0-2] kernels). Tested with patched 2.2.13 and 2.3.30.
                 * Dmsdos can run together with vfat or umsdos for long
                   filenames.
                 * Dmsdos has been redesigned to be ready for SMP.
-                * Dmsdos should now compile completely under libc6.
+                * Dmsdos compiles both under libc5 and libc6.
+                * The dmsdos library and some dmsdos tools compile even in a 
+                  32 bit Dos/Windows environment.
 Keywords:	filesystem compression doublespace drivespace stacker
 Author: 	gockel@sent13.uni-duisburg.de (Frank Gockel)
                 pisa@cvlinux.felk.cvut.cz (Pavel Pisa)
 Maintained-by:	gockel@sent13.uni-duisburg.de (Frank Gockel)
                 pisa@cvlinux.felk.cvut.cz (Pavel Pisa)
 Primary-site:	sunsite.unc.edu /pub/Linux/system/Filesystems/dosfs
-                230 kB dmsdos-0.9.1.5.tgz
+                262 kB dmsdos-0.9.2.1.tgz
 Alternate-site: ftp.uni-stuttgart.de /pub/systems/linux/local/system
-                230 kB dmsdos-0.9.1.5.tgz
+                262 kB dmsdos-0.9.2.1.tgz
                 fb9nt.uni-duisburg.de /pub/linux/dmsdos
-                230 kB dmsdosfs-0.9.1.5.tgz
+                262 kB dmsdosfs-0.9.2.1.tgz
 Original-site:
-Platforms:	Linux 2.0.xx (xx>=29), 2.1.yy (yy>=94), msdos 6.x, win95
+Platforms:	Linux 2.0.29 up to 2.0.36, 2.1.94+, 2.2.0+, 2.2.13+,
+                msdos 6.x, msdos 7.x, win95, winnt 4.0
 Copying-policy:	GPL
 End

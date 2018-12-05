@@ -47,7 +47,7 @@ See file COPYING for details.
 # include<malloc.h>
 # define MAJOR(x) 0
 # define MINOR(x) 0
-  extern long int blk_size[0][0];
+  extern long int blk_size[1][1];
 #endif
 
 extern Acache mdfat[];
@@ -263,7 +263,7 @@ int detect_dblspace(struct super_block*sb)
 { struct buffer_head*bh;
 
   MOD_INC_USE_COUNT;
-  bh=raw_bread(sb,0);
+  bh=raw_bread(sb,0); 
   if(bh==NULL)
   { printk(KERN_ERR "DMSDOS: unable to read super block\n");
     MOD_DEC_USE_COUNT;
@@ -280,6 +280,27 @@ int detect_dblspace(struct super_block*sb)
   return 0;
 }
 
+/* setup fresh dblsb structure */
+Dblsb* malloc_dblsb(void)
+{ Dblsb*dblsb;
+  
+  dblsb=kmalloc(sizeof(Dblsb),GFP_KERNEL);
+  if(dblsb==NULL)return NULL;
+  dblsb->mdfat_alloc_semp=NULL;
+  
+  return dblsb;
+}
+
+/* ensure all memory is released */
+void free_dblsb(Dblsb*dblsb)
+{ if(dblsb==NULL)return;
+  if(dblsb->mdfat_alloc_semp)
+  { kfree(dblsb->mdfat_alloc_semp);
+    dblsb->mdfat_alloc_semp=NULL;
+  }
+  kfree(dblsb);
+}
+
 int mount_dblspace(struct super_block*sb,char*options)
 { struct buffer_head*bh;
   struct buffer_head*bh2;
@@ -292,27 +313,14 @@ int mount_dblspace(struct super_block*sb,char*options)
   
   MOD_INC_USE_COUNT;
   LOG_REST("DMSDOS: dblspace/drvspace module mounting...\n");
-  bh=raw_bread(sb,0);
-  if(bh==NULL)
-  { printk(KERN_ERR "DMSDOS: unable to read super block\n");
-    MOD_DEC_USE_COUNT;
-    return -1;
-  }
-  if(strncmp(bh->b_data+3,"MSDBL6.0",8)&&strncmp(bh->b_data+3,"MSDSP6.0",8))
-  { printk(KERN_ERR "DMSDOS: MSDBL/MSDSP signature not found, CVF skipped\n");
-    raw_brelse(sb,bh);
-    MOD_DEC_USE_COUNT;
-    return -1;
-  }
-  dblsb=kmalloc(sizeof(Dblsb),GFP_KERNEL);
+
+  dblsb=malloc_dblsb();
   if(dblsb==NULL)
   { printk(KERN_ERR "DMSDOS: mount_dblspace: out of memory\n");
-    raw_brelse(sb,bh);
     MOD_DEC_USE_COUNT;
     return -1;
   }
   MSDOS_SB(sb)->private_data=dblsb;
-  /*dblsb->mdfat_alloc_sem=MUTEX;*/
   
 #ifdef __KERNEL__
   { struct semaphore* sem;
@@ -320,29 +328,46 @@ int mount_dblspace(struct super_block*sb,char*options)
     sem=kmalloc(sizeof(struct semaphore),GFP_KERNEL);
     if(sem==NULL)
     { printk(KERN_ERR "DMSDOS: mount_dblspace: out of memory\n");
-      raw_brelse(sb,bh);
+      free_dblsb(dblsb);
+      MSDOS_SB(sb)->private_data=NULL;
       MOD_DEC_USE_COUNT;
       return -1;
     }  
-    *sem=MUTEX;
+    init_MUTEX(sem);
     dblsb->mdfat_alloc_semp=sem;
   }
 #endif
-  
-  /* find out size */
-  dblsb->s_dataend=blk_size[MAJOR(sb->s_dev)][MINOR(sb->s_dev)]*2;
-    
+
   dblsb->s_comp=GUESS;
   dblsb->s_cfaktor=DEFAULT_CF;
 
   if(parse_dmsdos_options(options,dblsb,&repair))
   {
-    raw_brelse(sb,bh);
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
     MOD_DEC_USE_COUNT;
     return -1;
   }
   
-    
+  dblsb->s_dataend=blk_size[MAJOR(sb->s_dev)][MINOR(sb->s_dev)]*2;
+
+  bh=raw_bread(sb,0);
+  if(bh==NULL)
+  { printk(KERN_ERR "DMSDOS: unable to read super block\n");
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
+    MOD_DEC_USE_COUNT;
+    return -1;
+  }
+  if(strncmp(bh->b_data+3,"MSDBL6.0",8)&&strncmp(bh->b_data+3,"MSDSP6.0",8))
+  { printk(KERN_ERR "DMSDOS: MSDBL/MSDSP signature not found, CVF skipped\n");
+    raw_brelse(sb,bh);
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
+    MOD_DEC_USE_COUNT;
+    return -1;
+  }
+  
   if(sb->s_flags & MS_RDONLY)dblsb->s_comp=READ_ONLY;
   printk(KERN_INFO "DMSDOS: mounting CVF on device 0x%x %s...\n",
            sb->s_dev,
@@ -380,6 +405,8 @@ int mount_dblspace(struct super_block*sb,char*options)
   if(dblsb->s_cvf_version<=DRVSP)
   { printk(KERN_ERR "DMSDOS: support for doublespace/drivespace(<3) not compiled in.\n");
     raw_brelse(sb,bh);
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
     MOD_DEC_USE_COUNT;
     return -1;
   }
@@ -388,6 +415,8 @@ int mount_dblspace(struct super_block*sb,char*options)
   if(dblsb->s_cvf_version==DRVSP3)
   { printk(KERN_ERR "DMSDOS: support for drivespace 3 not compiled in.\n");
     raw_brelse(sb,bh);
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
     MOD_DEC_USE_COUNT;
     return -1;
   }
@@ -397,6 +426,8 @@ int mount_dblspace(struct super_block*sb,char*options)
   if(bh2==NULL)
   { printk(KERN_ERR "DMSDOS: unable to read emulated boot block\n");
     raw_brelse(sb,bh);
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
     MOD_DEC_USE_COUNT;
     return -1;
   }
@@ -407,6 +438,8 @@ int mount_dblspace(struct super_block*sb,char*options)
   { printk(KERN_ERR "DMSDOS: CVF has FAT32 signature, not mounted. Please report this.\n");
     raw_brelse(sb,bh2);
     raw_brelse(sb,bh);
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
     MOD_DEC_USE_COUNT;
     return -1;
   }
@@ -543,6 +576,12 @@ int mount_dblspace(struct super_block*sb,char*options)
     MSDOS_SB(sb)->fat_bits=dblsb->s_16bitfat?16:12;
   }
   MSDOS_SB(sb)->cluster_size=dblsb->s_sectperclust;
+ #ifdef HAS_SB_CLUSTER_BITS
+  for(MSDOS_SB(sb)->cluster_bits=0;
+      (1<<MSDOS_SB(sb)->cluster_bits)<MSDOS_SB(sb)->cluster_size;)
+        MSDOS_SB(sb)->cluster_bits++;
+  MSDOS_SB(sb)->cluster_bits+=SECTOR_BITS;
+ #endif
   
   /* these *must* always match */
   if(dblsb->s_comp==READ_ONLY)sb->s_flags |= MS_RDONLY;
@@ -556,9 +595,7 @@ int mount_dblspace(struct super_block*sb,char*options)
 
 int unmount_dblspace(struct super_block*sb)
 { int j;
-#if defined(__KERNEL__)||defined(DMSDOS_CONFIG_STAC)
   Dblsb*dblsb=MSDOS_SB(sb)->private_data;
-#endif
   
   LOG_REST("DMSDOS: CVF on device 0x%x unmounted.\n",sb->s_dev);
 
@@ -611,9 +648,12 @@ int unmount_dblspace(struct super_block*sb)
   kill_reada_list_dev(sb->s_dev);
 #endif
   /* this is unused in the library */
-  kfree(dblsb->mdfat_alloc_semp);
+  /* looks like we don't need this here... */
+  /*kfree(dblsb->mdfat_alloc_semp);*/
+  /*dblsb->mdfat_alloc_semp=NULL;*/
 #endif
-  kfree(MSDOS_SB(sb)->private_data);
+  /*kfree(MSDOS_SB(sb)->private_data);*/
+  free_dblsb(dblsb);
   MSDOS_SB(sb)->private_data=NULL;
   /*MSDOS_SB(sb)->cvf_format=NULL;*/ /*this causes a segfault in 
                                        dec_cvf_format_use_count_by_version*/
@@ -663,10 +703,49 @@ int mount_stacker(struct super_block*sb,char*options)
   MOD_INC_USE_COUNT;
   LOG_REST("DMSDOS: stacker 3/4 module mounting...\n");
     
+  dblsb=malloc_dblsb();
+  if(dblsb==NULL)
+  { printk(KERN_ERR "DMSDOS: mount_stacker: out of memory\n");
+    MOD_DEC_USE_COUNT;
+    return -1;
+  }
+  MSDOS_SB(sb)->private_data=dblsb;
+  
+#ifdef __KERNEL__
+  { struct semaphore* sem;
+
+    sem=kmalloc(sizeof(struct semaphore),GFP_KERNEL);
+    if(sem==NULL)
+    { printk(KERN_ERR "DMSDOS: mount_stacker: out of memory\n");
+      free_dblsb(dblsb);
+      MSDOS_SB(sb)->private_data=NULL;
+      MOD_DEC_USE_COUNT;
+      return -1;
+    }  
+    init_MUTEX(sem);
+    dblsb->mdfat_alloc_semp=sem;
+  }
+#endif
+
+  dblsb->s_comp=GUESS;
+  dblsb->s_cfaktor=DEFAULT_CF;
+
+  if(parse_dmsdos_options(options,dblsb,&repair))
+  {
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
+    MOD_DEC_USE_COUNT;
+    return -1;
+  }
+
+  dblsb->s_dataend=blk_size[MAJOR(sb->s_dev)][MINOR(sb->s_dev)]*2;
+   
   LOG_REST("DMSDOS: reading super block...\n");
   bh=raw_bread(sb,0);
   if(bh==NULL)
   { printk(KERN_ERR "DMSDOS: unable to read super block of CVF\n");
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
     MOD_DEC_USE_COUNT;
     return -1;
   }
@@ -675,6 +754,8 @@ int mount_stacker(struct super_block*sb,char*options)
   if(strncmp(pp,"STACKER",7)!=0)
   { printk(KERN_ERR "DMSDOS: STACKER signature not found\n");
     raw_brelse(sb,bh);
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
     MOD_DEC_USE_COUNT;
     return -1;
   }
@@ -691,48 +772,12 @@ int mount_stacker(struct super_block*sb,char*options)
   if(buf[0x4e]!=0xa||buf[0x4f]!=0x1a)
   { printk(KERN_ERR "DMSDOS: Stacker 0x1A0A signature not found\n");
     raw_brelse(sb,bh);
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
     MOD_DEC_USE_COUNT;
     return -1;
   }
 
-  dblsb=kmalloc(sizeof(Dblsb),GFP_KERNEL);
-  if(dblsb==NULL)
-  { printk(KERN_ERR "DMSDOS: mount_stacker: out of memory\n");
-    raw_brelse(sb,bh);
-    MOD_DEC_USE_COUNT;
-    return -1;
-  }
-  MSDOS_SB(sb)->private_data=dblsb;
-  /*dblsb->mdfat_alloc_sem=MUTEX;*/
-  
-#ifdef __KERNEL__
-  { struct semaphore* sem;
-
-    sem=kmalloc(sizeof(struct semaphore),GFP_KERNEL);
-    if(sem==NULL)
-    { printk(KERN_ERR "DMSDOS: mount_stacker: out of memory\n");
-      raw_brelse(sb,bh);
-      MOD_DEC_USE_COUNT;
-      return -1;
-    }  
-    *sem=MUTEX;
-    dblsb->mdfat_alloc_semp=sem;
-  }
-#endif
-
-  /* find out size */
-  dblsb->s_dataend=blk_size[MAJOR(sb->s_dev)][MINOR(sb->s_dev)]*2;
-    
-  dblsb->s_comp=GUESS;
-  dblsb->s_cfaktor=DEFAULT_CF;
-
-  if(parse_dmsdos_options(options,dblsb,&repair))
-  {
-    raw_brelse(sb,bh);
-    MOD_DEC_USE_COUNT;
-    return -1;
-  }
-  
   if(sb->s_flags & MS_RDONLY)dblsb->s_comp=READ_ONLY;
   printk(KERN_NOTICE "DMSDOS: mounting CVF on device 0x%x %s...\n",
            sb->s_dev,
@@ -760,6 +805,8 @@ int mount_stacker(struct super_block*sb,char*options)
   if(dblsb->s_cvf_version==STAC3)
   { printk(KERN_ERR "DMSDOS: support for stacker 3 not compiled in.\n");
     raw_brelse(sb,bh);
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
     MOD_DEC_USE_COUNT;
     return -1;
   }
@@ -768,6 +815,8 @@ int mount_stacker(struct super_block*sb,char*options)
   if(dblsb->s_cvf_version==STAC4)
   { printk(KERN_ERR "DMSDOS: support for stacker 4 not compiled in.\n");
     raw_brelse(sb,bh);
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
     MOD_DEC_USE_COUNT;
     return -1;
   }
@@ -778,6 +827,8 @@ int mount_stacker(struct super_block*sb,char*options)
   if(bh2==NULL)
   { printk(KERN_ERR "DMSDOS: unable to read emulated boot block of CVF\n");
     raw_brelse(sb,bh);
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
     MOD_DEC_USE_COUNT;
     return -1;
   }
@@ -820,6 +871,8 @@ int mount_stacker(struct super_block*sb,char*options)
   { printk(KERN_ERR "DMSDOS: BB_ClustCnt=0x%x impossible (FAT32?)\n",BB_ClustCnt);
     raw_brelse(sb,bh2);
     raw_brelse(sb,bh);
+    free_dblsb(dblsb);
+    MSDOS_SB(sb)->private_data=NULL;
     MOD_DEC_USE_COUNT;
     return -1;    
   }
@@ -891,6 +944,12 @@ int mount_stacker(struct super_block*sb,char*options)
     MSDOS_SB(sb)->fat_bits=dblsb->s_16bitfat?16:12;
   }
   MSDOS_SB(sb)->cluster_size=dblsb->s_sectperclust;
+ #ifdef HAS_SB_CLUSTER_BITS
+  for(MSDOS_SB(sb)->cluster_bits=0;
+      (1<<MSDOS_SB(sb)->cluster_bits)<MSDOS_SB(sb)->cluster_size;)
+        MSDOS_SB(sb)->cluster_bits++;
+  MSDOS_SB(sb)->cluster_bits+=SECTOR_BITS;
+ #endif
 
   /* error test */
   if(repair!=-1) /* repair==-1 means do not even check */
@@ -966,7 +1025,9 @@ struct cvf_format dblspace_format = {
   dblspace_fat_access,        /* fat_access */
   NULL,                       /* statfs */
   dblspace_bmap,              /* bmap */
+ #ifndef __FOR_KERNEL_2_3_10
   dblspace_smap,              /* smap */
+ #endif
   dblspace_file_read,         /* file_read */
   dblspace_file_write,        /* file_write */
   MMAP,                       /* mmap */
@@ -995,7 +1056,9 @@ struct cvf_format stacker_format = {
   dblspace_fat_access,        /* fat_access */
   NULL,                       /* statfs */
   dblspace_bmap,              /* bmap */
+ #ifndef __FOR_KERNEL_2_3_10
   dblspace_smap,              /* smap */
+ #endif
   dblspace_file_read,         /* file_read */
   dblspace_file_write,        /* file_write */
   MMAP,                       /* mmap */
@@ -1006,14 +1069,14 @@ struct cvf_format stacker_format = {
 };
 #endif
 
-int init_module(void)
+int init_dmsdos(void)
 { int i;
 
   do_spc_init();
 #ifdef DMSDOS_CONFIG_DBL
   i=register_cvf_format(&dblspace_format);
   if(i<0)
-  { printk(KERN_ERR "register_cvf_format failed, module not loaded successfully\n");
+  { printk(KERN_ERR "register_cvf_format failed, dmsdos not loaded successfully\n");
     do_spc_exit();
     return i;
   } 
@@ -1021,7 +1084,7 @@ int init_module(void)
 #ifdef DMSDOS_CONFIG_STAC
   i=register_cvf_format(&stacker_format);
   if(i<0)
-  { printk(KERN_ERR "register_cvf_format failed, module not loaded successfully\n");
+  { printk(KERN_ERR "register_cvf_format failed, dmsdos not loaded successfully\n");
     do_spc_exit();
 #ifdef DMSDOS_CONFIG_DBL
     unregister_cvf_format(&dblspace_format);
@@ -1034,6 +1097,11 @@ int init_module(void)
   return 0;
 }
 
+#ifdef MODULE
+int init_module(void)
+{ return init_dmsdos();
+}
+
 void cleanup_module(void)
 { do_spc_exit();
 #ifdef DMSDOS_CONFIG_DBL
@@ -1043,6 +1111,7 @@ void cleanup_module(void)
   unregister_cvf_format(&stacker_format);
 #endif
 }
+#endif /* MODULE */
 #endif /* ifndef __DMSDOS_LIB__ */
 
 char seq[]="000000";
@@ -1052,7 +1121,7 @@ char seq[]="000000";
 void lock_prseq(void) {}
 void unlock_prseq(void) {}
 #else
-struct semaphore prseq_sem=MUTEX;   /* Must be initialized to green light */
+DECLARE_MUTEX(prseq_sem);   /* Must be initialized to green light */
 void lock_prseq(void) {down(&prseq_sem);}
 void unlock_prseq(void) {up(&prseq_sem);}
 #endif

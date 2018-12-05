@@ -3,6 +3,12 @@
 # This is an example shell script that can be used as a wrapper for a
 # msdos.fsck (called by the generic fsck frontend).
 #
+# WARNING: This script is an older implementation. See msdos.fsck-wrapper2
+# for a newer and cleaner one.
+#
+# WARNING: This script needs write access to /tmp which is probably not
+# possible on bootup. Better use msdos.fsck-wrapper2 instead.
+#
 # The script accepts a standard fsck command line and decides upon the
 # the raw filesystem data whether it is a CVF or not. If it is a CVF then
 # dmsdosfsck is invoked.

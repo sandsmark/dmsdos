@@ -1,81 +1,234 @@
 DMSDOS + CVF-FAT installation
-
-0. Preparing installation
--------------------------
-
-Upgrade from dmsdosfs 0.8.x(.y) or earlier: *** WARNING ***
-  If you have an earlier version of the dmsdos filesystem installed (i.e. 
-  dmsdos 0.8.x), you'd better throw away your kernel sources and get fresh 
-  ones. You must remove all old dmsdos sources, especially header files, and 
-  executables or modules. The new code doesn't install the dmsdos module in 
-  the kernel source tree, so this is very important. To be sure, do a 
-  'find / -name "*dmsdos*" -print', or check your path for old executables 
-  and your /lib/modules/* directories for old modules. Okay, I promise that 
-  this kind of cleanup will no longer be necessary for further upgrades :)
-
-Upgrade from 0.9.0(.x) or higher:
-  You don't need to reconfigure or recompile your kernel. You don't
-  need to patch the kernel again. Just compile the new dmsdos module 
-  and the updated dmsdos utilities.
-
-Fresh installation:
-  If you have never used an older version of dmsdos before, you don't
-  have to remove anything :) But, depending on your kernel version, you
-  may have to patch your kernel sources. You may also have to reconfigure
-  and recompile your kernel even if there's no patch needed.
-
-For brave people only:
-  Though this is still experimental, dmsdos can perform most parts of
-  the installation automatically. (This was already a hidden feature in
-  previous versions.) If you just type 'make', it performs steps 1, 2, 3,
-  and optionally 8 (it will ask you) below. This is for people with a
-  standard kernel who do not want to care about all the details. If
-  your kernel has to be recompiled the procedure stops just after
-  recompiling your kernel and your modules. A text appears asking you
-  to install the new kernel and the new modules by hand and reboot with 
-  the new kernel. You can do that now, but you can also do it later.
-  Then enter a 'make' again, and it should continue with the rest.
-  You can still run the second 'make' without installing the new kernel
-  and modules and without rebooting; dmsdos will compile in spite of that.
-  But dmsdos will not run correctly or not run at all unless you have 
-  rebooted with the new kernel and the new modules.
-
--------------------------------------------------------------------------
-
-1. Check kernel for CVF-FAT and install it if it is missing
------------------------------------------------------------
-
-  Make sure you have a kernel version 2.0.29 or newer from the 2.0 series
-  or a kernel version 2.1.94 or newer from the 2.1 development series.
-  Older kernels may work too, but this has never been tested. If you are
-  using older kernels and run into problems please don't expect me to fix
-  them - it's too much work to keep a multi-kernel dmsdos package work with
-  all old and new kernels :)
-
-  Dmsdos version 0.9.0 and higher depend on the CVF-FAT interface in the
-  kernel. This interface is already present in kernels 2.1.80 and newer,
-  and it is also compatible with UMSDOS in 2.1.xx since 2.1.94.
-  So if you have 2.1.80 or newer you can skip the rest of this section.
-
-  For 2.0.xx kernels you need to apply a patch. Dmsdos comes with a
-  collection of patches for different setups. If you are brave you can
-  enter a 'make patch'. This starts a script that tries to find out
-  automatically whether you need a patch and which one, and it installs
-  the patches it thinks you need. Be warned, the script is not perfect. 
-  It is known to work if you do not have an unusual setup (well, it works 
-  for a plain 2.0.33 kernel, also with a fat32 patched 2.0.33 kernel and 
-  with the new 2.0.34 and 2.0.35).
-
-  If automatic patching fails or if your setup is a highly patched or hacked 
-  kernel you might want to take a look at further instructions. Please read 
-  the file DIFFS.TXT to find out which patch you need and how to install it. 
-
-----------------------------------------------------------------------------
-
-2. Check kernel configuration
 -----------------------------
 
-  For dmsdos you need:
+*** These are installation instructions for use under LINUX. If you want to
+    install dmsdos in a Dos/Win32 environment see file PORT_TO_WIN32. ***
+
+
+If you want to install dmsdos without bothering all the details, please
+read at least the chapter 'Easy Installation'. If that does not work for
+you, try 'Manual Installation'.
+
+*** FAT DRIVER BUG WARNING: 
+
+    * FAT32 kernels earlier than 2.0.36 have a serious rmdir bug
+      that causes filesystem corruption in a msdos filesystem.
+      See file patches/DIFFS.TXT where to find a patch to fix this
+      (patches/msdos-rmdir-bugfix.diff).
+
+    * All current kernels from the 2.0, 2.1 and 2.2 series have a bug that 
+      can do write access to a FAT filesystem though it is mounted read-only.
+      Though it only occurs in a rare situation, this bug can especially be
+      triggered by dmsdos. Also see file patches/DIFFS.TXT where to find a 
+      patch to fix this (patches/fat-truncate-bugfix.diff).
+
+    * All current 2.2 kernels (this means at least up to 2.2.2; 2.2.3 has
+      not been released yet at the time of writing) (and maybe late 2.1 
+      kernels too) have a serious bug in the vfat driver that can cause 
+      system hang ("kernel panic: VFS: LRU list corrupted") due to filesystem 
+      buffer list corruption. Also see file patches/DIFFS.TXT where to find a 
+      patch to fix this (patches/vfat-brelse-bugfix.diff). IT IS VITAL FOR
+      USING DMSDOS IN A VFAT PARTITION TO HAVE THIS BUG FIXED.
+
+    These bugs are not fixed automatically during installation. If you are
+    in doubt, please check the diff files and your kernel source. You can use
+    dmsdos without these bugfixes, but you may crash or hang your system or
+    lose data. YOU HAVE BEEN WARNED.
+
+    
+A. Easy Installation
+====================
+
+  Dmsdos comes with a set of scripts for automatic installation. If you do not 
+  like some scripts poke around in your system, see chapter 'Manual 
+  Installation' :)
+
+  Okay, just a small warning: automatic installation can never be perfect.
+  For a 2.0.xx kernel I recommend to make a backup copy of your kernel sources
+  if you cannot restore it easily. Dmsdos needs to patch the 2.0.xx kernels
+  a bit. This is not a problem if you are using unmodified kernel sources
+  from 2.0.29 to 2.0.36 (others are currently not tested), but if your kernel
+  is highly hacked or patched the patch might go wrong and need manual 
+  correction. If you are not familiar with hacking around in failed patches,
+  I think, you will be lucky to restore the old state :)
+
+  2.1 and 2.2 kernels do not need a patch, but you may choose to update the
+  CVF-FAT interface (though it still works with the old one). The updated 
+  files have not been included into the official kernel yet (at the time of
+  writing, current=2.2.2). I hope they go into 2.2.3 or 2.2.4. :) A 
+  description of how and what to update can be found in patches/cvf.c.README.
+
+  And, of course, you should ensure you have fixed the kernel FAT driver bugs 
+  listed above :)
+
+
+  1. Prepare automatic installation:
+  ----------------------------------
+
+    You need, of course, full kernel sources in /usr/src/linux (which may be a
+    symbolic link to the real kernel source directory). No discussion here, 
+    I say you _need_ or automatic installation refuses to start. You should 
+    also ensure that the kernel version that you are currently running and the
+    sources in /usr/src/linux do match. Dmsdos may install the module at a
+    wrong place if they don't match, which does no harm but somewhat confuses
+    both the module subsystem and the system administrator :)
+
+    * If you have installed a previous dmsdos version:
+
+    Check the version number. If it's 0.8.x or lower you have a problem.
+    You must completely uninstall that version before. How to do so, see the
+    documentation of that old version (it should have some sripts for that
+    purpose). If you really can't uninstall it, throw away your old kernel
+    sources and get fresh ones and remove the old dmsdos binaries that may
+    be lying around in directories in your path.
+
+    Dmsdos 0.9.0 and newer need not be uninstalled prior to an upgrade.
+
+
+  2. Beginning installation:
+  --------------------------
+
+    Go into the directory where the dmsdos sources untarred and enter a
+    'make'. That should do it. The installation script will ask some
+    questions. The script always waits for your confirmation before it
+    changes anything in your kernel sources or your system. You can exit
+    with CTRL-C at any stage (and continue with manual installation).
+    Be also prepared that the script calls kernel configuration and 
+    recompiles your kernel (that depends on your system setup).
+
+    * If problems arise:
+
+      Automatic installation stops if it finds that something has gone wrong
+      (i.e. a patch failed). 
+
+    * If the script calls kernel configuration:
+
+      This means something that is necessary for dmsdos to work correctly
+      has been turned off in your kernel configuration. For dmsdos you need:
+
+        - Module support
+        - Loopback block device (may be compiled as module)
+          *** NOTE: This one can be found under 'Additional block devices'.
+              It has nothing in common with the network loopback interface
+              so please don't mix them up :)
+        - FAT filesystem (may be compiled as module)
+        - MSDOS or VFAT filesystem (may be compiled as module)
+        - since 2.0.34 also NLS support (but this is already required by FAT)
+
+    * If the sript stops and asks for kernel and module installation and
+      for reboot:
+
+      Well I hate scripts that install new kernels and reboot automatically.
+      So the dmsdos installation refuses to do that. Usually, the script wants
+      you to do
+
+            cd /usr/src/linux
+            make zlilo
+            make modules_install
+            reboot
+
+      or similar commands that have the same effect. You can do that 
+      immediately, but you can also continue without rebooting. But, please
+      remember to do that before _using_ dmsdos the first time :)
+
+      YOU SHOULD KNOW WHAT YOU ARE DOING. If not, read for example
+      the KERNEL-HOWTO or related documentation.
+
+      Note that dmsdos installation is not complete yet. Rerun 'make' in the
+      directory where the dmsdos sources untarred.
+
+    * If it asks strange questions about dmsdos configuration:
+
+      Consult the "online" help or accept the default settings if you don't
+      understand what you are doing. You can rerun the dmsdos configuration 
+      script again at any time later if you want to play with the options. 
+      See 'Manual instalation' section 'Compiling the sources' for details.
+
+
+  3. Completing installation
+  --------------------------
+
+    Okay, if all has completed without errors, it's time for the first test.
+    If the script asked for kernel and modules installation and for reboot
+    but you haven't done it yet, please do it now.
+
+    The first test and everything beyond that is described in part 
+    'C. The first test'.
+
+
+B. Manual Installation
+======================
+
+  1. Preparing installation
+  -------------------------
+
+    * Upgrade from dmsdosfs 0.8.x(.y) or earlier: *** WARNING ***
+
+    If you have an earlier version of the dmsdos filesystem installed (i.e. 
+    dmsdos 0.8.x), you'd better throw away your kernel sources and get fresh 
+    ones. You must remove all old dmsdos sources, especially header files, and 
+    executables or modules. The new code doesn't install the dmsdos module in 
+    the kernel source tree, so this is very important. To be sure, do a 
+    'find / -name "*dmsdos*" -print', or check your path for old executables 
+    and your /lib/modules/* directories for old modules. Okay, I promise that 
+    this kind of cleanup will no longer be necessary for further upgrades :)
+
+    * Upgrade from 0.9.0(.x) or higher:
+
+    You don't need to reconfigure or recompile your kernel. You don't
+    need to patch the kernel again. Just compile the new dmsdos module 
+    and the updated dmsdos utilities.
+
+    * Fresh installation:
+
+    If you have never used an older version of dmsdos before, you don't
+    have to remove anything :) But, depending on your kernel version, you
+    may have to patch your kernel sources. You may also have to reconfigure
+    and recompile your kernel even if there's no patch needed.
+
+    *** Please ensure to have the kernel FAT driver bugs fixed (the bugs are
+        listed at the beginning of this ducument).
+
+
+  2. Check kernel for CVF-FAT and install it if it is missing
+  -----------------------------------------------------------
+
+    Make sure you have a kernel version 2.0.29 or newer from the 2.0 series
+    or a kernel version 2.1.94 or newer from the 2.1 development series or
+    any 2.2.x kernel. Older kernels may work too, but this has never been 
+    tested. If you are using older kernels and run into problems please don't
+    expect me to fix them - it's too much work to keep a multi-kernel dmsdos 
+    package work with all old and new kernels :)
+
+    Dmsdos version 0.9.0 and higher depend on the CVF-FAT interface in the
+    kernel. This interface is already present in kernels 2.1.80 and newer,
+    and it is also compatible with UMSDOS in 2.1.xx since 2.1.94.
+    So if you have 2.1.80 or newer you do not need a patch. But you may want
+    to update the CVF-FAT interface. The new interface has been suggested to 
+    be included in newer kernels, but at the time of writing this it has not 
+    yet gone in. See patches/cvf.c.README for instructions how and what to 
+    update. Note that you do _not_ have to update - the old interface still
+    works (but it has a minor bug and lacks kerneld or kmod support).
+
+    For 2.0.xx kernels you need to apply at least one of the CVF-FAT patches. 
+    Dmsdos comes with a collection of patches for different setups. If you 
+    are brave you can enter a 'make patch'. This starts a script that tries 
+    to find out automatically whether you need a patch and which one, and it 
+    installs the patches it thinks you need. Be warned, the script is not 
+    perfect. It is known to work if you do not have an unusual setup (well, 
+    it works for a plain 2.0.33 kernel, also with a fat32 patched 2.0.33 
+    kernel and with the newer 2.0.34 up to 2.0.36).
+
+    If automatic patching fails or if your setup is a highly patched or hacked 
+    kernel you might want to take a look at further instructions. Please read 
+    the file patches/DIFFS.TXT to find out which patch you need and how to 
+    install it. 
+
+
+  3. Check kernel configuration
+  -----------------------------
+
+    For dmsdos you need:
 
       - Module support
       - Loopback block device (may be compiled as module)
@@ -86,190 +239,240 @@ For brave people only:
       - MSDOS or VFAT filesystem (may be compiled as module)
       - since 2.0.34 also NLS support (but this is already required by FAT)
 
-  If you don't know whether all of them are present you can enter a
-  'make kernelconf'. This calls a script that checks your kernel
-  configuration and calls the interactive kernel 'Configure' script if
-  something is missing. In that case, just go through the questions,
-  mostly accepting the defaults, but be sure to say Y for module support,
-  Y or M for loopback block device, Y or M for FAT filesystem support, 
-  and Y or M for the MSDOS or VFAT filesystem. Then the script tries to
-  compile your kernel. In some cases the script tends to recompile your
-  kernel though it isn't really necessary. So don't be surprised - it's 
-  a dumb script. :) Note that the script does not *install* the new kernel 
-  and the new modules.
+    If you don't know whether all of them are present you can enter a
+    'make kernelconf'. This calls a script that checks your kernel
+    configuration and calls the interactive kernel 'Configure' script if
+    something is missing. In that case, just go through the questions,
+    mostly accepting the defaults, but be sure to say Y for module support,
+    Y or M for loopback block device, Y or M for FAT filesystem support, 
+    and Y or M for the MSDOS or VFAT filesystem. Then the script tries to
+    compile your kernel. In some cases the script tends to recompile your
+    kernel though it isn't really necessary. So don't be surprised - it's 
+    a dumb script. :) Note that the script does not *install* the new kernel 
+    and the new modules.
 
-  Refer to the kernel documentation for details about kernel configuration.
+    Refer to the kernel documentation for details about kernel configuration.
 
-  If you do not want to let the dmsdos Makefile call the script but you 
-  want to do it 'by hand' you can do this:
+    If you do not want to let the dmsdos Makefile call the script but you 
+    want to do it 'by hand' you can do something like this:
 
-      cd /usr/src/linux
-      make config (or 'make menuconfig' if you prefer)
-      make dep
-      make clean
-      make zImage (or 'make bzImage' if you need it)
-      make modules
+        cd /usr/src/linux
+        make config (or 'make menuconfig' if you prefer)
+        make dep
+        make clean
+        make zImage (or 'make bzImage' if you need it)
+        make modules
 
-  When the kernel and the modules have been compiled, they must be
-  installed. This is usually done with these commands:
+    When the kernel and the modules have been compiled, they must be
+    installed. This is usually done with these commands:
 
-      cd /usr/src/linux
-      make zlilo
-      make modules_install
-      reboot
+        cd /usr/src/linux
+        make zlilo
+        make modules_install
+        reboot
 
----------------------------------------------------------------------------
 
-3. Compile the dmsdos sources
------------------------------
+  4. Compile the dmsdos sources
+  -----------------------------
 
-  Go into the directory where the dmsdos package untarred and do
+    Go into the directory where the dmsdos package untarred and do
+  
+        cd src
+        make config (or 'make menuconfig' if you prefer)
 
-      cd src
-      make config (or 'make menuconfig' if you prefer)
+    Yes, there's a configuration script that asks some questions now.
+    You very likely know this procedure from the Linux kernel. In fact,
+    the scripts have been copied from the kernel and a bit hacked :-)
+    Well, there's no xconfig (I think this is overkill).
 
-  Yes, there's a configuration script that asks some questions now.
-  You very likely know this procedure from the Linux kernel. In fact,
-  the scripts have been copied from the kernel and a bit hacked :-)
-  Well, there's no xconfig (I think this is overkill).
+    If you have no clue what to answer to the questions, consult the online
+    help or accept the defaults (which should be safe and work for all
+    systems). As I have received a lot of mail about that, the dmsdos
+    configuration has now a normal and an expert mode. In normal mode,
+    only the most important questions (which should be understood by a
+    novice without problems) show up.
 
-  If you have no clue what to answer to the questions, consult the online
-  help or accept the defaults (which should be safe and work for all
-  systems).
-
-  For convenience, there are some pre-configured files which can be loaded 
-  with the 'Load an Alternate Configuration File' menu item during
-  'make menuconfig'. Currently, these files are available:
+    For convenience, there are some pre-configured files which can be loaded 
+    with the 'Load an Alternate Configuration File' menu item during
+    'make menuconfig'. Currently, these files are available:
 
     config.small-module       - for a small dmsdos module (e.g. for bootdisk)
     config.low-traffic-write  - for low-traffic write access to a CVF
     config.high-traffic-write - for high-traffic write access to a CVF
     config.debug              - for safe low-level dmsdos debugging
 
-  After loading the alternate config file you'd better check the settings
-  (just walk through all the menus). Especially if you want a small module 
-  exclude the CVF format drivers you don't need.
+    After loading the alternate config file you'd better check the settings
+    (just walk through all the menus). Especially if you want a small module 
+    exclude the CVF format drivers you don't need.
 
-  The text-based 'make config' can also use a pre-configured file. Just copy
-  the config.what-you-like to .config and run 'make config'.
+    The text-based 'make config' can also use a pre-configured file. Just copy
+    the config.what-you-like to .config and run 'make config'.
 
-  Then continue with these steps:
+    Then continue with these steps:
 
-      make dep
-      make clean
-      make
+        make dep
+        make clean
+        make
 
-  The last line starts compiling the sources. You may see some warnings
-  about 'unused variables' which can be ignored.
+    The last line starts compiling the sources.
 
-  There have been compile-time problems under certain gcc or libc systems
-  (notably glibc2/libc6). dmsdos should now fully compile under libc6, but 
-  this is not thoroughly tested. There were also problems with some old
-  versions of binutils reported. Have a look at the Makefile for some hacks.
+    There were problems with some old versions of binutils reported (it's a
+    bug in old GNU assembler versions). Have a look at the Makefile for some 
+    hacks.
 
-  If compiling the whole dmsdos package fails, you can try a 'make min'
-  which compiles a minimal dmsdos subsystem. Please note that glibc2/libc6
-  causes *no* run-time problems (well, dmsdos is a kernel module and doesn't 
-  use any system libraries).
+    If you want a shared dmsdos library instead of a static one you have
+    to edit the Makefile. Using the shared library is currently strongly
+    discouraged (well _not_ because of bugs). See the documentation for 
+    the reasons.
 
-  If you run into strange problems, you can try to compile each part of
-  dmsdos separately:
+    If you run into strange problems, you can try to compile each part of
+    dmsdos separately:
 
       make dmsdos.o       - compiles the dmsdos module dmsdos.o (required)
       make dutil          - compiles the dmsdos utility dutil (useful)
       make dmsdosd        - compiles the external dmsdos daemon (nice)
-      make libdmsdos.a    - compiles the dmsdos library (experimental)
-      make dcread         - compiles a sample program using libdmsdos (toy)
+      make libdmsdos.a    - compiles the dmsdos library
+      make dcread         - compiles a sample program using libdmsdos
       make dmsdosfsck     - Ahh... it's there :) 
+      make mcdmsdos       - compiles a mc external fs interface tool
 
-  If you can't get the external daemon compiled try the internal daemon
-  (though most people never need the daemon). It can be enabled during 
-  configuration ('make config').
+    If you can't get the external daemon compiled try the internal daemon
+    (though most people never need the daemon). It can be enabled during 
+    configuration ('make config').
 
-  If you can't get it compiled at all, have a look at the Makefile in the
-  src directory. It has some switches to work around some problems (gas
-  bugs, unusual systems, switch off cpu specific optimization, switch off
-  inline assembler statements, etc). This should not be necessary, but some
-  systems might need it.
+    If you can't get it compiled at all, have a look at the Makefile in the
+    src directory. It has some switches to work around some problems (gas
+    bugs, unusual systems, switch off cpu specific optimization, switch off
+    inline assembler statements, etc). This should not be necessary, but some
+    systems might need it.
 
-  If you still can't get it compiled, please send a bug report including a
-  detailed description of your system (version of kernel, gcc, binutils etc)
-  and what error messages are shown. If you know how to fix the problem
-  please also let me know :) A checklist about the details I usually need
-  for tracing down a problem can be found in doc/dmsdos.doc.
+    If you still can't get it compiled, please send a bug report including a
+    detailed description of your system (version of kernel, gcc, binutils etc)
+    and what error messages are shown. If you know how to fix the problem
+    please also let me know :) A checklist about the details I usually need
+    for tracing down a problem can be found in doc/dmsdos.doc.
 
----------------------------------------------------------------------------
 
-4. Check whether the module loads correctly:
+C. The first test
+=================
 
-      insmod -m dmsdos > /tmp/dmsdos.map
-
-  Check the file /tmp/dmsdos.map for error messages.
-
-  If the module fails to load, make sure you are using the right insmod
-  version (there are lots of modutils versions for 2.1.xx - most don't
-  work correctly under all kernel versions; some are even said not to work 
-  at all). If it still fails, try to load the fat module (and since kernel 
-  2.0.34 also the nls module) before. If it complains about a missing symbol,
-  try to find out which part of the kernel the symbol belongs to, and load
-  the appropriate module before or compile that part into your kernel.
-  If it continues to fail this is a bug.
-
-  Please always load the module with the -m flag and redirect the
-  output, which contains a symbol table, to a file. This file is needed
-  in case there is a crash with a register dump. Please use this symbol 
-  table to find the function where the problem occured. (Unfortunately, 
-  this table usually differs from one insmod time to another depending on 
-  actually free memory pages, so you can't just create the table once and 
-  then use it for all dumps later.) If you don't know how to interpret a
-  register dump, please have a look at Linus' excellent instructions for 
-  that in the file README in /usr/src/linux. It is really important that 
-  *you* try to interpret the register dump since it is absolutely system 
-  dependent. THIS IS NOT DIFFICULT. YOU DO NOT HAVE TO KNOW C PROGRAMMING 
-  FOR THAT.
-
-  Let me repeat this. I just cannot track down register dumps since they
-  are just some numbers, even to me :) Those numbers only make sense in 
-  conjunction with the symbol table that was printed by insmod when the 
-  module was loaded the last time before the crash. Thus, bug reports 
-  without your interpretation by means of the symbol table are Really 
-  Worthless and will be ignored.
-
-----------------------------------------------------------------------------
-
-5. The first test
------------------
-
-  For the first test be sure to have the loop module, the fat module,
-  the dmsdos module and the msdos or vfat module loaded. If you are using
-  kerneld you might not have to care about most of them. Just the fat
-  module may have to be loaded manually in that case in order to load
-  the dmsdos module.
+  1. Check whether the module loads correctly:
+  --------------------------------------------
   
-  Mount your Dos/Win95 partition that is the host for a compressed drive
-  as usual (if you haven't done this already).
+    Try a
 
-  Assuming the large Compressed Volume File (CVF) is /DOS/dblspace.001 and
-  you want to mount it under /mnt, try this (it mounts READ-ONLY):
+        insmod -m dmsdos > /tmp/dmsdos.map
 
-     mount -t msdos -o ro,loop /DOS/dblspace.001 /mnt
+    Check the file /tmp/dmsdos.map for error messages.
+    Depending on your modutils version, you may have to use depmod or
+    modprobe instead of insmod. (Please forgive me, I never understood the 
+    difference. Maybe I should read the documentation some day :) )
 
-  If the filesystem contains long filenames, you may want to use the VFAT
-  filesystem instead of the plain MSDOS driver:
+    If the module fails to load, make sure you are using the right insmod
+    version (there are lots of modutils versions for 2.1.xx - most don't
+    work correctly under all kernel versions; some are even said not to work 
+    at all). If it still fails, try to load the fat module (and since kernel 
+    2.0.34 also the nls module) before. If it complains about a missing symbol,
+    try to find out which part of the kernel the symbol belongs to, and load
+    the appropriate module before or compile that part into your kernel.
+    If it continues to fail this is a bug. If it prints out strange errors
+    like "kernel_version needed ...blah..." and you are using a 2.2.x kernel
+    get the latest module utilities for 2.1.xx kernels (I ran into this
+    problem too :) ).
 
-     mount -t vfat -o ro,loop /DOS/dblspace.001 /mnt
+    Note that, for a mixed 2.0/2.2 system, I need modutils-2.1.121 (compiled
+    against 2.2.x headers) but I must keep the kerneld binary from 
+    modutils-2.0.0 (compiled against 2.0.x headers). Ughly, but the newer
+    kerneld provided with modutils-2.1.121 breaks my 2.0.x system :(
 
-  Now you can go into the /mnt directory and do some read access tests.
-  If there are some problems, the dmsdos driver becomes very noisy and logs
-  a lot of messages in the syslog. Not all of them are real errors, though.
-  Some are just information about the kind of CVF detected and the results
-  of some probing functions. Yes, there are different kinds of CVF formats
-  throughout the Dos/Win95 versions :)
+    Please always load the module with the -m flag and redirect the
+    output, which contains a symbol table, to a file. This file is needed
+    in case there is a crash with a register dump. Please use this symbol 
+    table to find the function where the problem occured. (Unfortunately, 
+    this table usually differs from one insmod time to another depending on 
+    actually free memory pages, so you can't just create the table once and 
+    then use it for all dumps later.) If you don't know how to interpret a
+    register dump, please have a look at Linus' excellent instructions for 
+    that in the file README in /usr/src/linux. It is really important that 
+    *you* try to interpret the register dump since it is absolutely system 
+    dependent. THIS IS NOT DIFFICULT. YOU DO NOT HAVE TO KNOW C PROGRAMMING 
+    FOR THAT.
 
------------------------------------------------------------------------------
+    Let me repeat this. I just cannot track down register dumps since they
+    are just some numbers, even to me :) Those numbers only make sense in 
+    conjunction with the symbol table that was printed by insmod when the 
+    module was loaded the last time before the crash. Thus, bug reports 
+    without your interpretation by means of the symbol table are Really 
+    Worthless and will be ignored.
 
-6. Permanent installation
--------------------------
+
+  2. Test whether dmsdos can read a CVF
+  -------------------------------------
+
+    For the first test be sure to have the loop module, the fat module,
+    the dmsdos module and the msdos or vfat module loaded. If you are using
+    kerneld you might not have to care about most of them. Just the fat
+    module may have to be loaded manually in that case in order to load
+    the dmsdos module.
+  
+    Mount your Dos/Win95 partition that is the host for a compressed drive
+    as usual (if you haven't done this already).
+
+    Assuming the large Compressed Volume File (CVF) is /DOS/dblspace.001 and
+    in doublespace format and you want to mount it under /mnt, try this 
+    (it mounts READ-ONLY):
+
+       mount -t msdos -o ro,loop,cvf_format=dblspace /DOS/dblspace.001 /mnt
+
+    Please also use the "cvf_format=dblspace" option for drivespace drives.
+    If the drive is in stacker format and the CVF is /DOS/stacvol.001 the
+    command looks like this:
+
+       mount -t msdos -o ro,loop,cvf_format=stacker /DOS/stacvol.001 /mnt
+
+    If the _compressed_ filesystem contains long filenames, you may want 
+    to use the VFAT driver instead of the MSDOS driver:
+
+       mount -t vfat -o ro,loop,cvf_format=dblspace /DOS/dblspace.001 /mnt
+
+    Note that you can leave out the "cvf_format=xxx" option. In that case,
+    dmsdos automatically detects the CVF format. But it is recommended to
+    specify always a "cvf_format=xxx" option.
+
+      (If you leave out the "cvf_format=xxx" option there can be a strange
+      error condition that is not immediately visible and causes awful 
+      trouble some time later:
+
+      If you leave out the "cvf_format=xxx" option and the dmsdos module 
+      has not been loaded the plain FAT driver gets the compressed 
+      filesystem, which it cannot handle. Unfortunately, a compressed FAT 
+      filesystem looks very similar to an uncompressed one, so the FAT 
+      driver may not refuse to mount the filesystem with an error message.
+
+      *** This means, the mount command may succeed even if the dmsdos 
+          module is not present. In that case, the FAT driver - wrongly - 
+          assumes the mounted filesystem is _not_ compressed and it can 
+          crash, hang or destroy the filesystem later when you try to 
+          access it.
+
+      So, *please*, always specify a "cvf_format=xxx" option for safety, 
+      as it just prints an error if the dmsdos module is not loaded.)
+
+    Now you can go into the /mnt directory and do some read access tests.
+    If there are some problems, the dmsdos driver becomes very noisy and logs
+    a lot of messages in the syslog. Not all of them are real errors, though.
+    Some are just information about the kind of CVF detected and the results
+    of some probing functions. Yes, there are different kinds of CVF formats
+    throughout the Dos/Win95 versions :)
+
+    Note that, at mount time, for all doublespace and drivespace format CVFs
+    one (and only one) loop device error like "access beyond end of device"
+    or similar appears. This is normal and results from dmsdos working around
+    a limitation in the loop driver. This is *not* a dmsdos bug.
+
+
+D. Permanent installation
+=========================
 
   *** WARNING ***
   If you are upgrading from a dmsdos release in the range 0.9.0 to 0.9.1.1, 
@@ -292,124 +495,221 @@ For brave people only:
   the Makefile for the locations). All the files that are copied by 
   'make install' are removed by 'make uninstall'.
 
-  If 'make install' fails because the code cannot be compiled completely,
-  try a 'make install-min' instead to install a minimal but functional 
-  dmsdos subsystem (which has been compiled by 'make min').
 
------------------------------------------------------------------------------
+D. Other things to notice
+=========================
 
-7. Some BUG WARNINGS important to know for installation
--------------------------------------------------------
+  1. Some BUG WARNINGS important to know for installation
+  -------------------------------------------------------
 
-  - UMSDOS related bugs:
+    * UMSDOS related bugs:
 
-   *** IN SOME 2.1.XX KERNELS UMSDOS SUPPORT IS COMPLETELY BROKEN ***
-   For some kernels, UMSDOS doesn't compile at all, for others it is
-   incompatible with dmsdos. Please do not use UMSDOS and dmsdos at the 
-   same time under kernels 2.1.80 up to 2.1.93 (it cannot work). Use a 
-   kernel from the 2.0.xx series or get at least 2.1.94.
+    a) *** IN SOME 2.1.XX KERNELS UMSDOS SUPPORT IS COMPLETELY BROKEN ***
+      Please avoid kernels from 2.1.0 to 2.1.93. Use 2.1.94 or newer.
+      Even better: Upgrade to 2.2.
 
-   If the UMSDOS module fails to load and complains about two
-   missing symbols 'fat_readpage' and 'fat_dir_ioctl':
-   I forgot to add some symbols to the export list in older cvf.diffs for 
-   kernel 2.0.33. This bug also went in 2.1.80 when CVF-FAT was included. 
-   In order to fix the problem, edit file linux/fs/fat/fatfs_syms.c and 
-   append the missing symbols 'fat_readpage' and 'fat_dir_ioctl' to the 
-   export list. Look how the other symbols are listed there and put in the 
-   missing ones in the same way. (You don't need to know C programming for 
-   that. Just use your common sense. You'll know what to do when you see 
-   what's in that the file.) Then recompile the fat module (or the kernel 
-   if your fat support isn't modular).
+    b) If the UMSDOS module fails to load and complains about two
+      missing symbols 'fat_readpage' and 'fat_dir_ioctl':
+      I forgot to add some symbols to the export list in older cvf.diffs for 
+      kernel 2.0.33. This bug also went in 2.1.80 when CVF-FAT was included. 
+      In order to fix the problem, edit file linux/fs/fat/fatfs_syms.c and 
+      append the missing symbols 'fat_readpage' and 'fat_dir_ioctl' to the 
+      export list. Look how the other symbols are listed there and put in the 
+      missing ones in the same way. (You don't need to know C programming for 
+      that. Just use your common sense. You'll know what to do when you see 
+      what's in that the file.) Then recompile the fat module (or the kernel 
+      if your fat support isn't modular).
 
------------------------------------------------------------------------------
+      I have seen that the problem is fixed in 2.1.128, but I did not verify
+      older kernels. Well that shouldn't matter as you always should use the
+      latest kernel if you want a development kernel :))
 
-8. Using kerneld to load dmsdos
--------------------------------
+    * FAT driver bugs: 
 
-  I've received lots of mails about this. It seems still not working on
-  all systems. 
+      See the list above at the beginning of this document.
 
-  This is an installation tip for the convenient system hacker. It is
-  not the default installation, and it is only recommended for dmsdos
-  versions that are known to be stable. The reason is: this way does not
-  produce a symbol map for debugging :)
 
-  If you do not know what kerneld is and what it does, please skip this
-  section (or read the KERNELD-MINI-HOWTO, for example).
+  2. Using kerneld or kmod to load dmsdos
+  ---------------------------------------
 
-  Apply the diff 'kerneld-autoload.diff' to your kernel sources and
-  recompile and reinstall your modules. If your FAT support is not modular
-  but a fix part of the kernel, you must recompile and reinstall your 
-  kernel instead (and reboot).
+    This is an installation tip for the convenient system hacker. It is
+    not the default installation, and it is only recommended for dmsdos
+    versions that are known to be stable.
 
-  These changes just trigger kerneld to load dmsdos each time a fat based
-  filesystem is mounted. This ensures the detect_cvf routines are present
-  when they are needed to determine whether the filesystem is a CVF. If 
-  it's not a CVF the dmsdos module will unload again after some time. 
+    Please note that in latest 2.1.xx kernels kerneld has been replaced by
+    kmod. This does not make a difference for dmsdos.
 
-  Please do *not* add a line like 'post-install fat insmod -k dmsdos' or 
-  'alias fat dmsdos' to /etc/modules.conf (or /etc/conf.modules) any longer.
-  (Though some dmsdos users reported that it works for them.) I must warn,
-  it just causes headache. The problem is, if only fat gets used, dmsdos is
-  unloaded after 1 minute by kerneld. If you mount a CVF after that, dmsdos
-  will not be reloaded because fat gets not reloaded (well fat is present).
-  So the fat driver tries to handle a CVF by itself (and horribly fails and
-  starts printing possibly tons of errors to syslog). Argh. On the other
-  hand, if you leave out the -k flag from the insmod statement above,
-  dmsdos will never be unloaded and fat can never be unloaded because dmsdos
-  is using it.
+    In dmsdos-0.9.2.0 kerneld-autoload behaviour again has been changed. The
+    new behaviour is now believed to be the "right" way :-) If you are using
+    a CVF-FAT patch from an older dmsdos version (0.9.2.0-pre-3 and older) or
+    a kernel 2.2.2 or older you should update the CVF-FAT interface
+    (see patches/cvf.c.README) - otherwise it may not work. The updated files
+    have been suggested to be included into the kernel, but have not yet
+    gone in.
 
-  The autoload feature can be temporarily switched off by placing
-  'alias dmsdos off' in /etc/modules.conf (or /etc/conf.modules) and
-  sending a SIGHUP to kerneld.
+    If you do not know what kerneld or kmod is and what it does, please read 
+    the KERNELD-MINI-HOWTO, for example, or refer to the documentation that
+    comes with the Linux kernel sources (for kmod).
 
-  The autoload patch enables a second feature: If a CVF is mounted with the
-  cvf_format=xxx mount option, a module xxx is requested before. So it just
-  can load other CVF modules too. (Do they exist? Just let me know.)
-  If you want to add support for loading other CVF modules without having
-  to specify the format, add 'request_module("name_of_module");' statements
-  to linux/fs/fat/cvf.c near the 'request_module("dmsdos");' statement.
+    CVF-FAT now triggers kerneld or kmod to load missing CVF modules 
+    according to the following rules:
 
----------------------------------------------------------------------------
+       1. If a fat based filesystem is mounted with the mount option
+          "cvf_format=autoload", a module with the name "cvf_autoload" is
+          requested. Well, such a module never exists. This does however
+          make sense together with a special modules configuration.
 
-9. Mounting CVFs from /etc/fstab at boot time
----------------------------------------------
+       2. If a fat based filesystem is mounted with the mount option
+          "cvf_format=xxx" (where xxx has to be replaced with the name of
+          the format) a module "xxx" is requested.
 
-  It may be a bit tricky to get CVFs mounted at boot time. An /etc/fstab
-  entry for a CVF usually looks like this:
+    Usually there is a difference between the CVF format name and the
+    module name. This can be corrected with 'alias' statements in the
+    modules configuration file /etc/modules.conf (or /etc/conf.modules,
+    both file names are common). 
 
-       /DOS/drvspace.001  /DOSF   msdos     loop   1   0
+    For dmsdos, you need the lines
 
-  It is really important that the sixth field (the 'pass number') is zero
-  in order to prevent the filesystem from being checked at boot time.
-  (If you really want to check dos partitions *and* CVFs at boot time you
-  very likely must hack your bootup scripts. This is not recommended,
-  however, unless you are an experienced system administrator and know in
-  detail how your bootup scripts work. This is not explained in the dmsdos
-  documentation.)
+        alias stacker dmsdos
+        alias dblspace dmsdos
+        alias cvf_autoload dmsdos
 
-  In the usual one-pass 'mount -a' procedure, I noticed a strangeness
-  regarding the order in /etc/fstab: The filesystems seem to be
-  mounted in reverse order. Thus
+    in the configuration file. Note that kerneld needs a signal SIGHUP in 
+    order to re-read the configuration file. Also note that this setup 
+    directly loads the module and does not generate a symbol table (which is 
+    required for debugging, for example to analyse a crash somewhere in the 
+    module).
 
-       /DOS/drvspace.001 /DOSF msdos     loop  1  0
-       /dev/hda1       /DOS    msdos     defaults   1  0
+    If you need a symbol table from CVF module loading, you are out of luck.
+    Load the modules manually in that case, please.
 
-  works on my system while
+    If you want to add support for loading other CVF modules (do they exist?
+    Let me know) with auto-detection (cvf_format=autoload), add "pre-install" 
+    lines for them, e.g.
 
-       /dev/hda1       /DOS    msdos     defaults   1  0
-       /DOS/drvspace.001 /DOSF msdos     loop  1  0
+        pre-install cvf_autoload insmod -k cvf_mod1 
+        pre-install cvf_autoload insmod -k cvf_mod2
+        ...
+    (untested, should work in theory. I do not know other CVF modules.).
 
-  doesn't. So just be prepared to play around a bit with the fstab.
+    Problems with automatic loading of CVF modules should be solved by
+    hacking /etc/modules.conf. It is not recommended to fix them by changing
+    the dmsdos or kernel sources. If it does not work at all try another
+    kerneld version. Not every kerneld version runs correctly under
+    every kernel version. (Well this was probably one of the inofficial
+    reasons to replace it with kmod in latest 2.1.xx kernels...)
 
-----------------------------------------------------------------------------
 
-10. Further information
------------------------
+  3. Using dmsdos as external filesystem for Midnight Commander
+  -------------------------------------------------------------
 
-  The main dmsdos documentation is in doc/dmsdos.doc. Some other files in
-  the doc directory may be useful, too. Take a look at them if you want to 
-  know more details or technical information on how dmsdos works. Please 
-  also take a look at the documentation if you run into problems before 
-  sending a bug report. Yes, there is a list with common problems and their 
-  solutions :)
+    Dmsdos comes with an interface utility that accepts standard Midnight
+    Commander commands for reading archive files. The utility is named
+    'mcdmsdos' and is compiled during usual dmsdos compile process.
+    The utility is currently read-only. It follows the specification of
+    Midnight Commander version 3.0.
+
+    Please refer to the documentation of Midnight Commander for further
+    information on how to configure an external filesystem.
+
+    You may want to write a small shell script as a wrapper around mcdmsdos
+    in order to suppress output to stderr distorting the screen. For
+    example, this (in the same directory where mcdmsdos resides), as it 
+    does not need to know the absolute path:
+
+       #!/bin/bash
+       MCDMSDOS=`dirname $0`/mcdmsdos
+       $MCDMSDOS $* 2>/dev/null
+
+
+  4. Compiling dmsdos as a fix part of the kernel
+  -----------------------------------------------
+
+    For some purpose it may be desired to compile dmsdos as a fix part of
+    the kernel (i.e. not as a loadable kernel module) so dmsdos is present
+    immediately at bootup. This would probably be useful for a boot disk or 
+    an emergency rescue disk, for example. (This saves you all the work to
+    setup an initrd disk which is somewhat complex.)
+
+    BE WARNED. This is not the default installation. This is not well tested.
+    The patches for that setup have been created under Linux 2.0.35 and may
+    fail for other kernels (that's unlikely because they are small, just a
+    few lines, and it's easy to repair manually if they do fail.)
+
+    Okay, if you really want to do this, just install dmsdos as usual. 
+    Test whether it works. I'd also recommend to _write_ _down_ the dmsdos 
+    configuration settings, especially if you use expert mode (because the 
+    default values are not available later on when you might need them -
+    due to my lazyness).
+
+    After that, run the shell script 'in-kernel.sh' which just copies the
+    dmsdos sources into the kernel source tree and patches some files to
+    hang dmsdos in (have a look at the in-kernel*.diff if you want to know
+    exactly what is changed). You _very_ likely want to create a backup of
+    kernel sources before :)
+
+    Then reconfigure your kernel. Answer 'Y' for loopback block device and
+    for the fat filesystem (also for NLS since Linux 2.0.34). Then enable 
+    DMSDOS support. You'll see the usual dmsdos configuration after that, but 
+    you won't have any default values (this is a limitation of the 2.0.xx 
+    configuration scripts and I am too lazy to create a workaround diff). 
+    Don't forget to say 'Y' for the MSDOS or VFAT driver after that.
+
+    Just some further warnings about that setup:
+    
+    * There's no easy way back. If you installed dmsdos as a fix part of the
+      kernel the best way to get rid of it is getting fresh kernel sources.
+      Well, you can disable it in kernel configuration. You can also try
+      to run the script 'in-kernel-uninstall.sh', but no promise.
+    
+    * dmsdos may no longer compile in its own directory due to macro
+      redefinitions in the kernel include files. But dmsdos can now be 
+      compiled as module in the same way like all other kernel modules
+      (i.e. run kernel configuration, answer 'M' to DMSDOS support, do
+      'make modules' and 'make modules_install').
+
+    * This setup is not recommended at all. YOU HAVE BEEN WARNED :)
+
+
+  5. Mounting CVFs from /etc/fstab at boot time
+  ---------------------------------------------
+
+    It may be a bit tricky to get CVFs mounted at boot time. An /etc/fstab
+    entry for a CVF usually looks like this:
+
+         /DOS/drvspace.001  /DOSF  msdos   loop,cvf_format=dblspace  1  0
+    or
+         /DOS/stacvol.001  /DOSF  msdos   loop,cvf_format=stacker  1  0
+
+    It is really important that the sixth field (the 'pass number') is zero
+    in order to prevent the filesystem from being checked at boot time.
+    (If you really want to check dos partitions *and* CVFs at boot time you
+    very likely must hack your bootup scripts. This is not recommended,
+    however, unless you are an experienced system administrator and know in
+    detail how your bootup scripts work. This is not explained in the dmsdos
+    documentation.)
+
+    In the usual one-pass 'mount -a' procedure, I noticed a strangeness
+    regarding the order in /etc/fstab: The filesystems seem to be
+    mounted in reverse order. Thus
+
+         /DOS/drvspace.001 /DOSF msdos     loop,cvf_format=dblspace  1  0
+         /dev/hda1       /DOS    msdos     defaults   1  0
+
+    works on my system while
+
+         /dev/hda1       /DOS    msdos     defaults   1  0
+         /DOS/drvspace.001 /DOSF msdos     loop,cvf_format=dblspace  1  0
+
+    doesn't. So just be prepared to play around a bit with the fstab.
+
+
+  6. Further information
+  ----------------------
+
+    The main dmsdos documentation is in doc/dmsdos.doc. Some other files in
+    the doc directory may be useful, too. Take a look at them if you want to 
+    know more details or technical information on how dmsdos works. Please 
+    also take a look at the documentation if you run into problems before 
+    sending a bug report. Yes, there is a list with common problems and their 
+    solutions :)

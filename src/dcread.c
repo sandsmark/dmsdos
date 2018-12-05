@@ -2,14 +2,40 @@
 
 dcread.c
 
+DMSDOS: example program illustrating how to use the dmsdos library.
+
+******************************************************************************
+DMSDOS (compressed MSDOS filesystem support) for Linux
+written 1995-1998 by Frank Gockel and Pavel Pisa
+
+    (C) Copyright 1995-1998 by Frank Gockel
+    (C) Copyright 1996-1998 by Pavel Pisa
+
+Some code of dmsdos has been copied from the msdos filesystem
+so there are the following additional copyrights:
+
+    (C) Copyright 1992,1993 by Werner Almesberger (msdos filesystem)
+    (C) Copyright 1994,1995 by Jacques Gelinas (mmap code)
+    (C) Copyright 1992-1995 by Linus Torvalds
+
+DMSDOS was inspired by the THS filesystem (a simple doublespace
+DS-0-2 compressed read-only filesystem) written 1994 by Thomas Scheuermann.
+
+The DMSDOS code is distributed under the Gnu General Public Licence.
+See file COPYING for details.
+******************************************************************************
+
+
 This is an example how to use the dmsdos library. This program displays
 a cluster on the screen in one of several formats (hexdump, text, etc.).
 It can also search a file through the directories.
 
+For documentation about the dmsdos library see file libdmsdos.doc.
+
 Warning: This utility is not perfect. It does not check file end properly.
-It does not even distinguish between files and directories. And the file 
-name conversion to 8.3 name space is far away from good. But example
-code has never to be perfect :)
+It does not even distinguish between files and directories. It does not
+support long file names. And the file name conversion to 8.3 name space is
+far away from good. But example code never has to be perfect :)
 
 There's also no documentation how to use this program except the usage
 line. Example code never has documentation. Well, yes, you are expected
@@ -131,7 +157,7 @@ int display_cluster(int nr, int mode)
         
         pp=&(data[j+24]);
         x=CHS(pp);
-        printf(" %02d.%02d.%02d",x&31,(x>>5)&15,(x>>9)+80);
+        printf(" %02d.%02d.%04d",x&31,(x>>5)&15,(x>>9)+1980); /* y2k compliant :) */
         
         pp=&(data[j+26]);
         printf(" %5d",CHS(pp));
@@ -207,6 +233,7 @@ int scan_dir(char*entry,int start)
   else
   for(i=0;i<11;++i)
   { if(*entry=='.'&&i<=7){i=7;++entry;continue;}
+    if(*entry=='.'&&i==8){i=7;++entry;continue;}
     if(*entry=='.')break;
     if(*entry=='\0')break;
     buf[i]=toupper(*entry);
@@ -230,7 +257,7 @@ int scan_dir(char*entry,int start)
         size=i/32;
         next=dbl_fat_nextcluster(sb,start,NULL);
         if(next==0)
-          fprintf(stderr,"warning: cluster %d is maked as unused in FAT\n",
+          fprintf(stderr,"warning: cluster %d is marked as unused in FAT\n",
                   next);
       }
     }

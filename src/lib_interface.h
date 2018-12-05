@@ -32,8 +32,41 @@ See file COPYING for details.
    This has been done for libc6 support.
 */
 
+/* machine and system dependent hacks */
+
+/* Linux section -- no problems here... :)) */
+#ifdef __linux__
 /* this defines machine-dependent __u8, __s8 etc. types */
 #include<asm/types.h>
+/* this defines get_unaligned and put_unaligned */
+#include<asm/unaligned.h>
+/* this defines cpu_to_le16 etc. in 2.1 kernels - a kind of nop for 2.0 */
+#include<asm/byteorder.h> 
+
+/* Other systems usually do not have the asm include files */
+#else
+/* emulate asm/types.h */
+typedef unsigned char __u8;
+typedef signed char __s8;
+typedef unsigned short int __u16;
+typedef signed short int __s16;
+typedef unsigned int __u32;
+typedef signed int __s32;
+/* emulate asm/unaligned.h */
+/* edit these lines if your system cannot do unaligned access */
+#define get_unaligned(ptr) (*(ptr))
+#define put_unaligned(val, ptr) ((void)( *(ptr) = (val) ))
+/* emulate asm/byteorder.h */
+/* edit these lines if your system is non-linux and big endian */
+/* the examples are commented out; they are valid for a little endian cpu */
+/* #define cpu_to_le16(v) (v) */
+/* #define cpu_to_be16(v) ( (((v)&0xff)<<8) | (((v)&0xff00)>>8) ) */
+/* #define cpu_to_le32(v) (v) */
+/* hack: sometimes NULL is missing */
+#ifndef NULL
+#define NULL ((void*)0)
+#endif
+#endif
 
 int printk(const char *fmt, ...);
 void panic(const char * fmt, ...);
@@ -71,6 +104,19 @@ struct buffer_head {
 #define MS_RDONLY   1      /* Mount read-only */
 #define MSDOS_SB(s) (&((s)->u.msdos_sb))
 
+struct msdos_dir_entry {
+        __s8    name[8],ext[3]; /* name and extension */
+        __u8    attr;           /* attribute bits */
+        __u8    lcase;          /* Case for base and extension */
+        __u8    ctime_ms;       /* Creation time, milliseconds */
+        __u16   ctime;          /* Creation time */
+        __u16   cdate;          /* Creation date */
+        __u16   adate;          /* Last access date */
+        __u16   starthi;        /* High 16 bits of cluster in FAT32 */
+        __u16   time,date,start;/* time, date and first cluster */
+        __u32   size;           /* file size (in bytes) */
+};
+
 struct msdos_sb_info {
         unsigned short cluster_size; /* sectors/cluster */
         unsigned char fats,fat_bits; /* number of FATs, FAT bits (12 or 16) */
@@ -97,6 +143,9 @@ struct super_block {
         unsigned char s_blocksize_bits;
         unsigned long s_flags;
         unsigned long s_magic;
+        unsigned long* directlist;
+        unsigned long* directlen;
+        unsigned long directsize;
         union {
                 struct msdos_sb_info msdos_sb;
         } u;
@@ -136,3 +185,5 @@ struct fat_boot_sector {
 #define CURRENT_TIME time(NULL)
 #define vmalloc malloc
 #define vfree free
+
+#define MAXFRAGMENT 300

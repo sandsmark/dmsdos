@@ -1114,7 +1114,7 @@ trap "cleanup ; rm -f .menuconfig ; exit 1" 1 2 15
 #
 DEFAULTS="dmsdos-config.default"
 
-CONFIG_IN="${1:-./config.in}"
+CONFIG_IN="${1:-./Config.in}"
 
 _CONFIG="${2:-.config}"
 

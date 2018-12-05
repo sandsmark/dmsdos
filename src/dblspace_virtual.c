@@ -52,11 +52,11 @@ extern unsigned long int dmsdos_speedup;
 /* cluster caching ... */
 Cluster_head ccache[CCACHESIZE];
 
-struct semaphore ccache_sem=MUTEX;   /* Must be initialized to green light */
+DECLARE_MUTEX(ccache_sem);   /* Must be initialized to green light */
 void lock_ccache(void) {down(&ccache_sem);}
 void unlock_ccache(void) {up(&ccache_sem);}
 
-struct wait_queue * fullwait=NULL;
+DECLARE_WAIT_QUEUE_HEAD(fullwait);
 
 int help_ccache=0;
 
@@ -102,13 +102,26 @@ Cluster_head* find_in_ccache(struct super_block*sb,
   return NULL;
 }
 
+int count_error_clusters(void)
+{ int i;
+  int errs=0;
+  
+  for(i=0;i<CCACHESIZE;++i)
+  { if(ccache[i].c_flags==C_DIRTY_NORMAL||ccache[i].c_flags==C_DIRTY_UNCOMPR)
+      if(ccache[i].c_errors)++errs;
+  }
+  if(errs)printk("DMSDOS: %d error clusters waiting in cache\n",errs);
+  return errs;
+}
+
 /* this is called if a cluster write fails too often */
 /* the cluster is expected to be locked */
 #define MAX_ERRORS 5
+#define MAX_ERROR_CLUSTERS ((CCACHESIZE/10)+1)
 void handle_error_cluster(Cluster_head*ch)
 { Dblsb*dblsb;
 
-  if(ch->c_errors>MAX_ERRORS)
+  if(ch->c_errors>MAX_ERRORS||count_error_clusters()>MAX_ERROR_CLUSTERS)
   { /* get rid of the cluster to prevent dmsdos crash due to endless loops */
     /* this shouldn't hurt much since the filesystem is already damaged */
     printk(KERN_CRIT "DMSDOS: dirty cluster %d on dev 0x%x removed, data are lost\n",
@@ -125,8 +138,8 @@ void handle_error_cluster(Cluster_head*ch)
     }
   }
   else
-  { printk(KERN_CRIT "DMSDOS: cannot write dirty cluster %d on dev 0x%x, trying again later\n",
-           ch->c_clusternr,ch->c_sb->s_dev);
+  { printk(KERN_CRIT "DMSDOS: cannot write dirty cluster %d on dev 0x%x c_error=%d, trying again later\n",
+           ch->c_clusternr,ch->c_sb->s_dev,ch->c_errors);
   }
 }
 
@@ -452,7 +465,7 @@ void ccache_init()
   { ccache[i].c_flags=C_FREE;
     ccache[i].c_time=0;
     ccache[i].c_count=0;
-    ccache[i].c_sem=MUTEX;
+    init_MUTEX(&ccache[i].c_sem);
     ccache[i].c_errors=0;
   }
 }
@@ -742,6 +755,7 @@ struct buffer_head* dblspace_bread(struct super_block*sb,int vsector)
   { err:
     printk(KERN_ERR "DMSDOS: illegal virtual sector %d, can't map to real sector\n",
            vsector);
+    *(int*)0=0;
     return NULL;
   }
   dbl_clust=((vsector-FAKED_DATA_START_OFFSET)/dblsb->s_sectperclust)+2;
@@ -877,7 +891,7 @@ void dblspace_ll_rw_block (
 
 #ifdef USE_READA_LIST
 
-struct semaphore reada_sem=MUTEX;   /* Must be initialized to green light */
+DECLARE_MUTEX(reada_sem);   /* Must be initialized to green light */
 void lock_reada(void) {down(&reada_sem);}
 void unlock_reada(void) {up(&reada_sem);}
 struct

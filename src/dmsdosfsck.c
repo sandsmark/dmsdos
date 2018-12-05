@@ -2,7 +2,28 @@
 
 dmsdosfsck.c
 
-Uhh... Warning this is very experimental code ... :)) 
+DMSDOS: filesystem check utility for CVFs.
+
+******************************************************************************
+DMSDOS (compressed MSDOS filesystem support) for Linux
+written 1995-1998 by Frank Gockel and Pavel Pisa
+
+    (C) Copyright 1995-1998 by Frank Gockel
+    (C) Copyright 1996-1998 by Pavel Pisa
+
+Some code of dmsdos has been copied from the msdos filesystem
+so there are the following additional copyrights:
+
+    (C) Copyright 1992,1993 by Werner Almesberger (msdos filesystem)
+    (C) Copyright 1994,1995 by Jacques Gelinas (mmap code)
+    (C) Copyright 1992-1995 by Linus Torvalds
+
+DMSDOS was inspired by the THS filesystem (a simple doublespace
+DS-0-2 compressed read-only filesystem) written 1994 by Thomas Scheuermann.
+
+The DMSDOS code is distributed under the Gnu General Public Licence.
+See file COPYING for details.
+******************************************************************************
 
 */
 
@@ -220,7 +241,7 @@ int check_direntry(int dirstartclust, unsigned char*data, int*need_write,
   unsigned int x;
   unsigned char*pp;
   unsigned long size;
-  int cluster;
+  int cluster, prevcluster, newval;
   unsigned long fatsize;
   int clustersize;
   int invchar;
@@ -255,7 +276,7 @@ int check_direntry(int dirstartclust, unsigned char*data, int*need_write,
 
   pp=&(data[24]);
   x=CHS(pp);
-  printf(" %02d.%02d.%02d",x&31,(x>>5)&15,(x>>9)+80);
+  printf(" %02d.%02d.%4d",x&31,(x>>5)&15,(x>>9)+1980); /* y2k compliant :) */
   }
   
   pp=&(data[26]);
@@ -378,21 +399,28 @@ int check_direntry(int dirstartclust, unsigned char*data, int*need_write,
     return 0;
   }
 
+  clustersize=dblsb->s_sectperclust*SECTOR_SIZE;
+
   fatsize=0;
+  prevcluster=0;
   while(cluster>1&&cluster<=dblsb->s_max_cluster)
-  { cluster=dbl_fat_nextcluster(sb,cluster,NULL);
-    fatsize+=dblsb->s_sectperclust*SECTOR_SIZE;
+  { prevcluster=cluster;
+    cluster=dbl_fat_nextcluster(sb,cluster,NULL);
+    fatsize+=clustersize;
   }
   if(cluster==0)
   { printf("fat alloc ends with zero\n");
-    return -1;
+    cluster=prevcluster;
+    fatsize-=clustersize;
+    if(repair("Correct this?")==0)return -1;
+    newval=FAT_EOF;
+    dbl_fat_nextcluster(sb,cluster,&newval);
   }
-  if(cluster==1&&cluster>dblsb->s_max_cluster)
+  if(cluster==1||cluster>dblsb->s_max_cluster)
   { printf("fat alloc invalid\n");
     return -1;
   }
     
-  clustersize=dblsb->s_sectperclust*SECTOR_SIZE;
   if(size==fatsize)
   { lprintf("OK\n");
     return 0;
@@ -539,7 +567,7 @@ int main(int argc, char*argv[])
   int i;
   char*filename=NULL;
   
-  fprintf(stderr, "dmsdosfsck 0.0.1 ALPHA TEST (be extremely careful with repairs)\n");
+  fprintf(stderr, "dmsdosfsck 0.0.2 ALPHA TEST (be extremely careful with repairs)\n");
   
   if(argc==1)
   { usage:

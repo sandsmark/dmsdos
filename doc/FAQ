@@ -203,3 +203,13 @@ under kernel 2.0.34. In that case, you may share one precompiled dmsdos
 module with several kernels. But please don't overuse it. You should not,
 for example, use the same compiled object code of a dmsdos module for
 kernel 2.0.34 and 2.1.105 - this is very likely to cause problems :)
+
+
+
+Where does the name "DMSDOS" come from ?
+
+It has historical reasons. The first piece of dmsdos code was written in 
+times of MSDos 6.2 when Doublespace became very popular. Thus, dmsdos was
+meant as something like "doublespaced msdos". Today, it supports a lot of 
+more compressed Dos filesystems, and a better name would be "cmsdos" for 
+"compressed msdos". But you never change the name of a successful project :)

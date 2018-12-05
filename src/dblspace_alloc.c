@@ -414,11 +414,11 @@ void log_found_statistics()
 }
 
 #ifdef DMSDOS_CONFIG_DRVSP3
-int try_fragmented(struct super_block*sb,int near,int nr,
+int try_fragmented(struct super_block*sb,int anear,int nr,
                    unsigned char*fraglist)
 { 
   int i;
-  int sector=near;
+  int sector=anear;
   Dblsb*dblsb=MSDOS_SB(sb)->private_data;
   int again=1;
   int frags;
@@ -436,9 +436,9 @@ int try_fragmented(struct super_block*sb,int near,int nr,
   }
 
   printk(KERN_DEBUG "DMSDOS: trying to allocate fragmented space...\n");  
-  LOG_ALLOC("DMSDOS: try_fragmented: start, near=%d nr=%d\n",near,nr);
+  LOG_ALLOC("DMSDOS: try_fragmented: start, anear=%d nr=%d\n",anear,nr);
   
-  if(near==0)sector=dblsb->s_lastnear;
+  if(anear==0)sector=dblsb->s_lastnear;
   
   if(sector<dblsb->s_datastart||sector>dblsb->s_dataend)
   { sector=dblsb->s_datastart;
@@ -609,7 +609,7 @@ int dbl_replace_existing_cluster(struct super_block*sb, int cluster,
           LOG_ALLOC("DMSDOS: dbl_replace_existing_cluster: same fragmented size, ok.\n");
           goto mdfat_update;
         }
-       check_failed:
+       check_failed:  ; /*Win32 compiler wants a semicolon here */
         /* fall through */ 
       }
     }

@@ -57,7 +57,7 @@ IDMSDOSD_TIME=30
 SP_BIT0=y
 SP_BIT1=y
 # SP_BIT2 is not set
-SP_BIT3=y
+# SP_BIT3 is not set
 SP_BIT4=y
 SP_BIT5=y
 # SP_BIT6 is not set
