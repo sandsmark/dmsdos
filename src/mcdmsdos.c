@@ -109,6 +109,35 @@ int copy_cluster_out(int nr, int len, FILE *f)
 
 int handle_dir_chain(int start,int rek,char *prefix);
 
+static void print_filename(const unsigned char *filename)
+{
+    for (int i=0; i<strlen(filename); ++i) {
+        if (filename[i] >= 32 && filename[i] < 127) {
+            printf("%c", filename[i]);
+            continue;
+        }
+
+        // TODO: proper codepage support, this is Code page 865 (DOS Nordic)
+        switch(filename[i]) {
+            case 0x92:
+                printf("æ");
+                break;
+            case 0x9c:
+                printf("£");
+                break;
+            case 0x9d:
+                printf("ø");
+                break;
+                //case 0xff:
+                //    lprintf(" ");
+                //    break;
+            default:
+                printf(" 0x%x ", filename[i]);
+                break;
+        }
+    }
+}
+
 int display_dir_cluster(int nr, int rek, char *prefix)
 {
     unsigned char *data;
@@ -162,7 +191,12 @@ int display_dir_cluster(int nr, int rek, char *prefix)
             if (data[j+i]!=' ') { strncat(filename,&(data[j+i]),1); }
         }
 
-        for (i=0; i<strlen(filename); ++i) { filename[i]=tolower(filename[i]); }
+        for (i=0; i<strlen(filename); ++i) {
+            if (filename[i] >= 32 && filename[i] < 127) {
+                filename[i]=tolower(filename[i]);
+                continue;
+            }
+        }
 
         if (data[j+11]&16) { printf("dr"); }
         else { printf("-r"); }
@@ -218,7 +252,9 @@ int display_dir_cluster(int nr, int rek, char *prefix)
         nstart=CHS(pp);
         /*printf(" %5d",nstart); */
 
-        printf(" %s%s\n",prefix,filename);
+        printf(" %s",prefix);
+        print_filename(filename);
+        printf("\n");
 
         if ((data[j+11]&16)!=0&&rek!=0&&filename[0]!='.') {
             char *nprefix;
