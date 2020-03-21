@@ -28,6 +28,8 @@ See file COPYING for details.
 
 #include "dmsdos.h"
 
+#include <string.h>
+
 #if defined(__DMSDOS_LIB__)
 extern unsigned long dmsdos_speedup;
 #endif
@@ -45,9 +47,9 @@ void panic(char *);
 
 #ifdef __DMSDOS_LIB__
 /* some interface hacks */
-#include"lib_interface.h"
-#include<malloc.h>
-#include<errno.h>
+#include "lib_interface.h"
+#include <malloc.h>
+#include <errno.h>
 #endif
 
 int c_maxtrycount[12]= { 1, 2, 3, 4, 6, 8,10,14,18,22,28,40};

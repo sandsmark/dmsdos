@@ -26,23 +26,24 @@ See file COPYING for details.
 
 */
 
-#include<stdio.h>
-#include<string.h>
-#include<malloc.h>
+#include <stdio.h>
+#include <string.h>
+#include <malloc.h>
+#include <stdlib.h>
 #ifdef USE_FLOCK
-#include<unistd.h>
-#include<sys/file.h>
+#include <unistd.h>
+#include <sys/file.h>
 #endif
 #ifdef USE_SOPEN
-#include<share.h>
+#include <share.h>
 #endif
-#include<fcntl.h>
-#include<errno.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #define fat_boot_sector msdos_boot_sector
 
 /* some interface hacks */
-#include"lib_interface.h"
+#include "lib_interface.h"
 #undef MALLOC
 #undef FREE
 #undef CURRENT_TIME

@@ -30,10 +30,12 @@ See file COPYING for details.
 
 #ifdef __DMSDOS_LIB__
 /* some interface hacks */
-#include"lib_interface.h"
-#include<malloc.h>
-#include<errno.h>
+#include "lib_interface.h"
+#include <malloc.h>
+#include <errno.h>
 #endif
+
+#include <string.h>
 
 extern unsigned long dmsdos_speedup;
 
@@ -46,8 +48,8 @@ extern unsigned long dmsdos_speedup;
 
 int told=0;
 
-#include<linux/mm.h>
-#include<linux/malloc.h>
+#include <linux/mm.h>
+#include <linux/malloc.h>
 
 #ifndef MAX_KMALLOC_SIZE
 #define MAX_KMALLOC_SIZE 128*1024

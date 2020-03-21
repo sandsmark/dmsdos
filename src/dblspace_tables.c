@@ -30,12 +30,13 @@ See file COPYING for details.
 
 #ifdef __DMSDOS_LIB__
 /* some interface hacks */
-#include"lib_interface.h"
-#include<malloc.h>
-#include<time.h>
-#include<errno.h>
+#include "lib_interface.h"
+#include <malloc.h>
+#include <time.h>
+#include <errno.h>
 #endif
 
+#include <string.h>
 
 Acache mdfat[MDFATCACHESIZE];
 Acache dfat[DFATCACHESIZE];

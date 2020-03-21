@@ -26,16 +26,18 @@ See file COPYING for details.
 
 */
 
-#include<stdio.h>
 #include "dmsdos.h"
-#include<sys/ioctl.h>
-#include<sys/types.h>
-#include<sys/stat.h>
-#include<fcntl.h>
-#include<string.h>
-#include<errno.h>
-#include<unistd.h>
-#include<malloc.h>
+
+#include <stdio.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <malloc.h>
+#include <stdlib.h>
 
 int scan(char *arg)
 {

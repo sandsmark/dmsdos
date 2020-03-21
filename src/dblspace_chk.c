@@ -30,9 +30,11 @@ See file COPYING for details.
 
 #ifdef __DMSDOS_LIB__
 /* some interface hacks */
-#include"lib_interface.h"
-#include<malloc.h>
+#include "lib_interface.h"
+#include <malloc.h>
 #endif
+
+#include <string.h>
 
 #define MAXMSG 20
 
