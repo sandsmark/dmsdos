@@ -101,22 +101,6 @@ INLINE __u16 swap_bytes_in_word(__u16 x)
 
 #endif
 
-#if !defined(cpu_to_le16)
-/* for old kernel versions - works only on i386 */
-#define le16_to_cpu(v) (v)
-#define cpu_to_le16(v) (v)
-#define be16_to_cpu(v) (swap_bytes_in_word(v))
-#define cpu_to_be16(v) (swap_bytes_in_word(v))
-#endif
-
-/* store and load __u16 in any byteorder on any */
-/* address (odd or even).                       */
-/* this is problematic on architectures,        */
-/* which cannot do __u16 access to odd address. */
-/* used for temporary storage of LZ intercode.  */
-#define C_ST_u16(p,v) {put_unaligned(v,p);p=(__u16*)p+1;}
-#define C_LD_u16(p,v) {v=get_unaligned(p);p=(__u16*)p+1;}
-
 /* for reading and writting from/to bitstream */
 typedef
 struct {

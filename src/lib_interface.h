@@ -34,39 +34,31 @@ See file COPYING for details.
 
 /* machine and system dependent hacks */
 
-/* Linux section -- no problems here... :)) */
-#ifdef __linux__
-/* this defines machine-dependent __u8, __s8 etc. types */
-#include<asm/types.h>
-/* this defines get_unaligned and put_unaligned */
-#include<asm/unaligned.h>
-/* this defines cpu_to_le16 etc. in 2.1 kernels - a kind of nop for 2.0 */
-#include<asm/byteorder.h>
+#include <stdint.h>
 
-/* Other systems usually do not have the asm include files */
-#else
-/* emulate asm/types.h */
-typedef unsigned char __u8;
-typedef signed char __s8;
-typedef unsigned short int __u16;
-typedef signed short int __s16;
-typedef unsigned int __u32;
-typedef signed int __s32;
-/* emulate asm/unaligned.h */
-/* edit these lines if your system cannot do unaligned access */
-#define get_unaligned(ptr) (*(ptr))
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+
+#define cpu_to_le16(v) (v)
+#define cpu_to_le32(v) (v)
+#define cpu_to_be16(v) (swap_bytes_in_word(v))
+#define le16_to_cpu(v) (v)
+
 #define put_unaligned(val, ptr) ((void)( *(ptr) = (val) ))
-/* emulate asm/byteorder.h */
-/* edit these lines if your system is non-linux and big endian */
-/* the examples are commented out; they are valid for a little endian cpu */
-/* #define cpu_to_le16(v) (v) */
-/* #define cpu_to_be16(v) ( (((v)&0xff)<<8) | (((v)&0xff00)>>8) ) */
-/* #define cpu_to_le32(v) (v) */
-/* hack: sometimes NULL is missing */
-#ifndef NULL
-#define NULL ((void*)0)
-#endif
-#endif
+#define C_ST_u16(p,v) {put_unaligned(v,(uint16_t*)p);p=(__u8*)((__u16*)p+1);}
+
+#define get_unaligned(ptr) (*(ptr))
+#define C_LD_u16(p,v) {v=get_unaligned((uint16_t*)p);p=(__u8*)((__u16*)p+1);}
+
+#else
+#error "Please implement the macros for big endian"
+#endif // __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+
+typedef uint8_t __u8;
+typedef int8_t __s8;
+typedef uint16_t __u16;
+typedef int16_t __s16;
+typedef uint32_t __u32;
+typedef int32_t __s32;
 
 int printk(const char *fmt, ...);
 void panic(const char *fmt, ...);

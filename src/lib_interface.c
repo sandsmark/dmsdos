@@ -57,12 +57,6 @@ See file COPYING for details.
 
 #include"dmsdos.h"
 
-#ifndef cpu_to_le16
-/* works only for old kernels and little endian architecture */
-#define cpu_to_le16(v) (v)
-#define cpu_to_le32(v) (v)
-#endif
-
 #define MSDOS_FAT12 4078 /* maximum number of clusters in a 12 bit FAT */
 
 long int blk_size[1][1];

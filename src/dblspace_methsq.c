@@ -60,14 +60,6 @@ extern int debug;
 #define INLINE static
 #endif
 
-/* store and load __u16 in any byteorder on any */
-/* address (odd or even).                       */
-/* this is problematic on architectures,        */
-/* which cannot do __u16 access to odd address. */
-/* used for temporary storage of LZ intercode.  */
-#define C_ST_u16(p,v) {put_unaligned(v,p);p=(__u16*)p+1;}
-#define C_LD_u16(p,v) {v=get_unaligned(p);p=(__u16*)p+1;}
-
 /* high speed compare and move routines */
 #if defined(__GNUC__) && defined(__i386__) && defined(USE_ASM)
 #define USE_GNU_ASM_i386
