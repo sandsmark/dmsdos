@@ -1,3 +1,14 @@
+To build:
+    - make
+
+Then you get the tools you probably want in src/, src/mcdmsdos is a midnight
+commander compatible tool that can be used to list and extract files from e. g.
+a dblspace.000 file, and src/dmsdosfsck that can try to recover from broken
+files.
+
+Old stuff follows:
+
+
 This is the README for the DMSDOS CVF-FAT filesystem extensions. 
 
 CVF-FAT is a generic modular Compressed Volume Files interface for the FAT 
@@ -12,7 +23,9 @@ CVF-FAT is the official successor of the dmsdos filesystem. DMSDOS itself
 is still continued, but it now is a child of CVF-FAT and not a filesystem
 any more.
 
-List of files to read:
+
+
+Outdated files to read
 ----------------------
 
 README             this file
@@ -26,3 +39,4 @@ doc/            various documentation
 man/            man pages for dmsdos utilities
 src/            complete source code for dmsdos
 patches/        kernel patches and updates for the CVF-FAT interface
+kernel/         old kernel stuff
