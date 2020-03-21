@@ -41,6 +41,8 @@ See file COPYING for details.
 #define cpu_to_le16(v) (v)
 #define cpu_to_le32(v) (v)
 #define cpu_to_be16(v) (swap_bytes_in_word(v))
+
+#define be16_to_cpu(v) (swap_bytes_in_word(v))
 #define le16_to_cpu(v) (v)
 
 #define put_unaligned(val, ptr) ((void)( *(ptr) = (val) ))
