@@ -62,11 +62,6 @@ __asm__ /*__volatile__*/(\
 
 #else
 
-#ifdef __GNUC__
-/* non-gnu compilers may not like warning directive */
-#warning USE_GNU_ASM_I386 not defined, using "C" equivalent
-#endif
-
 #define M_MOVSB(D,S,C) for(;(C);(C)--) *((__u8*)(D)++)=*((__u8*)(S)++)
 
 #endif

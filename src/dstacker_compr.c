@@ -89,11 +89,6 @@ INLINE __u16 swap_bytes_in_word(__u16 x)
 
 #else
 
-#ifdef __GNUC__
-/* non-gnu compilers may not like warning directive */
-#warning USE_GNU_ASM_I386 not defined, using "C" equivalent
-#endif
-
 #define M_FIRSTDIFF(D,S,C) for(;(*(__u8*)(D)==*(__u8*)(S))&&(C);\
 			   (__u8*)(D)++,(__u8*)(S)++,(C)--)
 
