@@ -1,0 +1,3 @@
+*.lo
+*.a
+src/mcdmsdos
