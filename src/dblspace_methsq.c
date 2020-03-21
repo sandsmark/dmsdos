@@ -28,11 +28,13 @@ See file COPYING for details.
 
 #include "dmsdos.h"
 
+#include <stdint.h>
+
 #ifdef __DMSDOS_DAEMON__
-#include<malloc.h>
-#include<string.h>
-#include<asm/unaligned.h>
-#include<asm/types.h>
+#include <malloc.h>
+#include <string.h>
+#include <asm/unaligned.h>
+#include <asm/types.h>
 #include <asm/byteorder.h>
 #define MALLOC malloc
 #define FREE free
@@ -44,9 +46,9 @@ extern int debug;
 
 #ifdef __DMSDOS_LIB__
 /* some interface hacks */
-#include"lib_interface.h"
-#include<malloc.h>
-#include<string.h>
+#include "lib_interface.h"
+#include <malloc.h>
+#include <string.h>
 #endif
 
 #ifdef DMSDOS_CONFIG_DRVSP3
@@ -532,7 +534,7 @@ int sq_dec(void *pin,int lin, void *pout, int lout, int flg)
 
             M_MOVSB(p,r,replen); /* copy/repeat function */
 
-            if ((unsigned)r&1) { bits.pb=32; }
+            if ((intptr_t)r&1) { bits.pb=32; }
             else {bits.pb=32+8; r--;};
 
 #if 0
@@ -977,7 +979,7 @@ INLINE hash_t sq_newhash(__u8 *p,hash_t *hash_tab,hash_t *hash_hist,unsigned his
     hash_ptr=hash_tab+sq_hash(p);
     hash_cur=*hash_ptr;
     *hash_ptr=p;
-    *(hash_hist+((unsigned)p&hist_mask))=hash_cur;
+    *(hash_hist+((intptr_t)p&hist_mask))=hash_cur;
     return (hash_cur);
 };
 
@@ -1088,7 +1090,7 @@ unsigned sq_complz(void *pin,int lin,void *pout,int lout,int flg,
             };
 
             pc=hash_cur;
-        } while (--try_cn&&((hash_cur=hash_hist[(unsigned)pc&hist_mask])<pc));
+        } while (--try_cn&&((hash_cur=hash_hist[(intptr_t)pc&hist_mask])<pc));
 
         if (max_match<MIN_REP) { goto single_char; }
 
@@ -1135,7 +1137,7 @@ unsigned sq_complz(void *pin,int lin,void *pout,int lout,int flg,
                         };
 
                         pc=hash_cur;
-                    } while (--try_cn&&((hash_cur=hash_hist[(unsigned)pc&hist_mask])<pc));
+                    } while (--try_cn&&((hash_cur=hash_hist[(intptr_t)pc&hist_mask])<pc));
             };
 
             if (delay_best) {

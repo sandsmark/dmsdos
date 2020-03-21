@@ -28,22 +28,24 @@ See file COPYING for details.
 
 #include "dmsdos.h"
 
+#include <stdint.h>
+
 #ifdef __DMSDOS_LIB__
 /* some interface hacks */
-#include"lib_interface.h"
-#include<malloc.h>
-#include<string.h>
-#include<errno.h>
+#include "lib_interface.h"
+#include <malloc.h>
+#include <string.h>
+#include <errno.h>
 #endif
 
 
 #ifdef DMSDOS_CONFIG_STAC
 
 #ifdef __DMSDOS_DAEMON__
-#include<malloc.h>
-#include<string.h>
-#include<asm/unaligned.h>
-#include<asm/types.h>
+#include <malloc.h>
+#include <string.h>
+#include <asm/unaligned.h>
+#include <asm/types.h>
 #include <asm/byteorder.h>
 #define MALLOC malloc
 #define FREE free
@@ -209,7 +211,7 @@ INLINE hash_t sd4_newhash(__u8 *p,hash_t *hash_tab,hash_t *hash_hist,unsigned ha
     hash_ptr=hash_tab+sd4_hash(p);
     hash_cur=*hash_ptr;
     *hash_ptr=p;
-    *(hash_hist+((unsigned)p&hash_mask))=hash_cur;
+    *(hash_hist+((intptr_t)p&hash_mask))=hash_cur;
     return (hash_cur);
 };
 
@@ -311,7 +313,7 @@ unsigned sd4_complz(void *pin,int lin,void *pout,int lout,int flg,count_t *ch_cn
             };
 
             pc=hash_cur;
-        } while (--try_cn&&((hash_cur=hash_hist[(unsigned)pc&hash_mask])<pc));
+        } while (--try_cn&&((hash_cur=hash_hist[(intptr_t)pc&hash_mask])<pc));
 
         if (max_match<3) { goto single_char; }
 
@@ -919,7 +921,7 @@ INLINE hash_t sd3_newhash(__u8 *p,hash_t *hash_tab,hash_t *hash_hist,unsigned ha
     hash_ptr=hash_tab+sd3_hash(p);
     hash_cur=*hash_ptr;
     *hash_ptr=p;
-    *(hash_hist+((unsigned)p&hash_mask))=hash_cur;
+    *(hash_hist+((intptr_t)p&hash_mask))=hash_cur;
     return (hash_cur);
 };
 
@@ -996,7 +998,7 @@ int sd3_comp(void *pin,int lin, void *pout, int lout, int flg)
             };
 
             pc=hash_cur;
-        } while (--try_cn&&((hash_cur=hash_hist[(unsigned)pc&hash_mask])<pc));
+        } while (--try_cn&&((hash_cur=hash_hist[(intptr_t)pc&hash_mask])<pc));
 
         if (max_match<2) { goto single_char; }
 
