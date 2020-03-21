@@ -26,12 +26,6 @@ See file COPYING for details.
 
 */
 
-#ifdef __KERNEL__
-#include <asm/byteorder.h>
-#include <asm/unaligned.h>
-#include <linux/malloc.h>
-#endif 
-
 #include "dmsdos.h"
 
 #ifdef __DMSDOS_DAEMON__
@@ -418,7 +412,7 @@ const unsigned char sqt_offbln[]={
 	0x07,0x07,0x08,0x08,0x09,0x09,0x0A,0x0A,
 	0x0B,0x0B,0x0C,0x0C,0x0D,0x0D,0x00,0x00};
 
-#if defined(__KERNEL__)||defined(__DMSDOS_LIB__)
+#if defined(__DMSDOS_LIB__)
 
 int sq_dec(void* pin,int lin, void* pout, int lout, int flg)
 { 
@@ -599,7 +593,7 @@ int sq_dec(void* pin,int lin, void* pout, int lout, int flg)
   return(p-(__u8*)pout);
 };
 
-#endif /* __KERNEL__||__DMSDOS_LIB__ */
+#endif /* __DMSDOS_LIB__ */
 
 /*==============================================================*/
 /* bitstream writting */

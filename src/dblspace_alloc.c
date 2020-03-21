@@ -26,15 +26,6 @@ See file COPYING for details.
 
 */
 
-#ifdef __KERNEL__                    
-#include <linux/fs.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/msdos_fs.h>
-#include <linux/string.h>
-#include <linux/sched.h>
-#endif
-
 #include "dmsdos.h"
 
 #ifdef __DMSDOS_LIB__
@@ -102,21 +93,6 @@ void xfree(void * data)
 /* we don't need locking in the library */
 void lock_mdfat_alloc(Dblsb*dblsb) {}
 void unlock_mdfat_alloc(Dblsb*dblsb) {}
-#endif
-
-#ifdef __KERNEL__
-void lock_mdfat_alloc(Dblsb*dblsb) 
-{ struct semaphore*sem;
-
-  sem=dblsb->mdfat_alloc_semp;
-  down(sem);
-}
-void unlock_mdfat_alloc(Dblsb*dblsb)
-{ struct semaphore*sem;
-
-  sem=dblsb->mdfat_alloc_semp;
-  up(sem);
-}
 #endif
 
 #ifdef DMSDOS_CONFIG_DBL

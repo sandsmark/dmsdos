@@ -32,47 +32,6 @@ See file COPYING for details.
 /* version number hacks */
 #define LVC(x,y,z) ((x)*65536+(y)*256+(z))
 
-#ifdef __KERNEL__
-
-#ifndef LINUX_VERSION_CODE
- #include<linux/version.h>
-#endif
-#if LINUX_VERSION_CODE == LVC(2,2,1)
- /* this works around a bug in Linux 2.2.1 */
- #include<asm/page.h>
-#endif
-#include<asm/semaphore.h>
-#include<linux/fs.h>
-#if LINUX_VERSION_CODE < LVC(2,3,3)
- #define init_MUTEX(sem) (*sem=MUTEX)
- #define DECLARE_MUTEX(name) struct semaphore name=MUTEX
- #define DECLARE_WAIT_QUEUE_HEAD(name) \
-  	struct wait_queue * name=NULL
-#endif
-
-#if LINUX_VERSION_CODE >= LVC(2,1,78)
- #define __FOR_KERNEL_2_1_80
- #if LINUX_VERSION_CODE >= LVC(2,1,80)
-  #define FAT_GET_CLUSTER
- #else
-  #define READPAGE_DENTRY
- #endif
-#endif
-#if (LINUX_VERSION_CODE >= LVC(2,1,0)) && (LINUX_VERSION_CODE < LVC(2,1,78))
- #error dmsdos 0.9.x needs kernel >= 2.1.80 or use 2.0.33
-#endif
-
-#if LINUX_VERSION_CODE >= LVC(2,3,99)
-#define __FOR_KERNEL_2_3_99
-#define HAS_SB_CLUSTER_BITS
-#endif
-
-#ifdef FAT_GET_CLUSTER
-#define get_cluster fat_get_cluster
-#endif
-
-#endif /* __KERNEL__*/
-
 #include "dmsdos-config.h"
 /* hacks for new Configure */
 #ifndef DMSDOS_EXPERT
@@ -283,28 +242,6 @@ typedef struct
 #define D_OVERWRITTEN 3    /* has been overwritten by dmsdos while daemon
                             is compressing it -> throw away the result from
                             the daemon */
-#ifdef __KERNEL__
-# ifdef USE_XMALLOC
-   void* xmalloc(unsigned long);
-   void xfree(void*);
-#  define MALLOC(x) xmalloc(x)
-#  define FREE(x) xfree(x)
-# else
-#  ifdef USE_VMALLOC
-#   include<linux/mm.h>
-#   ifdef __FOR_KERNEL_2_1_80
-#    include<linux/vmalloc.h>
-#   endif
-#   define MALLOC(x) vmalloc(x)
-#   define FREE(x) vfree(x)
-#  else
-#   include<linux/malloc.h>
-#   define MALLOC(x) kmalloc(x,GFP_KERNEL)
-#   define FREE(x) kfree(x)
-#  endif
-# endif
-#endif
-
 /* this must be known outside the kernel too */
 typedef struct {
   int s_dcluster;/*[45-46]*/
@@ -366,20 +303,6 @@ typedef struct {
 #define C_KEEP_LOCK 1
 #define C_NO_READ 2
 
-#ifdef __KERNEL__
-typedef struct {
-  unsigned int c_time;
-  unsigned int c_flags;
-  unsigned int c_count;
-  unsigned int c_length;
-  unsigned int c_clusternr;
-  struct super_block* c_sb;
-  unsigned char* c_data;
-  struct semaphore c_sem;
-  unsigned int c_errors;
-} Cluster_head;
-#endif /*__KERNEL__*/
-
 int dbl_mdfat_value(struct super_block*sb, int clusternr,
                      Mdfat_entry*new,Mdfat_entry*mde);
 int dbl_fat_nextcluster(struct super_block*sb,int clusternr,int*);
@@ -429,18 +352,7 @@ void free_idle_cache(void);
 void free_idle_ccache(void);
 void ccache_init(void);
 void free_ccache_dev(struct super_block*sb);
-#ifdef __KERNEL__
-Cluster_head* ch_read(struct super_block*sb,int clusternr,int flag);
-Cluster_head* find_in_ccache(struct super_block*sb,
-                             int clusternr,Cluster_head**lastfree,
-                             Cluster_head**oldest);
-int ch_dirty(Cluster_head*,int near,int ucflag);
-int ch_dirty_locked(Cluster_head*,int near,int ucflag);
-void lock_ch(Cluster_head*);
-void unlock_ch(Cluster_head*);
-void ch_dirty_retry_until_success(Cluster_head*,int near,int ucflag);
-void ch_free(Cluster_head*);
-#endif
+
 void sync_cluster_cache(int allow_daemon);
 void delete_cache_cluster(struct super_block*sb, int clusternr);
 void log_list_statistics(void);
@@ -450,7 +362,7 @@ int sq_dec(void* pin,int lin, void* pout, int lout, int flg);
                                                
 /* Stacker cluster allocation types access */
 
-#if defined(__KERNEL__)||defined(__DMSDOS_LIB__)
+#if defined(__DMSDOS_LIB__)
 /* structure for walking/working with each sector of cluster */
 typedef struct {
   struct super_block*sb;
@@ -476,7 +388,7 @@ int stac_cwalk_init(Stac_cwalk *cw,struct super_block*sb,
 		 int clusternr,int flg);
 int stac_cwalk_sector(Stac_cwalk *cw);
 void stac_cwalk_done(Stac_cwalk *cw);
-#endif /* __KERNEL__||__DMSDOS_LIB__*/
+#endif /* __DMSDOS_LIB__*/
 
 /* loglevel defines */
 
@@ -517,13 +429,6 @@ int log_prseq(void);
 #define LOG_CCACHE(x,args...)
 #define LOG_ACACHE(x,args...)
 #define LOG_REST(x,args...)
-#endif
-
-#ifdef __FOR_KERNEL_2_1_80
-/* some hacks since the memcpy_from/tofs functions have changed here */
-#include  <asm/uaccess.h>
-#define memcpy_fromfs copy_from_user
-#define memcpy_tofs copy_to_user
 #endif
 
 struct buffer_head *raw_bread (
@@ -578,36 +483,9 @@ void dblspace_ll_rw_block (
         struct buffer_head *bh[32]);
 int stac_bitfat_state(struct super_block*sb,int new_state);
 int dblspace_fat_access(struct super_block*sb, int clusternr,int newval);
-#ifdef __KERNEL__
-int dblspace_bmap(struct inode*inode, int block);
-int dblspace_smap(struct inode*inode, int block);
-#endif
+
 int ds_dec(void* pin,int lin, void* pout, int lout, int flg);
-#ifdef __KERNEL__
-void dblspace_zero_new_cluster(struct inode*,int clusternr);
-#ifdef __FOR_KERNEL_2_1_80
-ssize_t dblspace_file_read(struct file *filp,char *buf,size_t count,
-                           loff_t *ppos);
-ssize_t dblspace_file_write(struct file *filp,const char *buf,size_t count,
-                           loff_t *ppos);
-int dblspace_mmap(struct file*file,
-                  struct vm_area_struct*vma);
-#else
-int dblspace_file_read(struct inode *inode,struct file *filp,char *buf,
-                                int count);
-int dblspace_file_write(struct inode *inode,struct file *filp,const char *buf,
-                                int count);
-int dblspace_mmap(struct inode*inode,struct file*file,
-                  struct vm_area_struct*vma);
-#endif
-#ifdef READPAGE_DENTRY
-int dblspace_readpage(struct dentry*dentry, struct page *page);
-#else
-int dblspace_readpage(struct inode *inode, struct page *page);
-#endif
-int dmsdos_ioctl_dir(struct inode *dir,struct file *filp,
-                     unsigned int cmd, unsigned long data);
-#endif /* __KERNEL__ */
+
 int try_daemon(struct super_block*sb,int clusternr, int length, int method);
 void remove_from_daemon_list(struct super_block*sb,int clusternr);
 void force_exit_daemon(void);

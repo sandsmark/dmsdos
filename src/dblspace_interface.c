@@ -26,18 +26,6 @@ See file COPYING for details.
 
 */
 
-#ifdef __KERNEL__
-# include <linux/fs.h>
-# include <linux/blkdev.h>
-# include <linux/msdos_fs.h>
-# include <linux/msdos_fs_sb.h>
-# include <linux/fat_cvf.h>
-# include <linux/string.h>
-# include <linux/malloc.h>
-# include <asm/semaphore.h>
-# include <linux/module.h>
-#endif
-
 #include"dmsdos.h"
 
 #ifdef __DMSDOS_LIB__
@@ -322,21 +310,6 @@ int mount_dblspace(struct super_block*sb,char*options)
   }
   MSDOS_SB(sb)->private_data=dblsb;
   
-#ifdef __KERNEL__
-  { struct semaphore* sem;
-
-    sem=kmalloc(sizeof(struct semaphore),GFP_KERNEL);
-    if(sem==NULL)
-    { printk(KERN_ERR "DMSDOS: mount_dblspace: out of memory\n");
-      free_dblsb(dblsb);
-      MSDOS_SB(sb)->private_data=NULL;
-      MOD_DEC_USE_COUNT;
-      return -1;
-    }  
-    init_MUTEX(sem);
-    dblsb->mdfat_alloc_semp=sem;
-  }
-#endif
 
   dblsb->s_comp=GUESS;
   dblsb->s_cfaktor=DEFAULT_CF;
@@ -642,16 +615,6 @@ int unmount_dblspace(struct super_block*sb)
         }
       }
 
-#ifdef __KERNEL__
-#ifdef USE_READA_LIST
-  /* throw away all stacked reada entries for this dev */
-  kill_reada_list_dev(sb->s_dev);
-#endif
-  /* this is unused in the library */
-  /* looks like we don't need this here... */
-  /*kfree(dblsb->mdfat_alloc_semp);*/
-  /*dblsb->mdfat_alloc_semp=NULL;*/
-#endif
   /*kfree(MSDOS_SB(sb)->private_data);*/
   free_dblsb(dblsb);
   MSDOS_SB(sb)->private_data=NULL;
@@ -711,21 +674,6 @@ int mount_stacker(struct super_block*sb,char*options)
   }
   MSDOS_SB(sb)->private_data=dblsb;
   
-#ifdef __KERNEL__
-  { struct semaphore* sem;
-
-    sem=kmalloc(sizeof(struct semaphore),GFP_KERNEL);
-    if(sem==NULL)
-    { printk(KERN_ERR "DMSDOS: mount_stacker: out of memory\n");
-      free_dblsb(dblsb);
-      MSDOS_SB(sb)->private_data=NULL;
-      MOD_DEC_USE_COUNT;
-      return -1;
-    }  
-    init_MUTEX(sem);
-    dblsb->mdfat_alloc_semp=sem;
-  }
-#endif
 
   dblsb->s_comp=GUESS;
   dblsb->s_cfaktor=DEFAULT_CF;
@@ -1025,18 +973,12 @@ struct cvf_format dblspace_format = {
   dblspace_fat_access,        /* fat_access */
   NULL,                       /* statfs */
   dblspace_bmap,              /* bmap */
-#ifndef __FOR_KERNEL_2_3_99
   dblspace_smap,              /* smap */
-#endif
   dblspace_file_read,         /* file_read */
   dblspace_file_write,        /* file_write */
   MMAP,                       /* mmap */
-#ifndef __FOR_KERNEL_2_3_99
   READPAGE,                   /* readpage */
   NULL,                       /* writepage */
-#else
-  NULL,                       /* address_space_operations */
-#endif
   dmsdos_ioctl_dir,           /* dir ioctl */
   dblspace_zero_new_cluster   /* zero_new_cluster */
 };
@@ -1060,18 +1002,12 @@ struct cvf_format stacker_format = {
   dblspace_fat_access,        /* fat_access */
   NULL,                       /* statfs */
   dblspace_bmap,              /* bmap */
-#ifndef __FOR_KERNEL_2_3_99
   dblspace_smap,              /* smap */
-#endif
   dblspace_file_read,         /* file_read */
   dblspace_file_write,        /* file_write */
   MMAP,                       /* mmap */
-#ifndef __FOR_KERNEL_2_3_99
   READPAGE,                   /* readpage */
   NULL,                       /* writepage */
-#else
-  NULL,                       /* address_space_operations */
-#endif          
   dmsdos_ioctl_dir,           /* dir ioctl */
   dblspace_zero_new_cluster   /* zero_new_cluster */
 };

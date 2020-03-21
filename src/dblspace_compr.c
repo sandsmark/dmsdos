@@ -26,18 +26,9 @@ See file COPYING for details.
 
 */
 
-#ifdef __KERNEL__
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/malloc.h>
-#include <linux/fs.h>
-#include <linux/msdos_fs.h>
-#include <asm/byteorder.h>
-#endif
-
 #include "dmsdos.h"
 
-#if defined(__KERNEL__)||defined(__DMSDOS_LIB__)
+#if defined(__DMSDOS_LIB__)
 extern unsigned long dmsdos_speedup;
 #endif
 
@@ -351,7 +342,7 @@ int dbl_compress(__u8* clusterk, __u8* clusterd, int size,
   return -1;
 }
 
-#if defined(__KERNEL__)||defined(__DMSDOS_LIB__)
+#if defined(__DMSDOS_LIB__)
 #ifdef DMSDOS_CONFIG_DRVSP3
 int write_fragmented(struct super_block*sb,unsigned char*fraglist,
                       unsigned char*clusterk,Mdfat_entry*mde,int ksize)
@@ -708,4 +699,4 @@ int dmsdos_write_cluster(struct super_block*sb,
   return ret;
 }
 
-#endif /*__KERNEL__ || __DMSDOS_LIB__*/
+#endif /* __DMSDOS_LIB__*/

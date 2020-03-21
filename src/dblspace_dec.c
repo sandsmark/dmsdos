@@ -26,23 +26,6 @@ See file COPYING for details.
 
 */
 
-#ifdef __KERNEL__
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/stat.h>
-#include <linux/mm.h>
-#include <linux/locks.h>
-#include <linux/fs.h>
-#include <linux/malloc.h>
-#include <linux/msdos_fs.h>
-#include <asm/system.h>
-#include <asm/segment.h>
-#include <asm/bitops.h>
-#include <asm/byteorder.h>
-#endif
-
 #include "dmsdos.h"
 
 #ifdef __DMSDOS_LIB__

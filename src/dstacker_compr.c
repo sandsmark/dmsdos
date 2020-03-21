@@ -26,28 +26,6 @@ See file COPYING for details.
 
 */
 
-#ifdef __KERNEL__
-#include <linux/sched.h>
-#include <linux/ctype.h>
-#include <linux/major.h>
-#include <linux/blkdev.h>
-#include <linux/fs.h>
-#include <linux/stat.h>
-#include <linux/locks.h>
-#include <asm/segment.h>
-#include <linux/mm.h>
-#include <linux/malloc.h>
-#include <linux/string.h>
-#include <linux/msdos_fs.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/shm.h>
-#include <linux/mman.h>
-#include <asm/system.h>
-#include <asm/byteorder.h>
-#include <asm/unaligned.h>
-#endif
-
 #include "dmsdos.h"
 
 #ifdef __DMSDOS_LIB__
@@ -1029,7 +1007,7 @@ int stac_compress(unsigned char* pin,int lin, unsigned char* pout, int lout,
    the compressed data may still do.
 */   
 
-#if defined(__KERNEL__)||defined(__DMSDOS_LIB__)
+#if defined(__DMSDOS_LIB__)
 
 int stac_write_cluster(struct super_block*sb,
 		       unsigned char* clusterd, int length, int clusternr,
@@ -1229,6 +1207,6 @@ int stac_write_cluster(struct super_block*sb,
   return res;
 }
 
-#endif /*__KERNEL__||__DMSDOS_LIB__*/
+#endif /* __DMSDOS_LIB__*/
 
 #endif /* DMSDOS_CONFIG_STAC */
