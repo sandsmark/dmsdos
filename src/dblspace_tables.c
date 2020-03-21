@@ -37,6 +37,7 @@ See file COPYING for details.
 #endif
 
 #include <string.h>
+#include <stdint.h>
 
 Acache mdfat[MDFATCACHESIZE];
 Acache dfat[DFATCACHESIZE];
@@ -562,7 +563,7 @@ dfat_error:
 
     res=dfat[merk_i].a_buffer->b_data[offset];
     res&=0xff; /* grmpf... sign problems !!!! this is brutal but it works */
-    res|=dfat[merk_i2].a_buffer->b_data[offset2]<<8;
+    res |= (uint16_t)(dfat[merk_i2].a_buffer->b_data[offset2])<<8;
     res&=0xffff;
 
     if (new) {
