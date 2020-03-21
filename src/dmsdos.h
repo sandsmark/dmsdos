@@ -195,7 +195,7 @@ See file COPYING for details.
 #define DS_0_1 0x01005344
 #define DS_0_2 0x02005344
 #define JM_0_0 0x00004D4A
-/* drivespace 3 high compression */ 
+/* drivespace 3 high compression */
 #define JM_0_1 0x01004D4A
 /* drivespace 3 ultra compression */
 #define SQ_0_0 0x00005153
@@ -214,25 +214,25 @@ See file COPYING for details.
                            ?dblsb->s_sectperclust+1                   \
                            :10*dblsb->s_sectperclust )
 
-typedef struct
-{ unsigned long free_sectors;
-  unsigned long used_sectors;
-  unsigned long max_hole;
-  unsigned long free_clusters;
-  unsigned long used_clusters;
-  unsigned long lost_clusters;
-  unsigned long sectors_lo;
-  unsigned long sectors_hi;
-  unsigned long compressed_clusters;
-  unsigned long uncompressed_clusters;
-} Dblstat;                                                            
+typedef struct {
+    unsigned long free_sectors;
+    unsigned long used_sectors;
+    unsigned long max_hole;
+    unsigned long free_clusters;
+    unsigned long used_clusters;
+    unsigned long lost_clusters;
+    unsigned long sectors_lo;
+    unsigned long sectors_hi;
+    unsigned long compressed_clusters;
+    unsigned long uncompressed_clusters;
+} Dblstat;
 
-typedef struct
-{ long sector_minus_1;
-  short size_lo_minus_1;
-  short size_hi_minus_1;
-  short unknown; /* some bits I don't know to handle.... */
-  short flags; /* 00...0uc - u=used, c=compressed */ 
+typedef struct {
+    long sector_minus_1;
+    short size_lo_minus_1;
+    short size_hi_minus_1;
+    short unknown; /* some bits I don't know to handle.... */
+    short flags; /* 00...0uc - u=used, c=compressed */
 } Mdfat_entry;
 
 /* flag values */
@@ -244,28 +244,28 @@ typedef struct
                             the daemon */
 /* this must be known outside the kernel too */
 typedef struct {
-  int s_dcluster;/*[45-46]*/
-  int s_mdfatstart;/*[36-37]+1*/
-  int s_fatstart;/*[39-40]+[14-15]*/ 
-  int s_rootdir;/*[41-42]+[39-40]*/
-  int s_rootdirentries;
-  int s_sectperclust;
-  int s_spc_bits;
-  int s_16bitfat;
-  int s_datastart;
-  int s_dataend;
-  int s_comp;
-  int s_bootblock;/*[39-40]*/
-  int s_cfaktor;
-  int s_full;
-  int s_max_cluster;
-  int s_max_cluster2;
-  int s_cvf_version;   /* dblsp/drvsp/drvsp3/stac3/stac4 */
-  int s_2nd_fat_offset;
-  int s_lastnear;
-  int s_lastbig;
-  int s_free_sectors;
-  void * mdfat_alloc_semp;
+    int s_dcluster;/*[45-46]*/
+    int s_mdfatstart;/*[36-37]+1*/
+    int s_fatstart;/*[39-40]+[14-15]*/
+    int s_rootdir;/*[41-42]+[39-40]*/
+    int s_rootdirentries;
+    int s_sectperclust;
+    int s_spc_bits;
+    int s_16bitfat;
+    int s_datastart;
+    int s_dataend;
+    int s_comp;
+    int s_bootblock;/*[39-40]*/
+    int s_cfaktor;
+    int s_full;
+    int s_max_cluster;
+    int s_max_cluster2;
+    int s_cvf_version;   /* dblsp/drvsp/drvsp3/stac3/stac4 */
+    int s_2nd_fat_offset;
+    int s_lastnear;
+    int s_lastbig;
+    int s_free_sectors;
+    void *mdfat_alloc_semp;
 } Dblsb;
 
 #define DBLSP   0
@@ -285,11 +285,11 @@ typedef struct {
 #define UMOUNT_UCFLAG ((dmsdos_speedup&SP_NO_UNMOUNT_COMPR)?UC_UNCOMPR:UC_DIRECT)
 
 typedef struct {
-  struct buffer_head * a_buffer;
-  unsigned int a_area;
-  unsigned long a_time;
-  struct super_block* a_sb;
-  unsigned int a_acc;
+    struct buffer_head *a_buffer;
+    unsigned int a_area;
+    unsigned long a_time;
+    struct super_block *a_sb;
+    unsigned int a_acc;
 } Acache;
 
 #define C_FREE 0                /* cluster cache entry is free */
@@ -298,94 +298,94 @@ typedef struct {
 #define C_DIRTY_UNCOMPR 3       /* like VALID but data need to be written */
 #define C_DELETED 4             /* like VALID but last request was a delete */
 #define C_INVALID 5             /* data are junk but valid memory adress */
-#define C_NOT_MALLOCD 6         /* data pointer is not a valid address */ 
+#define C_NOT_MALLOCD 6         /* data pointer is not a valid address */
 
 #define C_KEEP_LOCK 1
 #define C_NO_READ 2
 
-int dbl_mdfat_value(struct super_block*sb, int clusternr,
-                     Mdfat_entry*new,Mdfat_entry*mde);
-int dbl_fat_nextcluster(struct super_block*sb,int clusternr,int*);
-int dbl_bitfat_value(struct super_block*sb,int sektornr,int*);
-void exit_dbl(struct super_block*sb);
-int find_free_bitfat(struct super_block*sb, int sektornr, int size);
-int dbl_replace_existing_cluster(struct super_block*sb, int cluster, 
-                             int near_sector,
-                             Mdfat_entry*,unsigned char*);
-int stac_replace_existing_cluster(struct super_block*sb, int cluster, 
-                             int near_sector,
-                             Mdfat_entry*);
-int dbl_compress(unsigned char* clusterk, unsigned char* clusterd, 
-                      int size, int method,int);
+int dbl_mdfat_value(struct super_block *sb, int clusternr,
+                    Mdfat_entry *new,Mdfat_entry *mde);
+int dbl_fat_nextcluster(struct super_block *sb,int clusternr,int *);
+int dbl_bitfat_value(struct super_block *sb,int sektornr,int *);
+void exit_dbl(struct super_block *sb);
+int find_free_bitfat(struct super_block *sb, int sektornr, int size);
+int dbl_replace_existing_cluster(struct super_block *sb, int cluster,
+                                 int near_sector,
+                                 Mdfat_entry *,unsigned char *);
+int stac_replace_existing_cluster(struct super_block *sb, int cluster,
+                                  int near_sector,
+                                  Mdfat_entry *);
+int dbl_compress(unsigned char *clusterk, unsigned char *clusterd,
+                 int size, int method,int);
 #if 0
-int stac_compress(void* pin,int lin, void* pout, int lout,
+int stac_compress(void *pin,int lin, void *pout, int lout,
                   int method, int cfaktor);
 #else
-int stac_compress(unsigned char* pin,int lin, unsigned char* pout, int lout,
+int stac_compress(unsigned char *pin,int lin, unsigned char *pout, int lout,
                   int method, int cfaktor);
 #endif
-int sq_comp(void* pin,int lin, void* pout, int lout, int flg);
-int dbl_decompress(unsigned char*clusterd, unsigned char*clusterk,
-               Mdfat_entry*mde);
-int dmsdos_write_cluster(struct super_block*sb,
-                         unsigned char* clusterd, int length, int clusternr,
+int sq_comp(void *pin,int lin, void *pout, int lout, int flg);
+int dbl_decompress(unsigned char *clusterd, unsigned char *clusterk,
+                   Mdfat_entry *mde);
+int dmsdos_write_cluster(struct super_block *sb,
+                         unsigned char *clusterd, int length, int clusternr,
                          int near_sector, int ucflag);
 
 #define CHS(i) ( (unsigned short)i[0]|(unsigned short)i[1]<<8 )
 #define CHL(i) ( (unsigned long)i[0]|(unsigned long)i[1]<<8| \
                  (unsigned long)i[2]<<16|(unsigned long)i[3]<<24 )
 
-int dbl_mdfat_cluster2sector(struct super_block*sb,int clusternr);
-int simple_check(struct super_block*sb,int repair);
+int dbl_mdfat_cluster2sector(struct super_block *sb,int clusternr);
+int simple_check(struct super_block *sb,int repair);
 void do_spc_init(void);
 void do_spc_exit(void);
-void lock_mdfat_alloc(Dblsb*);
-void unlock_mdfat_alloc(Dblsb*);
-void free_cluster_sectors(struct super_block*sb, int clusternr);
-void stac_special_free(struct super_block*sb, int clusternr);
-int stac_write_cluster(struct super_block*sb,
-                       unsigned char* clusterd, int length, int clusternr,
+void lock_mdfat_alloc(Dblsb *);
+void unlock_mdfat_alloc(Dblsb *);
+void free_cluster_sectors(struct super_block *sb, int clusternr);
+void stac_special_free(struct super_block *sb, int clusternr);
+int stac_write_cluster(struct super_block *sb,
+                       unsigned char *clusterd, int length, int clusternr,
                        int near_sector, int ucflag);
-int stac_read_cluster(struct super_block*sb,unsigned char*clusterd,
+int stac_read_cluster(struct super_block *sb,unsigned char *clusterd,
                       int clusternr);
 void free_idle_cache(void);
 void free_idle_ccache(void);
 void ccache_init(void);
-void free_ccache_dev(struct super_block*sb);
+void free_ccache_dev(struct super_block *sb);
 
 void sync_cluster_cache(int allow_daemon);
-void delete_cache_cluster(struct super_block*sb, int clusternr);
+void delete_cache_cluster(struct super_block *sb, int clusternr);
 void log_list_statistics(void);
 void log_ccache_statistics(void);
 void log_found_statistics(void);
-int sq_dec(void* pin,int lin, void* pout, int lout, int flg);
-                                               
+int sq_dec(void *pin,int lin, void *pout, int lout, int flg);
+
 /* Stacker cluster allocation types access */
 
 #if defined(__DMSDOS_LIB__)
 /* structure for walking/working with each sector of cluster */
 typedef struct {
-  struct super_block*sb;
-  int clusternr;
-  int start_sect;
-  int start_len;
-  int flags;
-  int sect_cnt;
-  int compressed;
-  int bytes_in_last;
-  int bytes_in_clust;
-  struct buffer_head *fbh; /* first sector of fragmented clust */
-  /* changes during fragments reads */
-  int fcnt;	/* count of unreaded fragments */
-  int flen;	/* rest sectors in fragment */
-  int sect;	/* actual sector */
-  int offset;	/* byte offset in sector */
-  int bytes;	/* number of data bytes in sector */
-  unsigned char* finfo;	/* points to actual field in fbh */
+    struct super_block *sb;
+    int clusternr;
+    int start_sect;
+    int start_len;
+    int flags;
+    int sect_cnt;
+    int compressed;
+    int bytes_in_last;
+    int bytes_in_clust;
+    struct buffer_head *fbh; /* first sector of fragmented clust */
+    /* changes during fragments reads */
+    int fcnt;	/* count of unreaded fragments */
+    int flen;	/* rest sectors in fragment */
+    int sect;	/* actual sector */
+    int offset;	/* byte offset in sector */
+    int bytes;	/* number of data bytes in sector */
+    unsigned char *finfo;	/* points to actual field in fbh */
 } Stac_cwalk;
 
-int stac_cwalk_init(Stac_cwalk *cw,struct super_block*sb,
-		 int clusternr,int flg);
+int stac_cwalk_init(Stac_cwalk *cw,struct super_block *sb,
+                    int clusternr,int flg);
 int stac_cwalk_sector(Stac_cwalk *cw);
 void stac_cwalk_done(Stac_cwalk *cw);
 #endif /* __DMSDOS_LIB__*/
@@ -432,88 +432,88 @@ int log_prseq(void);
 #endif
 
 struct buffer_head *raw_bread (
-        struct super_block *sb,
-        int block);
+    struct super_block *sb,
+    int block);
 struct buffer_head *raw_getblk (
-        struct super_block *sb,
-        int block);
+    struct super_block *sb,
+    int block);
 void raw_brelse (
-        struct super_block *sb,
-        struct buffer_head *bh);
+    struct super_block *sb,
+    struct buffer_head *bh);
 void raw_mark_buffer_dirty (
-        struct super_block *sb,
-        struct buffer_head *bh,
-        int dirty_val);
+    struct super_block *sb,
+    struct buffer_head *bh,
+    int dirty_val);
 void raw_set_uptodate (
-        struct super_block *sb,
-        struct buffer_head *bh,
-        int val);
+    struct super_block *sb,
+    struct buffer_head *bh,
+    int val);
 int raw_is_uptodate (
-        struct super_block *sb,
-        struct buffer_head *bh);
+    struct super_block *sb,
+    struct buffer_head *bh);
 void raw_ll_rw_block (
-        struct super_block *sb,
-        int opr,
-        int nbreq,
-        struct buffer_head *bh[32]);
+    struct super_block *sb,
+    int opr,
+    int nbreq,
+    struct buffer_head *bh[32]);
 
 #define FAKED_ROOT_DIR_OFFSET 1
 #define FAKED_DATA_START_OFFSET 1000
-int dmsdos_read_cluster(struct super_block*sb,
-                        unsigned char*clusterd, int clusternr);
+int dmsdos_read_cluster(struct super_block *sb,
+                        unsigned char *clusterd, int clusternr);
 
-struct buffer_head* dblspace_bread(struct super_block*sb,int vsector);
+struct buffer_head *dblspace_bread(struct super_block *sb,int vsector);
 struct buffer_head *dblspace_getblk (
-        struct super_block *sb,
-        int block);
-void dblspace_brelse(struct super_block* sb,struct buffer_head*bh);
-void dblspace_mark_buffer_dirty(struct super_block*sb,struct buffer_head*bh,
+    struct super_block *sb,
+    int block);
+void dblspace_brelse(struct super_block *sb,struct buffer_head *bh);
+void dblspace_mark_buffer_dirty(struct super_block *sb,struct buffer_head *bh,
                                 int dirty_val);
 void dblspace_set_uptodate (
-        struct super_block *sb,
-        struct buffer_head *bh,
-        int val);
+    struct super_block *sb,
+    struct buffer_head *bh,
+    int val);
 int dblspace_is_uptodate (
-        struct super_block *sb,
-        struct buffer_head *bh);
+    struct super_block *sb,
+    struct buffer_head *bh);
 void dblspace_ll_rw_block (
-        struct super_block *sb,
-        int opr,
-        int nbreq,
-        struct buffer_head *bh[32]);
-int stac_bitfat_state(struct super_block*sb,int new_state);
-int dblspace_fat_access(struct super_block*sb, int clusternr,int newval);
+    struct super_block *sb,
+    int opr,
+    int nbreq,
+    struct buffer_head *bh[32]);
+int stac_bitfat_state(struct super_block *sb,int new_state);
+int dblspace_fat_access(struct super_block *sb, int clusternr,int newval);
 
-int ds_dec(void* pin,int lin, void* pout, int lout, int flg);
+int ds_dec(void *pin,int lin, void *pout, int lout, int flg);
 
-int try_daemon(struct super_block*sb,int clusternr, int length, int method);
-void remove_from_daemon_list(struct super_block*sb,int clusternr);
+int try_daemon(struct super_block *sb,int clusternr, int length, int method);
+void remove_from_daemon_list(struct super_block *sb,int clusternr);
 void force_exit_daemon(void);
-void dblspace_reada(struct super_block*sb, int sector,int count);
+void dblspace_reada(struct super_block *sb, int sector,int count);
 void init_reada_list(void);
 void kill_reada_list_dev(int dev);
-int daemon_write_cluster(struct super_block*sb,unsigned char*data,
+int daemon_write_cluster(struct super_block *sb,unsigned char *data,
                          int len, int clusternr, int rawlen);
-void check_free_sectors(struct super_block*sb);
-void get_memory_usage_acache(int*, int*max);
-void get_memory_usage_ccache(int*, int*max);
-int mount_dblspace(struct super_block*sb,char*options);
-int mount_stacker(struct super_block*sb,char*options);
-int detect_dblspace(struct super_block*sb);
-int detect_stacker(struct super_block*sb);
-int unmount_dblspace(struct super_block*sb);
+void check_free_sectors(struct super_block *sb);
+void get_memory_usage_acache(int *, int *max);
+void get_memory_usage_ccache(int *, int *max);
+int mount_dblspace(struct super_block *sb,char *options);
+int mount_stacker(struct super_block *sb,char *options);
+int detect_dblspace(struct super_block *sb);
+int detect_stacker(struct super_block *sb);
+int unmount_dblspace(struct super_block *sb);
 
-typedef struct
-{ int clusternr;
-  struct super_block*sb;
-  int length;   /* in bytes */
-  char flag;
-  int method;
+typedef struct {
+    int clusternr;
+    struct super_block *sb;
+    int length;   /* in bytes */
+    char flag;
+    int method;
 } Rwlist;
 
 void init_daemon(void);
 void exit_daemon(void);
-void clear_list_dev(struct super_block*sb);
+void clear_list_dev(struct super_block *sb);
 
 /* speedup bits */
 #define SP_NO_DIR_COMPR 0x0001
@@ -526,11 +526,11 @@ void clear_list_dev(struct super_block*sb);
 #define SP_USE_DAEMON 0x0080
 #define SP_NO_FRAG_WRITE 0x0100
 
-typedef struct
-{ int ccachebytes;
-  int max_ccachebytes;
-  int acachebytes;
-  int max_acachebytes;
+typedef struct {
+    int ccachebytes;
+    int max_ccachebytes;
+    int acachebytes;
+    int max_acachebytes;
 } Memuse;
 
 
@@ -569,7 +569,7 @@ typedef struct
 #define IS_DMSDOS_IOCTL(cmd) ((cmd)>=DMSDOS_IOCTL_MIN&&(cmd)<=DMSDOS_IOCTL_MAX)
 
 /* dmsdos library interface */
-struct super_block* open_cvf(char*filename,int rwflag);
-void close_cvf(struct super_block*sb);
+struct super_block *open_cvf(char *filename,int rwflag);
+void close_cvf(struct super_block *sb);
 
 #endif
