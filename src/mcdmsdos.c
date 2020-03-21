@@ -138,6 +138,15 @@ static void print_filename(const unsigned char *filename)
     }
 }
 
+#define ENTRY_READ_ONLY 0x1
+#define ENTRY_HIDDEN 0x2
+#define ENTRY_SYSTEM 0x3
+#define ENTRY_VOLUME_LABEL 0x8
+#define ENTRY_SUB_DIR 0x10
+#define ENTRY_ARCHIVE 0x20
+#define ENTRY_DEVICE 0x40
+#define ENTRY_RESERVED 0x80
+
 int display_dir_cluster(int nr, int rek, char *prefix)
 {
     unsigned char *data;
@@ -181,7 +190,9 @@ int display_dir_cluster(int nr, int rek, char *prefix)
 
         if (data[j]==0xe5) { continue; }
 
-        if (data[j+11]&8) { continue; }
+        const uint8_t entry_flags = data[j + 11];
+
+        if (entry_flags & ENTRY_VOLUME_LABEL) { continue; }
 
         if (data[j]=='.') { continue; }
 
@@ -198,38 +209,38 @@ int display_dir_cluster(int nr, int rek, char *prefix)
             }
         }
 
-        if (data[j+11]&16) { printf("dr"); }
+        if (entry_flags&16) { printf("dr"); }
         else { printf("-r"); }
 
-        if (data[j+11]&1) { printf("-"); }
+        if (entry_flags & ENTRY_READ_ONLY) { printf("-"); }
         else { printf("w"); }
 
         printf("xr-xr-x 1 0 0"); /* bogus values :) */
 
         printf("  ");
 
-        if (data[j+11]&1) { printf("R"); }
+        if (entry_flags & ENTRY_READ_ONLY) { printf("R"); }
         else { printf(" "); }
 
-        if (data[j+11]&2) { printf("H"); }
+        if (entry_flags & ENTRY_HIDDEN) { printf("H"); }
         else { printf(" "); }
 
-        if (data[j+11]&4) { printf("S"); }
+        if (entry_flags & ENTRY_SYSTEM) { printf("S"); }
         else { printf(" "); }
 
-        if (data[j+11]&8) { printf("V"); }
+        if (entry_flags & ENTRY_VOLUME_LABEL) { printf("V"); }
         else { printf(" "); }
 
-        if (data[j+11]&16) { printf("D"); }
+        if (entry_flags & ENTRY_SUB_DIR) { printf("D"); }
         else { printf(" "); }
 
-        if (data[j+11]&32) { printf("A"); }
+        if (entry_flags & ENTRY_ARCHIVE) { printf("A"); }
         else { printf(" "); }
 
-        if (data[j+11]&64) { printf("?"); }
+        if (entry_flags & ENTRY_DEVICE) { printf("?"); }
         else { printf(" "); }
 
-        if (data[j+11]&128) { printf("?"); }
+        if (entry_flags & ENTRY_RESERVED) { printf("?"); }
         else { printf(" "); }
 
         pp=&(data[j+28]);
@@ -238,7 +249,11 @@ int display_dir_cluster(int nr, int rek, char *prefix)
 
         pp=&(data[j+24]);
         x=CHS(pp);
-        printf(" %02d.%02d.%02d",x&31,(x>>5)&15,(x>>9)+80);
+        int shortyear = ((x>>9)+80);
+        if (shortyear > 99) {
+            shortyear -= 99;
+        }
+        printf(" %02d.%02d.%02d", x & 31, (x>>5)&15, shortyear);
         printf(" %s",datestr[(x>>5)&15]);
         printf(" %02d",x&31);
         printf(" %04d",(x>>9)+1980); /* y2k compliant :) */
@@ -256,7 +271,7 @@ int display_dir_cluster(int nr, int rek, char *prefix)
         print_filename(filename);
         printf("\n");
 
-        if ((data[j+11]&16)!=0&&rek!=0&&filename[0]!='.') {
+        if ((entry_flags & ENTRY_SUB_DIR) !=0 && rek !=0 && filename[0]!='.') {
             char *nprefix;
             nprefix=malloc(strlen(prefix)+20);
 
