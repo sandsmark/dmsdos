@@ -1,3 +1,5 @@
 *.lo
 *.a
 src/mcdmsdos
+src/dmsdost-config.h
+src/.config
