@@ -192,7 +192,7 @@ rchain:
             if (next==FAT_EOF) { continue; }
 
             if (next==0||next>dblsb->s_max_cluster) {
-                printf("chain breaks unexpectedly.\n");
+                vprintf("chain breaks unexpectedly.\n");
 
                 if (repair("Set proper end?")==0) { ++errors; }
                 else {
@@ -250,17 +250,41 @@ void free_namelist(struct nametest **namelist)
     *namelist=NULL;
 }
 
+
 int check_char(unsigned char c,int noprint)
 {
     if (c==0x5) { c=0xE5; } /* M$ hack for languages where E5 is a valid char */
 
-    if (c<32||strchr("+\\?*<>|\"=,;",c)!=NULL) {
+    if (c<32 || strchr("+\\?*<>|\"=,;",c)!=NULL) {
         if (!noprint) { lprintf("?"); }
 
         return 1;
     }
+    if (!noprint) {
+        if (c < 127) {
+            lprintf("%c",c);
+            return 0;
+        }
 
-    if (!noprint) { lprintf("%c",c); }
+        // TODO: proper codepage support, this is Code page 865 (DOS Nordic)
+        switch(c) {
+        case 0x92:
+            lprintf("Æ");
+            break;
+        case 0x9c:
+            lprintf("£");
+            break;
+        case 0x9d:
+            lprintf("Ø");
+            break;
+        //case 0xff:
+        //    lprintf(" ");
+        //    break;
+        default:
+            lprintf(" 0x%x ", c);
+            break;
+        }
+    }
 
     return 0;
 }
@@ -336,7 +360,7 @@ int check_direntry(int dirstartclust, unsigned char *data, int *need_write,
     lprintf(" %7lu ",size);
 
     if (invchar) {
-        printf("name has invalid chars, ");
+        printf("name has invalid chars, \n");
 
         if (repair("Replace them?")!=0) {
             for (i=0; i<11; ++i) {
@@ -349,7 +373,7 @@ int check_direntry(int dirstartclust, unsigned char *data, int *need_write,
     }
 
     if (add_name(namelist,data)) {
-        printf("duplicate filename ");
+        printf("duplicate filename '");
 
         for (i=0; i<11; ++i) {
             if (i==8) { printf(" "); }
@@ -357,7 +381,7 @@ int check_direntry(int dirstartclust, unsigned char *data, int *need_write,
             printf("%c",data[i]);
         }
 
-        printf("\n");
+        printf("'\n");
 
         if (repair("Rename?")!=0) {
             char teststr[10];
@@ -436,7 +460,14 @@ int check_direntry(int dirstartclust, unsigned char *data, int *need_write,
         }
 
 irrepdir:
-        printf("directory is irreparably damaged");
+        printf("directory is irreparably damaged: '");
+
+        for (i=0; i<11; ++i) {
+            if (i==8) { printf(" "); }
+
+            printf("%c",data[i]);
+        }
+        printf("'\n");
 
         if (repair("Convert to file?")==0) { return -1; }
 
