@@ -1,3 +1,0 @@
-cmpdisk is a DOS program. See doc/testing.doc for details. The sources are in 
-cmpdisk.cpp. You must compile them under DOS, preferrably with a 16 bit dos
-C compiler. The code was written and tested under Borland C++ 3.1.
