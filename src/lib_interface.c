@@ -362,6 +362,7 @@ int setup_translation(struct super_block*sb,char*ext)
     
   /* scan the root directory for a CVF */
   
+  printf("%d / %d loops, offset %x\n", MSDOS_SB(sb)->dir_entries, MSDOS_DPS, MSDOS_SB(sb));
   for(i=0;i<MSDOS_SB(sb)->dir_entries/MSDOS_DPS;++i)
   { bh=raw_bread(sb,MSDOS_SB(sb)->dir_start+i);
     if(bh==NULL)
@@ -539,7 +540,7 @@ struct super_block *read_super(struct super_block *sb,char*ext)
 	if(!error&&i<0) if (MSDOS_SB(sb)->clusters+2 > fat_clusters)
 		MSDOS_SB(sb)->clusters = fat_clusters-2;
 	if (error) {
-			printk("Can't find a valid MSDOS CVF filesystem\n");
+			printk("Can't find a valid MSDOS CVF filesystem (error: %d)\n", error);
 		if(MSDOS_SB(sb)->private_data)kfree(MSDOS_SB(sb)->private_data);
 		MSDOS_SB(sb)->private_data=NULL;
 		return NULL;
