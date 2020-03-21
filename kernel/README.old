@@ -1,0 +1,100 @@
+dmsdos-0.9.2.1.tgz *public release*
+             Bugfixes for compiling and running dmsdos under 2.2.x kernels. 
+             Comes with all important bugfix patches for 2.2.x (x<3) kernels
+             These bugs *are* no longer present in kernel 2.2.3 and newer :)
+             Well of course it works still with the late 2.0 kernels too.
+
+             For some kernels this release requires the fat_add_cluster
+             bugfix patch. See below.
+
+             WARNING: Do not use this release under 2.3.xx or even 2.4
+             kernels! Compiling may succeed, but it will definitely not
+             work (changes in filesystem area are too big).
+
+add_cluster_bugfix.patch:
+             Fixes a problem with write access (write access fails with
+             "no space left on device" and "DMSDOS: fat_add_cluster failed"
+             though there is *much* free space on the disk).
+             The bug is present at least in Linux 2.2.13/14 and maybe newer
+             kernels, too. It is currently not known in which kernel the bug
+             started to exist. So if you get those strange errors listed
+             above, try this patch.
+
+dmsdos-0.9.2.3-pre2.tgz *experimental test release for alpha testers only*
+             Experimental support for kernel 2.3.99 and probably 2.4 kernels.
+             WARNING THIS CODE IS KNOWN TO CAUSE MEMORY CORRUPTION. IT MAY 
+             CRASH, HANG YOUR SYSTEM AND DESTROY YOUR DATA. Be very careful 
+             with this release.
+             There is no reason for using this release with 2.2 or older
+             kernels. No changes, no bugfixes, just support for 2.3.99.
+
+             NOTE: in dmsdos configuration you *must* disable writable mmap
+             (dmsdos expert configuration->misc options).
+
+             TEST STATUS: walk through directories with ls, cd, mc: ok
+                          read files with cat: ok
+                          write files: untested
+                          mmap (with mc): first looks ok, then crash 
+                               probably due to random memory corruption :((
+                               Any ideas?
+
+List of latest problems with dmsdos 0.9.2.1:
+
+> When I compile dmsdos, I get an error like this :
+>
+> /usr/src/dmsdos/src/# make
+> dblspace_compr.c: In function 'dbl_write_cluster':
+> dblspace_compr.c:452: structure has no member named 'private_data'
+> dblspace_compr.c: In function 'check_free_sectors':
+> dblspace_compr.c:620: structure has no member named 'private_data'
+> dblspace_compr.c: In function 'dmsdos_write_cluster':
+> dblspace_compr.c:671: structure has no member named 'private_data'
+> make: *** [dblspace_compr.o] Error 1
+
+This problem seems specific to Debian 2.1. I have been reported that
+the links /usr/include/linux and /usr/include/asm are wrong, but you may
+want to check for other things as well.
+
+The element private_data is defined in struct msdos_sb_info in file
+linux/include/linux/msdos_fs_sb.h. You can verify this by looking at this
+file, even if you do not know C programming :)
+
+Possible reasons for the problem are:
+- Only under 2.0.xx kernels: You have not applied the CVF-FAT patch.
+- The file is damaged or plain wrong. Maybe your kernel sources are
+  somewhat messed up by patching. In that case, getting fresh kernel
+  sources from the net should help.
+- The compiler finds another file with the same name somewhere in the
+  include path before the right file. This can be caused by wrong symlinks
+  /usr/src/linux (should point to real kernel source directory) or
+  /usr/include/linux (should point to /usr/src/linux/include/linux).
+  As a last resort, you can run strace on the make process in order to
+  find out which file the compiler opens.
+- The compiler is broken (unlikely, but for example the compiler in
+  Slackware 3.5 is somewhat strange and doesn't even compile the kernel).
+
+> [root@localhost src]# insmod dmsdos.o
+> dmsdos.o: kernel-module version mismatch
+>         dmsdos.o was compiled for kernel version 2.0.35
+>         while this kernel is version 2.0.36.
+
+I guess the problem is the kernel you have installed in /usr/src/linux
+and the kernel you are currently running do not match. This results in a
+dmsdos module that matches the kernel in /usr/src/linux. As a consequence,
+the dmsdos module and the kernel you are currently running do not match.
+
+* currently running kernel version is printed by 'uname -a'.
+* kernel in /usr/src/linux: version is listed in the first three lines
+  of the Makefile in /usr/src/linux.
+
+These two _must_ match before compiling dmsdos (as written in the dmsdos
+installation notes). Please verify this. If necessary, install the right
+kernel sources and restart from the beginning :)
+
+If this all is not true, i.e. kernel version printed by 'uname -a' and
+listed in the Makefile in /usr/src/linux _do_ match then there is probably
+an old dmsdos.o file lying around in your modules path, so insmod finds that
+old file before the right one. In that case you have to find the old file
+and remove it. Another reason for that problem may be outdated module
+utilities, but then other modules won't load too.
+
