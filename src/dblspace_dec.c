@@ -80,9 +80,9 @@ struct {
     __u16 *pe;	/* after end of data */
 } bits_t;
 
-const unsigned dblb_bmsk[]= {
-    0x0,0x1,0x3,0x7,0xF,0x1F,0x3F,0x7F,0xFF,
-    0x1FF,0x3FF,0x7FF,0xFFF,0x1FFF,0x3FFF,0x7FFF,0xFFFF
+const unsigned dblb_bmsk[] = {
+    0x0, 0x1, 0x3, 0x7, 0xF, 0x1F, 0x3F, 0x7F, 0xFF,
+    0x1FF, 0x3FF, 0x7FF, 0xFFF, 0x1FFF, 0x3FFF, 0x7FFF, 0xFFFF
 };
 
 /* read next 16 bits from input */
@@ -104,49 +104,49 @@ const unsigned dblb_bmsk[]= {
    }
 
 /* initializes reading from bitstream */
-INLINE void dblb_rdi(bits_t *pbits,void *pin,unsigned lin)
+INLINE void dblb_rdi(bits_t *pbits, void *pin, unsigned lin)
 {
-    pbits->pb=32;
-    pbits->pd=(__u16 *)pin;
-    pbits->pe=pbits->pd+((lin+1)>>1);
+    pbits->pb = 32;
+    pbits->pd = (__u16 *)pin;
+    pbits->pe = pbits->pd + ((lin + 1) >> 1);
 }
 
 /* reads n<=16 bits from bitstream *pbits */
-INLINE unsigned dblb_rdn(bits_t *pbits,int n)
+INLINE unsigned dblb_rdn(bits_t *pbits, int n)
 {
     unsigned u;
-    RDN_PR(*pbits,u);
-    pbits->pb+=n;
-    u&=dblb_bmsk[n];
+    RDN_PR(*pbits, u);
+    pbits->pb += n;
+    u &= dblb_bmsk[n];
     return u;
 }
 
 INLINE int dblb_rdoffs(bits_t *pbits)
 {
     unsigned u;
-    RDN_PR(*pbits,u);
+    RDN_PR(*pbits, u);
 
-    switch (u&3) {
+    switch (u & 3) {
     case 0:
     case 2:
-        pbits->pb+=1+6;
-        return 63&(u>>1);
+        pbits->pb += 1 + 6;
+        return 63 & (u >> 1);
 
     case 1:
-        pbits->pb+=2+8;
-        return (255&(u>>2))+64;
+        pbits->pb += 2 + 8;
+        return (255 & (u >> 2)) + 64;
     }
 
-    pbits->pb+=2+12;
-    return (4095&(u>>2))+320;
+    pbits->pb += 2 + 12;
+    return (4095 & (u >> 2)) + 320;
 }
 
 INLINE int dblb_rdlen(bits_t *pbits)
 {
     unsigned u;
-    RDN_PR(*pbits,u);
+    RDN_PR(*pbits, u);
 
-    switch (u&15) {
+    switch (u & 15) {
     case  1:
     case  3:
     case  5:
@@ -162,23 +162,23 @@ INLINE int dblb_rdlen(bits_t *pbits)
     case  6:
     case 10:
     case 14:
-        pbits->pb+=2+1;
-        return (1&(u>>2))+4;
+        pbits->pb += 2 + 1;
+        return (1 & (u >> 2)) + 4;
 
     case  4:
     case 12:
-        pbits->pb+=3+2;
-        return (3&(u>>3))+6;
+        pbits->pb += 3 + 2;
+        return (3 & (u >> 3)) + 6;
 
     case  8:
-        pbits->pb+=4+3;
-        return (7&(u>>4))+10;
+        pbits->pb += 4 + 3;
+        return (7 & (u >> 4)) + 10;
 
     case  0:
         ;
     }
 
-    switch ((u>>4)&15) {
+    switch ((u >> 4) & 15) {
     case  1:
     case  3:
     case  5:
@@ -187,32 +187,32 @@ INLINE int dblb_rdlen(bits_t *pbits)
     case 11:
     case 13:
     case 15:
-        pbits->pb+=5+4;
-        return (15&(u>>5))+18;
+        pbits->pb += 5 + 4;
+        return (15 & (u >> 5)) + 18;
 
     case  2:
     case  6:
     case 10:
     case 14:
-        pbits->pb+=6+5;
-        return (31&(u>>6))+34;
+        pbits->pb += 6 + 5;
+        return (31 & (u >> 6)) + 34;
 
     case  4:
     case 12:
-        pbits->pb+=7+6;
-        return (63&(u>>7))+66;
+        pbits->pb += 7 + 6;
+        return (63 & (u >> 7)) + 66;
 
     case  8:
-        pbits->pb+=8+7;
-        return (127&(u>>8))+130;
+        pbits->pb += 8 + 7;
+        return (127 & (u >> 8)) + 130;
 
     case  0:
         ;
     }
 
-    pbits->pb+=9;
+    pbits->pb += 9;
 
-    if (u&256) { return dblb_rdn(pbits,8)+258; }
+    if (u & 256) { return dblb_rdn(pbits, 8) + 258; }
 
     return -1;
 }
@@ -223,33 +223,33 @@ INLINE int dblb_decrep(bits_t *pbits, __u8 **p, void *pout, __u8 *pend,
     int replen;
     __u8 *r;
 
-    if (repoffs==0) {LOG_DECOMP("DMSDOS: decrb: zero offset ?\n"); return -2;}
+    if (repoffs == 0) {LOG_DECOMP("DMSDOS: decrb: zero offset ?\n"); return -2;}
 
-    if (repoffs==0x113f) {
-        int pos=*p-(__u8 *)pout;
+    if (repoffs == 0x113f) {
+        int pos = *p - (__u8 *)pout;
         LOG_DECOMP("DMSDOS: decrb: 0x113f sync found.\n");
 
-        if ((pos%512) && !(flg&0x4000)) {
-            LOG_DECOMP("DMSDOS: decrb: sync at decompressed pos %d ?\n",pos);
+        if ((pos % 512) && !(flg & 0x4000)) {
+            LOG_DECOMP("DMSDOS: decrb: sync at decompressed pos %d ?\n", pos);
             return -2;
         }
 
         return 0;
     }
 
-    replen=dblb_rdlen(pbits)+k;
+    replen = dblb_rdlen(pbits) + k;
 
-    if (replen<=0)
+    if (replen <= 0)
     {LOG_DECOMP("DMSDOS: decrb: illegal count ?\n"); return -2;}
 
-    if ((__u8 *)pout+repoffs>*p)
+    if ((__u8 *)pout + repoffs > *p)
     {LOG_DECOMP("DMSDOS: decrb: of>pos ?\n"); return -2;}
 
-    if (*p+replen>pend)
+    if (*p + replen > pend)
     {LOG_DECOMP("DMSDOS: decrb: output overfill ?\n"); return -2;}
 
-    r=*p-repoffs;
-    M_MOVSB(*p,r,replen);
+    r = *p - repoffs;
+    M_MOVSB(*p, r, replen);
     return 0;
 }
 
@@ -257,124 +257,124 @@ INLINE int dblb_decrep(bits_t *pbits, __u8 **p, void *pout, __u8 *pend,
 /* flg=0x4000 is used, when called from stacker_dec.c, because of
    stacker does not store original cluster size and it can mean,
    that last cluster in file can be ended by garbage */
-int ds_dec(void *pin,int lin, void *pout, int lout, int flg)
+int ds_dec(void *pin, int lin, void *pout, int lout, int flg)
 {
     __u8 *p, *pend;
     unsigned u, repoffs;
     int r;
     bits_t bits;
 
-    dblb_rdi(&bits,pin,lin);
-    p=(__u8 *)pout;
-    pend=p+lout;
+    dblb_rdi(&bits, pin, lin);
+    p = (__u8 *)pout;
+    pend = p + lout;
 
-    if ((dblb_rdn(&bits,16))!=0x5344) { return -1; }
+    if ((dblb_rdn(&bits, 16)) != 0x5344) { return -1; }
 
-    u=dblb_rdn(&bits,16);
-    LOG_DECOMP("DMSDOS: DS decompression version %d\n",u);
+    u = dblb_rdn(&bits, 16);
+    LOG_DECOMP("DMSDOS: DS decompression version %d\n", u);
 
     do {
-        r=0;
-        RDN_PR(bits,u);
+        r = 0;
+        RDN_PR(bits, u);
 
-        switch (u&3) {
+        switch (u & 3) {
         case 0:
-            bits.pb+=2+6;
-            repoffs=(u>>2)&63;
-            r=dblb_decrep(&bits,&p,pout,pend,repoffs,-1,flg);
+            bits.pb += 2 + 6;
+            repoffs = (u >> 2) & 63;
+            r = dblb_decrep(&bits, &p, pout, pend, repoffs, -1, flg);
             break;
 
         case 1:
-            bits.pb+=2+7;
-            *(p++)=(u>>2)|128;
+            bits.pb += 2 + 7;
+            *(p++) = (u >> 2) | 128;
             break;
 
         case 2:
-            bits.pb+=2+7;
-            *(p++)=(u>>2)&127;
+            bits.pb += 2 + 7;
+            *(p++) = (u >> 2) & 127;
             break;
 
         case 3:
-            if (u&4) {  bits.pb+=3+12; repoffs=((u>>3)&4095)+320; }
-            else  {  bits.pb+=3+8;  repoffs=((u>>3)&255)+64; };
+            if (u & 4) {  bits.pb += 3 + 12; repoffs = ((u >> 3) & 4095) + 320; }
+            else  {  bits.pb += 3 + 8;  repoffs = ((u >> 3) & 255) + 64; };
 
-            r=dblb_decrep(&bits,&p,pout,pend,repoffs,-1,flg);
+            r = dblb_decrep(&bits, &p, pout, pend, repoffs, -1, flg);
 
             break;
         }
-    } while ((r==0)&&(p<pend));
+    } while ((r == 0) && (p < pend));
 
-    if (r<0) { return r; }
+    if (r < 0) { return r; }
 
-    if (!(flg&0x4000)) {
-        u=dblb_rdn(&bits,3);
+    if (!(flg & 0x4000)) {
+        u = dblb_rdn(&bits, 3);
 
-        if (u==7) { u=dblb_rdn(&bits,12)+320; }
+        if (u == 7) { u = dblb_rdn(&bits, 12) + 320; }
 
-        if (u!=0x113f) {
+        if (u != 0x113f) {
             LOG_DECOMP("DMSDOS: decrb: final sync not found?\n");
             return -2;
         }
     }
 
-    return p-(__u8 *)pout;
+    return p - (__u8 *)pout;
 }
 
 /* JM decompression */
-int jm_dec(void *pin,int lin, void *pout, int lout, int flg)
+int jm_dec(void *pin, int lin, void *pout, int lout, int flg)
 {
     __u8 *p, *pend;
     unsigned u, repoffs;
     int r;
     bits_t bits;
 
-    dblb_rdi(&bits,pin,lin);
-    p=(__u8 *)pout;
-    pend=p+lout;
+    dblb_rdi(&bits, pin, lin);
+    p = (__u8 *)pout;
+    pend = p + lout;
 
-    if ((dblb_rdn(&bits,16))!=0x4D4A) { return -1; }
+    if ((dblb_rdn(&bits, 16)) != 0x4D4A) { return -1; }
 
-    u=dblb_rdn(&bits,16);
-    LOG_DECOMP("DMSDOS: JM decompression version %d\n",u);
+    u = dblb_rdn(&bits, 16);
+    LOG_DECOMP("DMSDOS: JM decompression version %d\n", u);
 
     do {
-        r=0;
-        RDN_PR(bits,u);
+        r = 0;
+        RDN_PR(bits, u);
 
-        switch (u&3) {
+        switch (u & 3) {
         case 0:
         case 2:
-            bits.pb+=8;
-            *(p++)=(u>>1)&127;
+            bits.pb += 8;
+            *(p++) = (u >> 1) & 127;
             break;
 
         case 1:
-            bits.pb+=2;
-            repoffs=dblb_rdoffs(&bits);
-            r=dblb_decrep(&bits,&p,pout,pend,repoffs,0,flg);
+            bits.pb += 2;
+            repoffs = dblb_rdoffs(&bits);
+            r = dblb_decrep(&bits, &p, pout, pend, repoffs, 0, flg);
             break;
 
         case 3:
-            bits.pb+=9;
-            *(p++)=((u>>2)&127)|128;
+            bits.pb += 9;
+            *(p++) = ((u >> 2) & 127) | 128;
             break;
         }
-    } while ((r==0)&&(p<pend));
+    } while ((r == 0) && (p < pend));
 
-    if (r<0) { return r; }
+    if (r < 0) { return r; }
 
-    if (!(flg&0x4000)) {
-        u=dblb_rdn(&bits,2);
+    if (!(flg & 0x4000)) {
+        u = dblb_rdn(&bits, 2);
 
-        if (u==1) { u=dblb_rdoffs(&bits); }
+        if (u == 1) { u = dblb_rdoffs(&bits); }
 
-        if (u!=0x113f) {
+        if (u != 0x113f) {
             LOG_DECOMP("DMSDOS: decrb: final sync not found?\n");
             return -2;
         }
     }
 
-    return p-(__u8 *)pout;
+    return p - (__u8 *)pout;
 }
 
 
@@ -386,19 +386,19 @@ int dbl_decompress(unsigned char *clusterd, unsigned char *clusterk,
     int sekcount;
     int r, lin, lout;
 
-    sekcount=mde->size_hi_minus_1+1;
-    lin=(mde->size_lo_minus_1+1)*SECTOR_SIZE;
-    lout=(mde->size_hi_minus_1+1)*SECTOR_SIZE;
+    sekcount = mde->size_hi_minus_1 + 1;
+    lin = (mde->size_lo_minus_1 + 1) * SECTOR_SIZE;
+    lout = (mde->size_hi_minus_1 + 1) * SECTOR_SIZE;
 
-    switch (clusterk[0]+((int)clusterk[1]<<8)+
-            ((int)clusterk[2]<<16)+((int)clusterk[3]<<24)) {
+    switch (clusterk[0] + ((int)clusterk[1] << 8) +
+            ((int)clusterk[2] << 16) + ((int)clusterk[3] << 24)) {
     case DS_0_0:
     case DS_0_1:
     case DS_0_2:
         LOG_DECOMP("DMSDOS: decompressing DS-0-x\n");
-        r=ds_dec(clusterk,lin,clusterd,lout,0);
+        r = ds_dec(clusterk, lin, clusterd, lout, 0);
 
-        if (r<=0) {
+        if (r <= 0) {
             printk(KERN_ERR "DMSDOS: error in DS-0-x compressed data.\n");
             return -2;
         }
@@ -409,9 +409,9 @@ int dbl_decompress(unsigned char *clusterd, unsigned char *clusterk,
     case JM_0_0:
     case JM_0_1:
         LOG_DECOMP("DMSDOS: decompressing JM-0-x\n");
-        r=jm_dec(clusterk,lin,clusterd,lout,0);
+        r = jm_dec(clusterk, lin, clusterd, lout, 0);
 
-        if (r<=0) {
+        if (r <= 0) {
             printk(KERN_ERR "DMSDOS: error in JM-0-x compressed data.\n");
             return -2;
         }
@@ -423,9 +423,9 @@ int dbl_decompress(unsigned char *clusterd, unsigned char *clusterk,
 
     case SQ_0_0:
         LOG_DECOMP("DMSDOS: decompressing SQ-0-0\n");
-        r=sq_dec(clusterk,lin,clusterd,lout,0);
+        r = sq_dec(clusterk, lin, clusterd, lout, 0);
 
-        if (r<=0) {
+        if (r <= 0) {
             printk(KERN_ERR "DMSDOS: SQ-0-0 decompression failed.\n");
             return -1;
         }
@@ -447,7 +447,7 @@ int dbl_decompress(unsigned char *clusterd, unsigned char *clusterk,
 /* read the fragments of a fragmented cluster and assemble them */
 /* warning: this is guessed from low level viewing drivespace 3 disks
    and may be awfully wrong... we'll see... */
-int read_fragments(struct super_block *sb,Mdfat_entry *mde, unsigned char *data)
+int read_fragments(struct super_block *sb, Mdfat_entry *mde, unsigned char *data)
 {
     struct buffer_head *bh;
     struct buffer_head *bh2;
@@ -458,83 +458,83 @@ int read_fragments(struct super_block *sb,Mdfat_entry *mde, unsigned char *data)
     int seccount;
     int membytes;
     int safety_counter;
-    Dblsb *dblsb=MSDOS_SB(sb)->private_data;
+    Dblsb *dblsb = MSDOS_SB(sb)->private_data;
 
     /* read first sector */
-    sector=mde->sector_minus_1+1;
-    bh=raw_bread(sb,sector);
+    sector = mde->sector_minus_1 + 1;
+    bh = raw_bread(sb, sector);
 
-    if (bh==NULL) { return -EIO; }
+    if (bh == NULL) { return -EIO; }
 
-    fragcount=bh->b_data[0];
+    fragcount = bh->b_data[0];
 
-    if (bh->b_data[1]!=0||bh->b_data[2]!=0||bh->b_data[3]!=0||fragcount<=0||
-            fragcount>dblsb->s_sectperclust) {
+    if (bh->b_data[1] != 0 || bh->b_data[2] != 0 || bh->b_data[3] != 0 || fragcount <= 0 ||
+            fragcount > dblsb->s_sectperclust) {
         printk(KERN_ERR "DMSDOS: read_fragments: cluster does not look fragmented!\n");
-        raw_brelse(sb,bh);
+        raw_brelse(sb, bh);
         return -EIO;
     }
 
-    membytes=dblsb->s_sectperclust*SECTOR_SIZE;
+    membytes = dblsb->s_sectperclust * SECTOR_SIZE;
 
-    if (mde->flags&1) {
-        offset=0;
-        safety_counter=0;
+    if (mde->flags & 1) {
+        offset = 0;
+        safety_counter = 0;
     } else {
-        offset=(fragcount+1)*4;
+        offset = (fragcount + 1) * 4;
         /* copy the rest of the sector */
-        memcpy(data,&(bh->b_data[offset]),SECTOR_SIZE-offset);
-        data+=(SECTOR_SIZE-offset);
-        safety_counter=SECTOR_SIZE-offset;
+        memcpy(data, &(bh->b_data[offset]), SECTOR_SIZE - offset);
+        data += (SECTOR_SIZE - offset);
+        safety_counter = SECTOR_SIZE - offset;
     }
 
     ++sector;
-    seccount=mde->size_lo_minus_1;
-    fragpnt=1;
+    seccount = mde->size_lo_minus_1;
+    fragpnt = 1;
 
-    while (fragpnt<=fragcount) {
-        if (fragpnt>1) {
+    while (fragpnt <= fragcount) {
+        if (fragpnt > 1) {
             /* read next fragment pointers */
-            seccount=bh->b_data[fragpnt*4+3];
-            seccount&=0xff;
-            seccount/=4;
-            seccount+=1;
-            sector=bh->b_data[fragpnt*4];
-            sector&=0xff;
-            sector+=bh->b_data[fragpnt*4+1]<<8;
-            sector&=0xffff;
-            sector+=bh->b_data[fragpnt*4+2]<<16;
-            sector&=0xffffff;
-            sector+=1;
+            seccount = bh->b_data[fragpnt * 4 + 3];
+            seccount &= 0xff;
+            seccount /= 4;
+            seccount += 1;
+            sector = bh->b_data[fragpnt * 4];
+            sector &= 0xff;
+            sector += bh->b_data[fragpnt * 4 + 1] << 8;
+            sector &= 0xffff;
+            sector += bh->b_data[fragpnt * 4 + 2] << 16;
+            sector &= 0xffffff;
+            sector += 1;
         }
 
         while (seccount) {
-            bh2=raw_bread(sb,sector);
+            bh2 = raw_bread(sb, sector);
 
-            if (bh2==NULL) {raw_brelse(sb,bh); return -EIO;}
+            if (bh2 == NULL) {raw_brelse(sb, bh); return -EIO;}
 
             /*printk(KERN_DEBUG "DMSDOS: read_fragments: data=0x%p safety_counter=0x%x sector=%d\n",
                    data,safety_counter,sector);*/
-            if (safety_counter+SECTOR_SIZE>membytes) {
-                int maxbytes=membytes-safety_counter;
+            if (safety_counter + SECTOR_SIZE > membytes) {
+                int maxbytes = membytes - safety_counter;
 
-                if (maxbytes<=0) {
+                if (maxbytes <= 0) {
                     printk(KERN_WARNING "DMSDOS: read_fragments: safety_counter exceeds membytes!\n");
-                    raw_brelse(sb,bh2);
-                    raw_brelse(sb,bh);
+                    raw_brelse(sb, bh2);
+                    raw_brelse(sb, bh);
                     return -EIO;
                 }
 
                 printk(KERN_DEBUG "DMSDOS: read_fragments: size limit reached.\n");
-                memcpy(data,bh2->b_data,maxbytes);
-                raw_brelse(sb,bh2);
-                raw_brelse(sb,bh);
+                memcpy(data, bh2->b_data, maxbytes);
+                raw_brelse(sb, bh2);
+                raw_brelse(sb, bh);
                 return membytes;
-            } else { memcpy(data,bh2->b_data,SECTOR_SIZE); }
+            } else { memcpy(data, bh2->b_data, SECTOR_SIZE); }
 
-            raw_brelse(sb,bh2);
-            data+=SECTOR_SIZE;
-            safety_counter+=SECTOR_SIZE;
+            raw_brelse(sb, bh2);
+            data += SECTOR_SIZE;
+            safety_counter += SECTOR_SIZE;
             ++sector;
             --seccount;
         }
@@ -542,7 +542,7 @@ int read_fragments(struct super_block *sb,Mdfat_entry *mde, unsigned char *data)
         ++fragpnt;
     }
 
-    raw_brelse(sb,bh);
+    raw_brelse(sb, bh);
 
     return safety_counter;
 }
@@ -563,42 +563,42 @@ int dbl_read_cluster(struct super_block *sb,
     struct buffer_head *bh;
     int membytes;
     int sector;
-    Dblsb *dblsb=MSDOS_SB(sb)->private_data;
+    Dblsb *dblsb = MSDOS_SB(sb)->private_data;
 
-    LOG_CLUST("DMSDOS: dbl_read_cluster %d\n",clusternr);
+    LOG_CLUST("DMSDOS: dbl_read_cluster %d\n", clusternr);
 
-    dbl_mdfat_value(sb,clusternr,NULL,&mde);
+    dbl_mdfat_value(sb, clusternr, NULL, &mde);
 
-    if ((mde.flags&2)==0) {
+    if ((mde.flags & 2) == 0) {
         /* hmm, cluster is unused (it's a lost or ghost cluster)
            and contains undefined data, but it *is* readable */
         /* oh no, it contains ZEROD data per definition...
            this is really important */
         if (clusterd) { /*clusterd==NULL means read_ahead - don't do anything*/
-            memset(clusterd,0,dblsb->s_sectperclust*SECTOR_SIZE);
+            memset(clusterd, 0, dblsb->s_sectperclust * SECTOR_SIZE);
         }
 
-        LOG_CLUST("DMSDOS: lost cluster %d detected\n",clusternr);
+        LOG_CLUST("DMSDOS: lost cluster %d detected\n", clusternr);
         return 0; /* yes, has length zero */
     }
 
-    sector=mde.sector_minus_1+1;
-    nr_of_sectors=mde.size_lo_minus_1+1;/* real sectors on disk */
+    sector = mde.sector_minus_1 + 1;
+    nr_of_sectors = mde.size_lo_minus_1 + 1; /* real sectors on disk */
 
-    if (nr_of_sectors>dblsb->s_sectperclust) {
+    if (nr_of_sectors > dblsb->s_sectperclust) {
         printk(KERN_WARNING "DMSDOS: read_cluster: mdfat sectors > sectperclust, cutting\n");
-        nr_of_sectors=dblsb->s_sectperclust;
+        nr_of_sectors = dblsb->s_sectperclust;
     }
 
-    if (clusterd==NULL) {
+    if (clusterd == NULL) {
         /* read-ahead */
-        dblspace_reada(sb,sector,nr_of_sectors);
+        dblspace_reada(sb, sector, nr_of_sectors);
         return 0;
     }
 
 #ifdef DMSDOS_CONFIG_DRVSP3
 
-    if (mde.unknown&2) {
+    if (mde.unknown & 2) {
         /* we suppose this bit indicates a fragmented cluster */
         /* this is *not sure* and may be awfully wrong - reports
            whether success or not are welcome
@@ -607,37 +607,37 @@ int dbl_read_cluster(struct super_block *sb,
         LOG_CLUST("DMSDOS: cluster %d has unknown bit #1 set. Assuming fragmented cluster.\n",
                   clusternr);
 
-        if (mde.flags&1) { /* not compressed */
+        if (mde.flags & 1) { /* not compressed */
             LOG_CLUST("DMSDOS: uncompressed fragmented cluster\n");
-            i=read_fragments(sb,&mde,clusterd);
+            i = read_fragments(sb, &mde, clusterd);
 
-            if (i<0) {
+            if (i < 0) {
                 printk(KERN_ERR "DMSDOS: read_fragments failed!\n");
                 return i;
             }
         } else {
             LOG_CLUST("DMSDOS: compressed fragmented cluster\n");
-            membytes=SECTOR_SIZE*dblsb->s_sectperclust;
+            membytes = SECTOR_SIZE * dblsb->s_sectperclust;
 
-            clusterk=(unsigned char *)MALLOC(membytes);
+            clusterk = (unsigned char *)MALLOC(membytes);
 
-            if (clusterk==NULL) {
+            if (clusterk == NULL) {
                 printk(KERN_ERR "DMSDOS: no memory for decompression!\n");
                 return -2;
             }
 
             /* returns length in bytes */
-            i=read_fragments(sb,&mde,clusterk);
+            i = read_fragments(sb, &mde, clusterk);
 
-            if (i<0) {
+            if (i < 0) {
                 printk(KERN_ERR "DMSDOS: read_fragments failed!\n");
                 return i;
             }
 
             /* correct wrong size_lo information (sq_dec needs it) */
-            if (i>0) { mde.size_lo_minus_1=(i-1)/SECTOR_SIZE; }
+            if (i > 0) { mde.size_lo_minus_1 = (i - 1) / SECTOR_SIZE; }
 
-            i=dbl_decompress(clusterd,clusterk,&mde);
+            i = dbl_decompress(clusterd, clusterk, &mde);
 
             FREE(clusterk);
 
@@ -650,53 +650,53 @@ int dbl_read_cluster(struct super_block *sb,
         }
 
         /* the slack must be zerod out */
-        if (mde.size_hi_minus_1+1<dblsb->s_sectperclust) {
-            memset(clusterd+(mde.size_hi_minus_1+1)*SECTOR_SIZE,0,
-                   (dblsb->s_sectperclust-mde.size_hi_minus_1-1)*
+        if (mde.size_hi_minus_1 + 1 < dblsb->s_sectperclust) {
+            memset(clusterd + (mde.size_hi_minus_1 + 1)*SECTOR_SIZE, 0,
+                   (dblsb->s_sectperclust - mde.size_hi_minus_1 - 1)*
                    SECTOR_SIZE);
         }
 
-        return (mde.size_hi_minus_1+1)*SECTOR_SIZE;
+        return (mde.size_hi_minus_1 + 1) * SECTOR_SIZE;
 
     } /* end of read routine for fragmented cluster */
 
 #endif
 
-    if (mde.flags&1) {
+    if (mde.flags & 1) {
         /* cluster is not compressed */
-        for (i=0; i<nr_of_sectors; ++i) {
-            bh=raw_bread(sb,sector+i);
+        for (i = 0; i < nr_of_sectors; ++i) {
+            bh = raw_bread(sb, sector + i);
 
-            if (bh==NULL) { return -EIO; }
+            if (bh == NULL) { return -EIO; }
 
-            memcpy(&clusterd[i*SECTOR_SIZE],bh->b_data,SECTOR_SIZE);
-            raw_brelse(sb,bh);
+            memcpy(&clusterd[i * SECTOR_SIZE], bh->b_data, SECTOR_SIZE);
+            raw_brelse(sb, bh);
         }
     } else {
         /* cluster is compressed */
 
-        membytes=SECTOR_SIZE*nr_of_sectors;
+        membytes = SECTOR_SIZE * nr_of_sectors;
 
-        clusterk=(unsigned char *)MALLOC(membytes);
+        clusterk = (unsigned char *)MALLOC(membytes);
 
-        if (clusterk==NULL) {
+        if (clusterk == NULL) {
             printk(KERN_ERR "DMSDOS: no memory for decompression!\n");
             return -2;
         }
 
-        for (i=0; i<nr_of_sectors; ++i) {
-            bh=raw_bread(sb,sector+i);
+        for (i = 0; i < nr_of_sectors; ++i) {
+            bh = raw_bread(sb, sector + i);
 
-            if (bh==NULL) {
+            if (bh == NULL) {
                 FREE(clusterk);
                 return -EIO;
             }
 
-            memcpy(&clusterk[i*SECTOR_SIZE],bh->b_data,SECTOR_SIZE);
-            raw_brelse(sb,bh);
+            memcpy(&clusterk[i * SECTOR_SIZE], bh->b_data, SECTOR_SIZE);
+            raw_brelse(sb, bh);
         }
 
-        i=dbl_decompress(clusterd,clusterk,&mde);
+        i = dbl_decompress(clusterd, clusterk, &mde);
 
         FREE(clusterk);
 
@@ -709,13 +709,13 @@ int dbl_read_cluster(struct super_block *sb,
     }
 
     /* the slack must be zerod out */
-    if (mde.size_hi_minus_1+1<dblsb->s_sectperclust) {
-        memset(clusterd+(mde.size_hi_minus_1+1)*SECTOR_SIZE,0,
-               (dblsb->s_sectperclust-mde.size_hi_minus_1-1)*
+    if (mde.size_hi_minus_1 + 1 < dblsb->s_sectperclust) {
+        memset(clusterd + (mde.size_hi_minus_1 + 1)*SECTOR_SIZE, 0,
+               (dblsb->s_sectperclust - mde.size_hi_minus_1 - 1)*
                SECTOR_SIZE);
     }
 
-    return (mde.size_hi_minus_1+1)*SECTOR_SIZE;
+    return (mde.size_hi_minus_1 + 1) * SECTOR_SIZE;
 }
 #endif
 
@@ -728,9 +728,9 @@ int dmsdos_read_cluster(struct super_block *sb,
                         unsigned char *clusterd, int clusternr)
 {
     int ret;
-    Dblsb *dblsb=MSDOS_SB(sb)->private_data;
+    Dblsb *dblsb = MSDOS_SB(sb)->private_data;
 
-    LOG_CLUST("DMSDOS: read_cluster %d\n",clusternr);
+    LOG_CLUST("DMSDOS: read_cluster %d\n", clusternr);
 
     switch (dblsb->s_cvf_version) {
 #ifdef DMSDOS_CONFIG_DBL
@@ -738,20 +738,20 @@ int dmsdos_read_cluster(struct super_block *sb,
     case DBLSP:
     case DRVSP:
     case DRVSP3:
-        ret=dbl_read_cluster(sb,clusterd,clusternr);
+        ret = dbl_read_cluster(sb, clusterd, clusternr);
         break;
 #endif
 #ifdef DMSDOS_CONFIG_STAC
 
     case STAC3:
     case STAC4:
-        ret=stac_read_cluster(sb,clusterd,clusternr);
+        ret = stac_read_cluster(sb, clusterd, clusternr);
         break;
 #endif
 
     default:
         printk(KERN_ERR "DMSDOS: read_cluster: illegal cvf version flag!\n");
-        ret=-EIO;
+        ret = -EIO;
     }
 
     return ret;

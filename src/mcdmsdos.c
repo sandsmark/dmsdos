@@ -45,12 +45,12 @@ Dblsb *dblsb;
 
 int scan(char *text)
 {
-    int v=0;
+    int v = 0;
 
-    if (strncmp(text,"0x",2)==0||strncmp(text,"0X",2)==0) {
-        sscanf(text+2,"%x",&v);
+    if (strncmp(text, "0x", 2) == 0 || strncmp(text, "0X", 2) == 0) {
+        sscanf(text + 2, "%x", &v);
     } else {
-        sscanf(text,"%d",&v);
+        sscanf(text, "%d", &v);
     }
 
     return v;
@@ -62,17 +62,17 @@ unsigned char *get_root_dir(void)
     struct buffer_head *bh;
     int i;
 
-    data=malloc(dblsb->s_rootdirentries*32);
+    data = malloc(dblsb->s_rootdirentries * 32);
 
-    if (data==NULL) { return NULL; }
+    if (data == NULL) { return NULL; }
 
-    for (i=0; i<dblsb->s_rootdirentries*32/512; ++i) {
-        bh=raw_bread(sb,dblsb->s_rootdir+i);
+    for (i = 0; i < dblsb->s_rootdirentries * 32 / 512; ++i) {
+        bh = raw_bread(sb, dblsb->s_rootdir + i);
 
-        if (bh==NULL) {free(data); return NULL;}
+        if (bh == NULL) {free(data); return NULL;}
 
-        memcpy(data+i*512,bh->b_data,512);
-        raw_brelse(sb,bh);
+        memcpy(data + i * 512, bh->b_data, 512);
+        raw_brelse(sb, bh);
     }
 
     return data;
@@ -81,59 +81,62 @@ unsigned char *get_root_dir(void)
 int copy_cluster_out(int nr, int len, FILE *f)
 {
     unsigned char *data;
-    int i,j;
+    int i, j;
 
-    if (nr==0) {
-        data=get_root_dir();
+    if (nr == 0) {
+        data = get_root_dir();
 
-        if (data==NULL) { return -1; }
+        if (data == NULL) { return -1; }
 
-        i=dblsb->s_rootdirentries*32;
+        i = dblsb->s_rootdirentries * 32;
     } else {
-        data=malloc(dblsb->s_sectperclust*512);
+        data = malloc(dblsb->s_sectperclust * 512);
 
-        if (data==NULL) { return -1; }
+        if (data == NULL) { return -1; }
 
-        i=dmsdos_read_cluster(sb,data,nr);
+        i = dmsdos_read_cluster(sb, data, nr);
 
-        if (i<0) {free(data); return -1;}
+        if (i < 0) {free(data); return -1;}
     }
 
-    if (len<=0||len>i) { len=i; }
+    if (len <= 0 || len > i) { len = i; }
 
-    for (j=0; j<len; ++j) { fputc(data[j],f); }
+    for (j = 0; j < len; ++j) { fputc(data[j], f); }
 
     free(data);
     return ferror(f);
 }
 
-int handle_dir_chain(int start,int rek,char *prefix);
+int handle_dir_chain(int start, int rek, char *prefix);
 
 static void print_filename(const unsigned char *filename)
 {
-    for (int i=0; i<strlen(filename); ++i) {
+    for (int i = 0; i < strlen(filename); ++i) {
         if (filename[i] >= 32 && filename[i] < 127) {
             printf("%c", filename[i]);
             continue;
         }
 
         // TODO: proper codepage support, this is Code page 865 (DOS Nordic)
-        switch(filename[i]) {
-            case 0x92:
-                printf("æ");
-                break;
-            case 0x9c:
-                printf("£");
-                break;
-            case 0x9d:
-                printf("ø");
-                break;
-                //case 0xff:
-                //    lprintf(" ");
-                //    break;
-            default:
-                printf(" 0x%x ", filename[i]);
-                break;
+        switch (filename[i]) {
+        case 0x92:
+            printf("æ");
+            break;
+
+        case 0x9c:
+            printf("£");
+            break;
+
+        case 0x9d:
+            printf("ø");
+            break;
+
+        //case 0xff:
+        //    lprintf(" ");
+        //    break;
+        default:
+            printf(" 0x%x ", filename[i]);
+            break;
         }
     }
 }
@@ -150,66 +153,66 @@ static void print_filename(const unsigned char *filename)
 int display_dir_cluster(int nr, int rek, char *prefix)
 {
     unsigned char *data;
-    int i,j;
+    int i, j;
 
     printf("display_dir_cluster called with nr=%d rek=%d prefix=%s\n",
-           nr,rek,prefix);
+           nr, rek, prefix);
 
-    if (nr==0) {
-        data=get_root_dir();
+    if (nr == 0) {
+        data = get_root_dir();
 
-        if (data==NULL) { return -1; }
+        if (data == NULL) { return -1; }
 
-        i=dblsb->s_rootdirentries*32;
+        i = dblsb->s_rootdirentries * 32;
     } else {
-        data=malloc(dblsb->s_sectperclust*512);
+        data = malloc(dblsb->s_sectperclust * 512);
 
-        if (data==NULL) { return -1; }
+        if (data == NULL) { return -1; }
 
-        i=dmsdos_read_cluster(sb,data,nr);
+        i = dmsdos_read_cluster(sb, data, nr);
 
-        if (i<0) {free(data); return -1;}
+        if (i < 0) {free(data); return -1;}
     }
 
-    j=0;
+    j = 0;
 
-    while (data[j] == 0 && j<i) { j++; }
+    while (data[j] == 0 && j < i) { j++; }
 
-    for (; j<dblsb->s_sectperclust*512; j+=32) {
+    for (; j < dblsb->s_sectperclust * 512; j += 32) {
         unsigned char *pp;
         unsigned int x;
-        char filename[15]="";
+        char filename[15] = "";
         int nstart;
         long size;
-        char datestr[16][4]= {"?00","Jan","Feb","Mar","Apr","May","Jun",
-                              "Jul","Aug","Sep","Oct","Nov","Dec",
-                              "?13","?14","?15"
-                             };
+        char datestr[16][4] = {"?00", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+                               "?13", "?14", "?15"
+                              };
 
-        if (data[j]==0) { continue; }
+        if (data[j] == 0) { continue; }
 
-        if (data[j]==0xe5) { continue; }
+        if (data[j] == 0xe5) { continue; }
 
         const uint8_t entry_flags = data[j + 11];
 
         if (entry_flags & ENTRY_VOLUME_LABEL) { continue; }
 
-        if (data[j]=='.') { continue; }
+        if (data[j] == '.') { continue; }
 
-        for (i=0; i<11; ++i) {
-            if (i==8&&data[j+i]!=' ') { strcat(filename,"."); }
+        for (i = 0; i < 11; ++i) {
+            if (i == 8 && data[j + i] != ' ') { strcat(filename, "."); }
 
-            if (data[j+i]!=' ') { strncat(filename,&(data[j+i]),1); }
+            if (data[j + i] != ' ') { strncat(filename, &(data[j + i]), 1); }
         }
 
-        for (i=0; i<strlen(filename); ++i) {
+        for (i = 0; i < strlen(filename); ++i) {
             if (filename[i] >= 32 && filename[i] < 127) {
-                filename[i]=tolower(filename[i]);
+                filename[i] = tolower(filename[i]);
                 continue;
             }
         }
 
-        if (entry_flags&16) { printf("dr"); }
+        if (entry_flags & 16) { printf("dr"); }
         else { printf("-r"); }
 
         if (entry_flags & ENTRY_READ_ONLY) { printf("-"); }
@@ -243,47 +246,49 @@ int display_dir_cluster(int nr, int rek, char *prefix)
         if (entry_flags & ENTRY_RESERVED) { printf("?"); }
         else { printf(" "); }
 
-        pp=&(data[j+28]);
-        size=CHL(pp);
-        printf(" %7lu",size);
+        pp = &(data[j + 28]);
+        size = CHL(pp);
+        printf(" %7lu", size);
 
-        pp=&(data[j+24]);
-        x=CHS(pp);
-        int shortyear = ((x>>9)+80);
+        pp = &(data[j + 24]);
+        x = CHS(pp);
+        int shortyear = ((x >> 9) + 80);
+
         if (shortyear > 99) {
             shortyear -= 99;
         }
-        printf(" %02d.%02d.%02d", x & 31, (x>>5)&15, shortyear);
-        printf(" %s",datestr[(x>>5)&15]);
-        printf(" %02d",x&31);
-        printf(" %04d",(x>>9)+1980); /* y2k compliant :) */
 
-        pp=&(data[j+22]);
-        x=CHS(pp);
+        printf(" %02d.%02d.%02d", x & 31, (x >> 5) & 15, shortyear);
+        printf(" %s", datestr[(x >> 5) & 15]);
+        printf(" %02d", x & 31);
+        printf(" %04d", (x >> 9) + 1980); /* y2k compliant :) */
+
+        pp = &(data[j + 22]);
+        x = CHS(pp);
         /*printf("  %02d:%02d:%02d",x>>11,(x>>5)&63,(x&31)<<1);
         printf(" %02d:%02d",x>>11,(x>>5)&63);*/
 
-        pp=&(data[j+26]);
-        nstart=CHS(pp);
+        pp = &(data[j + 26]);
+        nstart = CHS(pp);
         /*printf(" %5d",nstart); */
 
-        printf(" %s",prefix);
+        printf(" %s", prefix);
         print_filename(filename);
         printf("\n");
 
-        if ((entry_flags & ENTRY_SUB_DIR) !=0 && rek !=0 && filename[0]!='.') {
+        if ((entry_flags & ENTRY_SUB_DIR) != 0 && rek != 0 && filename[0] != '.') {
             char *nprefix;
-            nprefix=malloc(strlen(prefix)+20);
+            nprefix = malloc(strlen(prefix) + 20);
 
-            if (nprefix==NULL) {
-                fprintf(stderr,"out of memory\n");
+            if (nprefix == NULL) {
+                fprintf(stderr, "out of memory\n");
                 exit(3);
             }
 
-            strcpy(nprefix,prefix);
-            strcat(nprefix,filename);
-            strcat(nprefix,"/");
-            handle_dir_chain(nstart,rek,nprefix);
+            strcpy(nprefix, prefix);
+            strcat(nprefix, filename);
+            strcat(nprefix, "/");
+            handle_dir_chain(nstart, rek, nprefix);
             free(nprefix);
         }
 
@@ -293,24 +298,24 @@ int display_dir_cluster(int nr, int rek, char *prefix)
     return 0;
 }
 
-int handle_dir_chain(int start,int rek,char *prefix)
+int handle_dir_chain(int start, int rek, char *prefix)
 {
-    int i,next;
+    int i, next;
 
-    if (start==0) { return display_dir_cluster(0,rek,prefix); }
+    if (start == 0) { return display_dir_cluster(0, rek, prefix); }
 
-    if (start==1||start<0||start>dblsb->s_max_cluster) { return -1; }
+    if (start == 1 || start < 0 || start > dblsb->s_max_cluster) { return -1; }
 
     do {
-        next=dbl_fat_nextcluster(sb,start,NULL);
-        i=display_dir_cluster(start,rek,prefix);
+        next = dbl_fat_nextcluster(sb, start, NULL);
+        i = display_dir_cluster(start, rek, prefix);
 
-        if (i<0) { return i; }
+        if (i < 0) { return i; }
 
-        start=next;
-    } while (next>1&&next<=dblsb->s_max_cluster);
+        start = next;
+    } while (next > 1 && next <= dblsb->s_max_cluster);
 
-    if (next>=0) {
+    if (next >= 0) {
         return -1;
     }
 
@@ -319,94 +324,94 @@ int handle_dir_chain(int start,int rek,char *prefix)
 
 int handle_file_chain(int start, int len, FILE *f)
 {
-    int i,next;
+    int i, next;
 
-    if (start==0) { return -1; } /* never a file :) */
+    if (start == 0) { return -1; } /* never a file :) */
 
-    if (start==1||start<0||start>dblsb->s_max_cluster) { return -1; }
+    if (start == 1 || start < 0 || start > dblsb->s_max_cluster) { return -1; }
 
     do {
-        next=dbl_fat_nextcluster(sb,start,NULL);
-        i=copy_cluster_out(start,len,f);
+        next = dbl_fat_nextcluster(sb, start, NULL);
+        i = copy_cluster_out(start, len, f);
 
-        if (i<0) { return i; }
+        if (i < 0) { return i; }
 
-        len-=dblsb->s_sectperclust*512;
+        len -= dblsb->s_sectperclust * 512;
 
-        if (len<=0) { break; }
+        if (len <= 0) { break; }
 
-        start=next;
-    } while (next>1&&next<=dblsb->s_max_cluster);
+        start = next;
+    } while (next > 1 && next <= dblsb->s_max_cluster);
 
-    if (next>=0) {
+    if (next >= 0) {
         return -1;
     }
 
     return 0;
 }
 
-int scan_dir(char *entry,int start,int *len)
+int scan_dir(char *entry, int start, int *len)
 {
-    char buf[]="           ";
+    char buf[] = "           ";
     /*12345678EXT*/
     int i;
     int size;
     unsigned char *data;
     int next;
 
-    if (strcmp(entry,".")==0) { return start; }
-    else if (strcmp(entry,"..")==0) { strncpy(buf,"..",2); }
-    else if (*entry=='.') { return -1; }
+    if (strcmp(entry, ".") == 0) { return start; }
+    else if (strcmp(entry, "..") == 0) { strncpy(buf, "..", 2); }
+    else if (*entry == '.') { return -1; }
     else
-        for (i=0; i<11; ++i) {
-            if (*entry=='.'&&i<=7) {i=7; ++entry; continue;}
+        for (i = 0; i < 11; ++i) {
+            if (*entry == '.' && i <= 7) {i = 7; ++entry; continue;}
 
-            if (*entry=='.'&&i==8) {i=7; ++entry; continue;}
+            if (*entry == '.' && i == 8) {i = 7; ++entry; continue;}
 
-            if (*entry=='.') { break; }
+            if (*entry == '.') { break; }
 
-            if (*entry=='\0') { break; }
+            if (*entry == '\0') { break; }
 
-            buf[i]=toupper(*entry);
+            buf[i] = toupper(*entry);
             ++entry;
         }
 
     do {
         /*printf("scan_dir: searching for %s in %d\n",buf,start);*/
 
-        if (start==0) {
-            data=get_root_dir();
-            size=dblsb->s_rootdirentries;
-            next=-1;
+        if (start == 0) {
+            data = get_root_dir();
+            size = dblsb->s_rootdirentries;
+            next = -1;
         } else {
-            data=malloc(dblsb->s_sectperclust*512);
+            data = malloc(dblsb->s_sectperclust * 512);
 
-            if (data!=NULL) {
-                i=dmsdos_read_cluster(sb,data,start);
+            if (data != NULL) {
+                i = dmsdos_read_cluster(sb, data, start);
 
-                if (i<0) {free(data); data=NULL;}
+                if (i < 0) {free(data); data = NULL;}
 
-                size=i/32;
-                next=dbl_fat_nextcluster(sb,start,NULL);
+                size = i / 32;
+                next = dbl_fat_nextcluster(sb, start, NULL);
 
-                if (next==0)
-                    fprintf(stderr,"warning: cluster %d is marked as unused in FAT\n",
+                if (next == 0)
+                    fprintf(stderr, "warning: cluster %d is marked as unused in FAT\n",
                             next);
             }
         }
 
-        if (data==NULL) { return -1; }
+        if (data == NULL) { return -1; }
 
-        for (i=0; i<size; ++i) {
-            if (strncmp(&(data[i*32]),buf,11)==0) {
+        for (i = 0; i < size; ++i) {
+            if (strncmp(&(data[i * 32]), buf, 11) == 0) {
                 unsigned char *pp;
                 int cluster;
 
-                pp=&(data[i*32+26]);
-                cluster=CHS(pp);
-                pp=&(data[i*32+28]);
+                pp = &(data[i * 32 + 26]);
+                cluster = CHS(pp);
+                pp = &(data[i * 32 + 28]);
 
-                if (len) { *len=CHL(pp); }
+                if (len) { *len = CHL(pp); }
 
                 free(data);
                 return cluster;
@@ -414,26 +419,26 @@ int scan_dir(char *entry,int start,int *len)
         }
 
         free(data);
-        start=next;
-    } while (next>0&&next<=dblsb->s_max_cluster);
+        start = next;
+    } while (next > 0 && next <= dblsb->s_max_cluster);
 
     return -1;
 }
 
-int scan_path(char *path,int start, int *len)
+int scan_path(char *path, int start, int *len)
 {
     int i;
     char *p;
 
-    for (p=strtok(path,"/"); p; p=strtok(NULL,"/")) {
-        i=scan_dir(p,start,len);
+    for (p = strtok(path, "/"); p; p = strtok(NULL, "/")) {
+        i = scan_dir(p, start, len);
 
-        if (i<0) {
-            fprintf(stderr,"path component %s not found\n",p);
+        if (i < 0) {
+            fprintf(stderr, "path component %s not found\n", p);
             return -1;
         }
 
-        start=i;
+        start = i;
     }
 
     return start;
@@ -441,95 +446,95 @@ int scan_path(char *path,int start, int *len)
 
 int main(int argc, char *argv[])
 {
-    int mode=0;
+    int mode = 0;
     int cluster;
     int i;
     char *p;
     int len;
     FILE *f;
 
-    fprintf(stderr,"mcdmsdos version 0.2.0 (for libdmsdos 0.9.x and newer)\n");
+    fprintf(stderr, "mcdmsdos version 0.2.0 (for libdmsdos 0.9.x and newer)\n");
 
-    if (argc<2) {
-        fprintf(stderr,"\nusage: mcdmsdos <mc-extfs-command> ...\n");
-        fprintf(stderr,"where <mc-extfs-command> can be:\n");
-        fprintf(stderr,"        list <CVF>\n");
-        fprintf(stderr,"        copyout <CVF> <path/name_in_CVF> <outfile>\n");
-        fprintf(stderr,"        copyin <CVF> <path/name_in_CVF> <infile> [*]\n");
-        fprintf(stderr,"      [*] currently not implemented\n");
+    if (argc < 2) {
+        fprintf(stderr, "\nusage: mcdmsdos <mc-extfs-command> ...\n");
+        fprintf(stderr, "where <mc-extfs-command> can be:\n");
+        fprintf(stderr, "        list <CVF>\n");
+        fprintf(stderr, "        copyout <CVF> <path/name_in_CVF> <outfile>\n");
+        fprintf(stderr, "        copyin <CVF> <path/name_in_CVF> <infile> [*]\n");
+        fprintf(stderr, "      [*] currently not implemented\n");
         return 1;
     }
 
     /* check syntax */
-    if (strcmp(argv[1],"list")==0) {
-        mode=M_LIST;
+    if (strcmp(argv[1], "list") == 0) {
+        mode = M_LIST;
 
-        if (argc!=3) {
-            fprintf(stderr,"wrong number of arguments\n");
+        if (argc != 3) {
+            fprintf(stderr, "wrong number of arguments\n");
             return 1;
         }
-    } else if (strcmp(argv[1],"copyout")==0) {
-        mode=M_OUT;
+    } else if (strcmp(argv[1], "copyout") == 0) {
+        mode = M_OUT;
 
-        if (argc!=5) {
-            fprintf(stderr,"wrong number of arguments\n");
+        if (argc != 5) {
+            fprintf(stderr, "wrong number of arguments\n");
             return 1;
         }
-    } else if (strcmp(argv[1],"copyin")==0) {
-        mode=M_IN;
+    } else if (strcmp(argv[1], "copyin") == 0) {
+        mode = M_IN;
 
-        if (argc!=5) {
-            fprintf(stderr,"wrong number of arguments\n");
+        if (argc != 5) {
+            fprintf(stderr, "wrong number of arguments\n");
             return 1;
         }
 
-        fprintf(stderr,"copyin command is not implemented\n");
+        fprintf(stderr, "copyin command is not implemented\n");
         return -2;
     } else {
-        fprintf(stderr,"unknown command\n");
+        fprintf(stderr, "unknown command\n");
         return -1;
     }
 
-    sb=open_cvf(argv[2],0/*read-only*/);
+    sb = open_cvf(argv[2], 0/*read-only*/);
 
-    if (sb==NULL) {
-        printf("open CVF %s failed\n",argv[1]);
+    if (sb == NULL) {
+        printf("open CVF %s failed\n", argv[1]);
         return 2;
     }
 
-    dblsb=MSDOS_SB(sb)->private_data;
+    dblsb = MSDOS_SB(sb)->private_data;
 
 
-    if (mode==M_LIST) {
-        i=handle_dir_chain(0,1,"");
+    if (mode == M_LIST) {
+        i = handle_dir_chain(0, 1, "");
     }
 
-    else if (mode==M_OUT) {
-        p=malloc(strlen(argv[3])+1);
-        strcpy(p,argv[3]);
+    else if (mode == M_OUT) {
+        p = malloc(strlen(argv[3]) + 1);
+        strcpy(p, argv[3]);
 #ifdef _WIN32
 
         /* convert to Unix style path */
-        for (i=0; i<strlen(p); ++i) {if (p[i]=='\\')p[i]='/';}
+        for (i = 0; i < strlen(p); ++i) {if (p[i] == '\\')p[i] = '/';}
 
 #endif
 
-        if (*p=='/') { ++p; }
+        if (*p == '/') { ++p; }
 
-        cluster=scan_path(p,0,&len);
+        cluster = scan_path(p, 0, &len);
 
-        if (cluster<0) {
-            fprintf(stderr,"%s not found\n",argv[3]);
+        if (cluster < 0) {
+            fprintf(stderr, "%s not found\n", argv[3]);
             return 1;
         }
 
-        f=fopen(argv[4],"wb");
+        f = fopen(argv[4], "wb");
 
-        if (f==NULL) {
+        if (f == NULL) {
             perror("open write failed");
-            i=-1;
+            i = -1;
         } else {
-            i=handle_file_chain(cluster,len,f);
+            i = handle_file_chain(cluster, len, f);
             fclose(f);
         }
     }

@@ -72,18 +72,18 @@ int printk(const char *fmt, ...)
 {
     va_list ap;
     char buf[500];
-    char *p=buf;
+    char *p = buf;
     int i;
 
     va_start(ap, fmt);
-    i=vsprintf(buf,fmt,ap);
+    i = vsprintf(buf, fmt, ap);
     va_end(ap);
 
-    if (p[0]=='<'&&p[1]>='0'&&p[1]<='7'&&p[2]=='>') { p+=3; }
+    if (p[0] == '<' && p[1] >= '0' && p[1] <= '7' && p[2] == '>') { p += 3; }
 
-    if (strncmp(p,"DMSDOS: ",8)==0) { p+=8; }
+    if (strncmp(p, "DMSDOS: ", 8) == 0) { p += 8; }
 
-    fprintf(stderr,"libdmsdos: %s",p);
+    fprintf(stderr, "libdmsdos: %s", p);
 
     return i;
 }
@@ -95,44 +95,44 @@ void panic(const char *fmt, ...)
     int i;
 
     va_start(ap, fmt);
-    i=vsprintf(buf,fmt,ap);
+    i = vsprintf(buf, fmt, ap);
     va_end(ap);
 
-    fprintf(stderr,"libdmsdos panic: %s",buf);
+    fprintf(stderr, "libdmsdos panic: %s", buf);
 
     exit(1);
 }
 
-int translate_direct(struct super_block *sb,int block)
+int translate_direct(struct super_block *sb, int block)
 {
     int i;
 
-    if (block>=sb->directsize) {
+    if (block >= sb->directsize) {
         printk("DMSDOS: access beyond end of CVF in direct mode (wanted=%d limit=%d)\n",
-               block,sb->directsize-1);
+               block, sb->directsize - 1);
         return 0;
     }
 
     /* calculate physical sector */
-    i=0;
+    i = 0;
 
     do {
-        block-=sb->directlen[i];
+        block -= sb->directlen[i];
         ++i;
-    } while (block>=0&&i<MAXFRAGMENT);
+    } while (block >= 0 && i < MAXFRAGMENT);
 
     --i;
-    block+=sb->directlen[i]+sb->directlist[i];
+    block += sb->directlen[i] + sb->directlist[i];
     return block;
 }
 
-struct buffer_head *raw_bread(struct super_block *sb,int block)
+struct buffer_head *raw_bread(struct super_block *sb, int block)
 {
     struct buffer_head *bh;
-    int fd=sb->s_dev;
+    int fd = sb->s_dev;
 
     if (sb->directlist) {
-        block=translate_direct(sb,block);
+        block = translate_direct(sb, block);
 
         if (!block) {
             printk("raw_bread: translate_direct failed\n");
@@ -140,98 +140,98 @@ struct buffer_head *raw_bread(struct super_block *sb,int block)
         }
     }
 
-    if (lseek(fd,block*512,SEEK_SET)<0) {
-        printk("raw_bread: lseek block %d failed: %s\n",block,strerror(errno));
+    if (lseek(fd, block * 512, SEEK_SET) < 0) {
+        printk("raw_bread: lseek block %d failed: %s\n", block, strerror(errno));
         return NULL;
     }
 
-    bh=malloc(sizeof(struct buffer_head));
+    bh = malloc(sizeof(struct buffer_head));
 
-    if (bh==NULL) {
-        printk("raw_bread: malloc(%d) failed\n",sizeof(struct buffer_head));
+    if (bh == NULL) {
+        printk("raw_bread: malloc(%d) failed\n", sizeof(struct buffer_head));
         return NULL;
     }
 
-    bh->b_data=malloc(512);
+    bh->b_data = malloc(512);
 
-    if (bh->b_data==NULL) {
+    if (bh->b_data == NULL) {
         free(bh);
         printk("raw_bread: malloc(512) failed\n");
         return NULL;
     }
 
-    bh->b_blocknr=block;
+    bh->b_blocknr = block;
 
-    if (read(fd,bh->b_data,512)>=0) { return bh; }
+    if (read(fd, bh->b_data, 512) >= 0) { return bh; }
 
-    printk("raw_bread: read failed: %s\n",strerror(errno));
+    printk("raw_bread: read failed: %s\n", strerror(errno));
     free(bh->b_data);
     free(bh);
 
     return NULL;
 }
 
-struct buffer_head *raw_getblk(struct super_block *sb,int block)
+struct buffer_head *raw_getblk(struct super_block *sb, int block)
 {
     struct buffer_head *bh;
-    int fd=sb->s_dev;
+    int fd = sb->s_dev;
 
     if (sb->directlist) {
-        block=translate_direct(sb,block);
+        block = translate_direct(sb, block);
 
         if (!block) { return NULL; }
     }
 
-    if (lseek(fd,block*512,SEEK_SET)<0) {
-        printk("raw_getblk: lseek block %d failed: %s\n",block,strerror(errno));
+    if (lseek(fd, block * 512, SEEK_SET) < 0) {
+        printk("raw_getblk: lseek block %d failed: %s\n", block, strerror(errno));
         return NULL;
     }
 
-    bh=malloc(sizeof(struct buffer_head));
+    bh = malloc(sizeof(struct buffer_head));
 
-    if (bh==NULL) { return NULL; }
+    if (bh == NULL) { return NULL; }
 
-    bh->b_data=malloc(512);
+    bh->b_data = malloc(512);
 
-    if (bh->b_data==NULL) {
+    if (bh->b_data == NULL) {
         free(bh);
         return NULL;
     }
 
-    bh->b_blocknr=block;
+    bh->b_blocknr = block;
     return bh;
 }
 
-void raw_brelse(struct super_block *sb,struct buffer_head *bh)
+void raw_brelse(struct super_block *sb, struct buffer_head *bh)
 {
-    if (bh==NULL) { return; }
+    if (bh == NULL) { return; }
 
     free(bh->b_data);
     free(bh);
 }
 
-void raw_set_uptodate(struct super_block *sb,struct buffer_head *bh,int v)
+void raw_set_uptodate(struct super_block *sb, struct buffer_head *bh, int v)
 {
     /* dummy */
 }
 
-void raw_mark_buffer_dirty(struct super_block *sb,struct buffer_head *bh,int dirty_val)
+void raw_mark_buffer_dirty(struct super_block *sb, struct buffer_head *bh, int dirty_val)
 {
-    int fd=sb->s_dev;
+    int fd = sb->s_dev;
 
-    if (dirty_val==0) { return; }
+    if (dirty_val == 0) { return; }
 
-    if (bh==NULL) { return; }
+    if (bh == NULL) { return; }
 
 #ifdef DBL_WRITEACCESS
 
-    if (lseek(fd,bh->b_blocknr*512,SEEK_SET)<0) {
-        printk("can't seek block %ld: %s\n",bh->b_blocknr,strerror(errno));
+    if (lseek(fd, bh->b_blocknr * 512, SEEK_SET) < 0) {
+        printk("can't seek block %ld: %s\n", bh->b_blocknr, strerror(errno));
         return;
     }
 
-    if (write(fd,bh->b_data,512)<0) {
-        printk("writing block %ld failed: %s\n",bh->b_blocknr,strerror(errno));
+    if (write(fd, bh->b_data, 512) < 0) {
+        printk("writing block %ld failed: %s\n", bh->b_blocknr, strerror(errno));
     }
 
 #else
@@ -239,31 +239,31 @@ void raw_mark_buffer_dirty(struct super_block *sb,struct buffer_head *bh,int dir
 #endif
 }
 
-void dblspace_reada(struct super_block *sb, int sector,int count)
+void dblspace_reada(struct super_block *sb, int sector, int count)
 {
     /* dummy */
 }
 
-int try_daemon(struct super_block *sb,int clusternr, int length, int method)
+int try_daemon(struct super_block *sb, int clusternr, int length, int method)
 {
     return 0;
 }
 
-int host_fat_lookup(struct super_block *sb,int nr)
+int host_fat_lookup(struct super_block *sb, int nr)
 {
-    struct buffer_head *bh,*bh2;
-    unsigned char *p_first,*p_last;
-    int first,last,next,b;
+    struct buffer_head *bh, *bh2;
+    unsigned char *p_first, *p_last;
+    int first, last, next, b;
 
-    if ((unsigned) (nr-2) >= MSDOS_SB(sb)->clusters) {
+    if ((unsigned)(nr - 2) >= MSDOS_SB(sb)->clusters) {
         return 0;
     }
 
     if (MSDOS_SB(sb)->fat_bits == 16) {
-        first = last = nr*2;
+        first = last = nr * 2;
     } else {
-        first = nr*3/2;
-        last = first+1;
+        first = nr * 3 / 2;
+        last = first + 1;
     }
 
     b = MSDOS_SB(sb)->fat_start + (first >> SECTOR_BITS);
@@ -276,7 +276,7 @@ int host_fat_lookup(struct super_block *sb,int nr)
     if ((first >> SECTOR_BITS) == (last >> SECTOR_BITS)) {
         bh2 = bh;
     } else {
-        if (!(bh2 = raw_bread(sb, b+1))) {
+        if (!(bh2 = raw_bread(sb, b + 1))) {
             raw_brelse(sb, bh);
             printk("DMSDOS: 2nd bread in host_fat_lookup failed\n");
             return 0;
@@ -286,16 +286,16 @@ int host_fat_lookup(struct super_block *sb,int nr)
     if (MSDOS_SB(sb)->fat_bits == 16) {
         p_first = p_last = NULL; /* GCC needs that stuff */
         next = cpu_to_le16(((unsigned short *) bh->b_data)[(first &
-                           (SECTOR_SIZE-1)) >> 1]);
+                           (SECTOR_SIZE - 1)) >> 1]);
 
         if (next >= 0xfff7) { next = -1; }
     } else {
-        p_first = &((unsigned char *) bh->b_data)[first & (SECTOR_SIZE-1)];
-        p_last = &((unsigned char *) bh2->b_data)[(first+1) &
-                           (SECTOR_SIZE-1)];
+        p_first = &((unsigned char *) bh->b_data)[first & (SECTOR_SIZE - 1)];
+        p_last = &((unsigned char *) bh2->b_data)[(first + 1) &
+                             (SECTOR_SIZE - 1)];
 
         if (nr & 1) { next = ((*p_first >> 4) | (*p_last << 4)) & 0xfff; }
-        else { next = (*p_first+(*p_last << 8)) & 0xfff; }
+        else { next = (*p_first + (*p_last << 8)) & 0xfff; }
 
         if (next >= 0xff7) { next = -1; }
     }
@@ -309,9 +309,9 @@ int host_fat_lookup(struct super_block *sb,int nr)
     return next;
 }
 
-int dos_cluster2sector(struct super_block *sb,int clusternr)
+int dos_cluster2sector(struct super_block *sb, int clusternr)
 {
-    return (clusternr-2)*MSDOS_SB(sb)->cluster_size+MSDOS_SB(sb)->data_start;
+    return (clusternr - 2) * MSDOS_SB(sb)->cluster_size + MSDOS_SB(sb)->data_start;
 }
 
 int setup_fragment(struct super_block *sb, int startcluster)
@@ -326,44 +326,44 @@ int setup_fragment(struct super_block *sb, int startcluster)
 
     LOG_REST("DMSDOS: setup_fragment\n");
 
-    directlist=malloc(sizeof(unsigned long)*(MAXFRAGMENT+1));
+    directlist = malloc(sizeof(unsigned long) * (MAXFRAGMENT + 1));
 
-    if (directlist==NULL) {
+    if (directlist == NULL) {
         printk("DMSDOS: out of memory (directlist)\n");
         return -1;
     }
 
-    directlen=malloc(sizeof(unsigned long)*(MAXFRAGMENT+1));
+    directlen = malloc(sizeof(unsigned long) * (MAXFRAGMENT + 1));
 
-    if (directlen==NULL) {
+    if (directlen == NULL) {
         printk("DMSDOS: out of memory (directlen)\n");
         free(directlist);
         return -1;
     }
 
-    fragmentzaehler=0;
+    fragmentzaehler = 0;
 
-    folge_cluster=startcluster;
+    folge_cluster = startcluster;
 
     do {
-        clusterzaehler=0;
-        directlist[fragmentzaehler]=folge_cluster;
+        clusterzaehler = 0;
+        directlist[fragmentzaehler] = folge_cluster;
 
         do {
-            akt_cluster=folge_cluster;
-            folge_cluster=host_fat_lookup(sb,akt_cluster);
+            akt_cluster = folge_cluster;
+            folge_cluster = host_fat_lookup(sb, akt_cluster);
             ++clusterzaehler;
-        } while (folge_cluster==akt_cluster+1);
+        } while (folge_cluster == akt_cluster + 1);
 
-        directlen[fragmentzaehler]=clusterzaehler;
+        directlen[fragmentzaehler] = clusterzaehler;
         LOG_REST("DMSDOS: firstclust=%d anz=%d\n",
                  directlist[fragmentzaehler],
                  directlen[fragmentzaehler]);
 
         ++fragmentzaehler;
-    } while (folge_cluster>0&&fragmentzaehler<MAXFRAGMENT);
+    } while (folge_cluster > 0 && fragmentzaehler < MAXFRAGMENT);
 
-    if (fragmentzaehler==MAXFRAGMENT&&folge_cluster>0) {
+    if (fragmentzaehler == MAXFRAGMENT && folge_cluster > 0) {
         /* zu fragmentiert, raus */
         free(directlist);
         free(directlen);
@@ -372,27 +372,27 @@ int setup_fragment(struct super_block *sb, int startcluster)
         return -1;
     }
 
-    printk("DMSDOS: CVF has %d fragment(s)\n",fragmentzaehler);
+    printk("DMSDOS: CVF has %d fragment(s)\n", fragmentzaehler);
 
     /* convert cluster-oriented numbers into sector-oriented ones */
-    for (i=0; i<fragmentzaehler; ++i) {
+    for (i = 0; i < fragmentzaehler; ++i) {
         /*printk("DMSDOS: umrechnen 1\n");*/
-        directlist[i]=dos_cluster2sector(sb,directlist[i]);
+        directlist[i] = dos_cluster2sector(sb, directlist[i]);
         /*printk("DMSDOS: umrechnen 2\n");*/
-        directlen[i]*=MSDOS_SB(sb)->cluster_size;
+        directlen[i] *= MSDOS_SB(sb)->cluster_size;
         /*printk("DMSDOS: umrechnen 3\n");*/
     }
 
     /* hang in */
-    sb->directlist=directlist;
-    sb->directlen=directlen;
+    sb->directlist = directlist;
+    sb->directlen = directlen;
 
     return 0;
 }
 
-int setup_translation(struct super_block *sb,char *ext)
+int setup_translation(struct super_block *sb, char *ext)
 {
-    int i,j,testvers;
+    int i, j, testvers;
     struct buffer_head *bh;
     struct msdos_dir_entry *data;
     char cvfname[20];
@@ -401,55 +401,55 @@ int setup_translation(struct super_block *sb,char *ext)
 
     printf("%d / %d loops, offset %x\n", MSDOS_SB(sb)->dir_entries, MSDOS_DPS, MSDOS_SB(sb));
 
-    for (i=0; i<MSDOS_SB(sb)->dir_entries/MSDOS_DPS; ++i) {
-        bh=raw_bread(sb,MSDOS_SB(sb)->dir_start+i);
+    for (i = 0; i < MSDOS_SB(sb)->dir_entries / MSDOS_DPS; ++i) {
+        bh = raw_bread(sb, MSDOS_SB(sb)->dir_start + i);
 
-        if (bh==NULL) {
+        if (bh == NULL) {
             printk("DMSDOS: unable to read msdos root directory\n");
             return -1;
         }
 
-        data=(struct msdos_dir_entry *) bh->b_data;
+        data = (struct msdos_dir_entry *) bh->b_data;
 
-        for (j=0; j<MSDOS_DPS; ++j) {
-            testvers=0;
+        for (j = 0; j < MSDOS_DPS; ++j) {
+            testvers = 0;
 
-            if (strncmp(data[j].name,"DRVSPACE",8)==0) { testvers=1; }
+            if (strncmp(data[j].name, "DRVSPACE", 8) == 0) { testvers = 1; }
 
-            if (strncmp(data[j].name,"DBLSPACE",8)==0) { testvers=1; }
+            if (strncmp(data[j].name, "DBLSPACE", 8) == 0) { testvers = 1; }
 
-            if (strncmp(data[j].name,"STACVOL ",8)==0) { testvers=2; }
+            if (strncmp(data[j].name, "STACVOL ", 8) == 0) { testvers = 2; }
 
             if (testvers) {
-                if ( ( data[j].name[8]>='0'&&data[j].name[8]<='9'
-                        &&data[j].name[9]>='0'&&data[j].name[9]<='9'
-                        &&data[j].name[10]>='0'&&data[j].name[10]<='9'
-                     ) | (testvers==2&&strncmp(data[j].name+8,"DSK",3)==0)
+                if ((data[j].name[8] >= '0' && data[j].name[8] <= '9'
+                        && data[j].name[9] >= '0' && data[j].name[9] <= '9'
+                        && data[j].name[10] >= '0' && data[j].name[10] <= '9'
+                    ) | (testvers == 2 && strncmp(data[j].name + 8, "DSK", 3) == 0)
                    ) {
                     /* it is a CVF */
-                    strncpy(cvfname,data[j].name,9-testvers);
-                    cvfname[9-testvers]='\0';
-                    strcat(cvfname,".");
-                    strncat(cvfname,data[j].ext,3);
-                    printk("DMSDOS: CVF %s in root directory found.\n",cvfname);
+                    strncpy(cvfname, data[j].name, 9 - testvers);
+                    cvfname[9 - testvers] = '\0';
+                    strcat(cvfname, ".");
+                    strncat(cvfname, data[j].ext, 3);
+                    printk("DMSDOS: CVF %s in root directory found.\n", cvfname);
 
                     if (ext) {
-                        if (strncmp(ext,data[j].ext,3)!=0) { continue; }
+                        if (strncmp(ext, data[j].ext, 3) != 0) { continue; }
                     }
 
-                    if (setup_fragment(sb,data[j].start)==0) {
-                        sb->directsize=data[j].size/SECTOR_SIZE;
-                        blk_size[0][0]=(data[j].size%1024)?(data[j].size/1024)+1:
-                                       data[j].size/1024;
-                        raw_brelse(sb,bh);
-                        printk("DMSDOS: using CVF %s.\n",cvfname);
+                    if (setup_fragment(sb, data[j].start) == 0) {
+                        sb->directsize = data[j].size / SECTOR_SIZE;
+                        blk_size[0][0] = (data[j].size % 1024) ? (data[j].size / 1024) + 1 :
+                                         data[j].size / 1024;
+                        raw_brelse(sb, bh);
+                        printk("DMSDOS: using CVF %s.\n", cvfname);
                         return 0;
                     }
                 }
             }
         }
 
-        raw_brelse(sb,bh);
+        raw_brelse(sb, bh);
     }
 
     return -1;
@@ -459,19 +459,19 @@ int setup_translation(struct super_block *sb,char *ext)
 /* stolen from fatfs */
 /* Read the super block of an MS-DOS FS. */
 
-struct super_block *read_super(struct super_block *sb,char *ext)
+struct super_block *read_super(struct super_block *sb, char *ext)
 {
     struct buffer_head *bh;
     struct fat_boot_sector *b;
-    int data_sectors,logical_sector_size,sector_mult,fat_clusters=0;
-    int debug=0,error,fat=0;
+    int data_sectors, logical_sector_size, sector_mult, fat_clusters = 0;
+    int debug = 0, error, fat = 0;
     int blksize = 512;
-    int i=-1;
-    int mt=0;
-    char cvf_options[101]="bitfaterrs=nocheck";
+    int i = -1;
+    int mt = 0;
+    char cvf_options[101] = "bitfaterrs=nocheck";
 
-    MSDOS_SB(sb)->cvf_format=NULL;
-    MSDOS_SB(sb)->private_data=NULL;
+    MSDOS_SB(sb)->cvf_format = NULL;
+    MSDOS_SB(sb)->private_data = NULL;
 
 retry:
     blksize = 512;
@@ -479,7 +479,7 @@ retry:
     bh = raw_bread(sb, 0);
 
     if (bh == NULL) {
-        raw_brelse (sb, bh);
+        raw_brelse(sb, bh);
         sb->s_dev = 0;
         printk("FAT bread failed\n");
         return NULL;
@@ -507,15 +507,15 @@ retry:
     logical_sector_size =
         cpu_to_le16(get_unaligned((unsigned short *) &b->sector_size));
     sector_mult = logical_sector_size >> SECTOR_BITS;
-    MSDOS_SB(sb)->cluster_size = b->cluster_size*sector_mult;
+    MSDOS_SB(sb)->cluster_size = b->cluster_size * sector_mult;
     MSDOS_SB(sb)->fats = b->fats;
-    MSDOS_SB(sb)->fat_start = cpu_to_le16(b->reserved)*sector_mult;
-    MSDOS_SB(sb)->fat_length = cpu_to_le16(b->fat_length)*sector_mult;
-    MSDOS_SB(sb)->dir_start = (cpu_to_le16(b->reserved)+b->fats*cpu_to_le16(
-                                   b->fat_length))*sector_mult;
+    MSDOS_SB(sb)->fat_start = cpu_to_le16(b->reserved) * sector_mult;
+    MSDOS_SB(sb)->fat_length = cpu_to_le16(b->fat_length) * sector_mult;
+    MSDOS_SB(sb)->dir_start = (cpu_to_le16(b->reserved) + b->fats * cpu_to_le16(
+                                   b->fat_length)) * sector_mult;
     MSDOS_SB(sb)->dir_entries =
         cpu_to_le16(get_unaligned((unsigned short *) &b->dir_entries));
-    MSDOS_SB(sb)->data_start = MSDOS_SB(sb)->dir_start+ROUND_TO_MULTIPLE((
+    MSDOS_SB(sb)->data_start = MSDOS_SB(sb)->dir_start + ROUND_TO_MULTIPLE((
                                    MSDOS_SB(sb)->dir_entries << MSDOS_DIR_BITS) >> SECTOR_BITS,
                                sector_mult);
     data_sectors = cpu_to_le16(get_unaligned((unsigned short *) &b->sectors));
@@ -528,11 +528,11 @@ retry:
     error = !b->cluster_size || !sector_mult;
 
     if (!error) {
-        MSDOS_SB(sb)->clusters = b->cluster_size ? data_sectors/
-                                 b->cluster_size/sector_mult : 0;
+        MSDOS_SB(sb)->clusters = b->cluster_size ? data_sectors /
+                                 b->cluster_size / sector_mult : 0;
         MSDOS_SB(sb)->fat_bits = fat ? fat : MSDOS_SB(sb)->clusters >
                                  MSDOS_FAT12 ? 16 : 12;
-        fat_clusters = MSDOS_SB(sb)->fat_length*SECTOR_SIZE*8/
+        fat_clusters = MSDOS_SB(sb)->fat_length * SECTOR_SIZE * 8 /
                        MSDOS_SB(sb)->fat_bits;
         /* this doesn't compile. I don't understand it either...
         error = !MSDOS_SB(sb)->fats || (MSDOS_SB(sb)->dir_entries &
@@ -555,37 +555,37 @@ retry:
     /* because clusters (DOS) are often aligned */
     /* on odd sectors. */
     sb->s_blocksize_bits = blksize == 512 ? 9 : 10;
-    i=0;
+    i = 0;
 
 #ifdef DMSDOS_CONFIG_DBL
 
-    if (i==0) {
-        i=detect_dblspace(sb);
+    if (i == 0) {
+        i = detect_dblspace(sb);
 
-        if (i>0) {mt++; i=mount_dblspace(sb,cvf_options);}
+        if (i > 0) {mt++; i = mount_dblspace(sb, cvf_options);}
     }
 
 #endif
 #ifdef DMSDOS_CONFIG_STAC
 
-    if (i==0) {
-        i=detect_stacker(sb);
+    if (i == 0) {
+        i = detect_stacker(sb);
 
-        if (i>0) {mt++; i=mount_stacker(sb,cvf_options);}
+        if (i > 0) {mt++; i = mount_stacker(sb, cvf_options);}
     }
 
 #endif
 
-    if (mt==0) {
+    if (mt == 0) {
         /* looks like a real msdos filesystem */
         printk("DMSDOS: trying to find CVF inside host MSDOS filesystem...\n");
-        i=setup_translation(sb,ext);
+        i = setup_translation(sb, ext);
         ++mt;
 
-        if (i==0) { goto retry; }
+        if (i == 0) { goto retry; }
     }
 
-    error=i;
+    error = i;
 c_err:
 
     if (error || debug) {
@@ -593,17 +593,17 @@ c_err:
         printk("MS-DOS FS Rel. 12 (hacked for libdmsdos), FAT %d\n",
                MSDOS_SB(sb)->fat_bits);
         printk("[me=0x%x,cs=%d,#f=%d,fs=%d,fl=%d,ds=%d,de=%d,data=%d,"
-               "se=%d,ts=%ld,ls=%d]\n",b->media,MSDOS_SB(sb)->cluster_size,
-               MSDOS_SB(sb)->fats,MSDOS_SB(sb)->fat_start,MSDOS_SB(sb)->fat_length,
-               MSDOS_SB(sb)->dir_start,MSDOS_SB(sb)->dir_entries,
+               "se=%d,ts=%ld,ls=%d]\n", b->media, MSDOS_SB(sb)->cluster_size,
+               MSDOS_SB(sb)->fats, MSDOS_SB(sb)->fat_start, MSDOS_SB(sb)->fat_length,
+               MSDOS_SB(sb)->dir_start, MSDOS_SB(sb)->dir_entries,
                MSDOS_SB(sb)->data_start,
                cpu_to_le16(*(unsigned short *) &b->sectors),
-               (unsigned long)b->total_sect,logical_sector_size);
-        printk ("Transaction block size = %d\n",blksize);
+               (unsigned long)b->total_sect, logical_sector_size);
+        printk("Transaction block size = %d\n", blksize);
     }
 
-    if (!error&&i<0) if (MSDOS_SB(sb)->clusters+2 > fat_clusters) {
-            MSDOS_SB(sb)->clusters = fat_clusters-2;
+    if (!error && i < 0) if (MSDOS_SB(sb)->clusters + 2 > fat_clusters) {
+            MSDOS_SB(sb)->clusters = fat_clusters - 2;
         }
 
     if (error) {
@@ -611,7 +611,7 @@ c_err:
 
         if (MSDOS_SB(sb)->private_data) { kfree(MSDOS_SB(sb)->private_data); }
 
-        MSDOS_SB(sb)->private_data=NULL;
+        MSDOS_SB(sb)->private_data = NULL;
         return NULL;
     }
 
@@ -644,19 +644,19 @@ void free_ccache_dev(struct super_block *sb)
     /*dummy*/
 }
 
-void remove_from_daemon_list(struct super_block *sb,int clusternr)
+void remove_from_daemon_list(struct super_block *sb, int clusternr)
 {
     /* dummy */
 }
 
-static int _wascalled=0;
+static int _wascalled = 0;
 void do_lib_init(void)
 {
     int i;
 
     if (_wascalled) { return; }
 
-    _wascalled=1;
+    _wascalled = 1;
 
     /* first call of DMSDOS library, initialising variables */
 
@@ -680,74 +680,74 @@ void do_lib_init(void)
            ", stacker 4"
 #endif
            "\n",
-           DMSDOS_MAJOR,DMSDOS_MINOR,DMSDOS_ACT_REL);
+           DMSDOS_MAJOR, DMSDOS_MINOR, DMSDOS_ACT_REL);
 
-    for (i=0; i<MDFATCACHESIZE; ++i) {
-        mdfat[i].a_time=0;
-        mdfat[i].a_acc=0;
-        mdfat[i].a_buffer=NULL;
+    for (i = 0; i < MDFATCACHESIZE; ++i) {
+        mdfat[i].a_time = 0;
+        mdfat[i].a_acc = 0;
+        mdfat[i].a_buffer = NULL;
     }
 
-    for (i=0; i<DFATCACHESIZE; ++i) {
-        dfat[i].a_time=0;
-        dfat[i].a_acc=0;
-        dfat[i].a_buffer=NULL;
+    for (i = 0; i < DFATCACHESIZE; ++i) {
+        dfat[i].a_time = 0;
+        dfat[i].a_acc = 0;
+        dfat[i].a_buffer = NULL;
     }
 
-    for (i=0; i<BITFATCACHESIZE; ++i) {
-        bitfat[i].a_time=0;
-        bitfat[i].a_acc=0;
-        bitfat[i].a_buffer=NULL;
+    for (i = 0; i < BITFATCACHESIZE; ++i) {
+        bitfat[i].a_time = 0;
+        bitfat[i].a_acc = 0;
+        bitfat[i].a_buffer = NULL;
     }
 }
 
-struct super_block *open_cvf(char *filename,int rwflag)
+struct super_block *open_cvf(char *filename, int rwflag)
 {
     struct super_block *sb;
     int fd;
     long int s;
-    char *ext=NULL;
+    char *ext = NULL;
 
     do_lib_init();
 
-    ext=strrchr(filename,':');
+    ext = strrchr(filename, ':');
 
     if (ext) {
-        if (strlen(ext)==4) {
-            *ext='\0';
+        if (strlen(ext) == 4) {
+            *ext = '\0';
             ++ext;
         } else {
-            ext=NULL;
+            ext = NULL;
         }
     }
 
 reopen:
 #ifndef USE_SOPEN
-    fd=open(filename,rwflag?O_RDWR:O_RDONLY);
+    fd = open(filename, rwflag ? O_RDWR : O_RDONLY);
 
-    if (fd<0) {
-        printk("unable to open CVF read-write: %s\n",strerror(errno));
+    if (fd < 0) {
+        printk("unable to open CVF read-write: %s\n", strerror(errno));
 
-        if (rwflag==0) { return NULL; }
+        if (rwflag == 0) { return NULL; }
 
         printk("trying again in read-only mode\n");
-        rwflag=0;
+        rwflag = 0;
         goto reopen;
     }
 
 #ifdef USE_FLOCK
 
     if (rwflag) {
-        if (flock(fd,LOCK_EX|LOCK_NB)) {
-            printk("unable to lock CVF exclusively: %s",strerror(errno));
+        if (flock(fd, LOCK_EX | LOCK_NB)) {
+            printk("unable to lock CVF exclusively: %s", strerror(errno));
             printk("trying again in read-only mode\n");
-            rwflag=0;
+            rwflag = 0;
             close(fd);
             goto reopen;
         }
     } else {
-        if (flock(fd,LOCK_SH|LOCK_NB)) {
-            printk("unable to lock CVF with shared flag: %s",strerror(errno));
+        if (flock(fd, LOCK_SH | LOCK_NB)) {
+            printk("unable to lock CVF with shared flag: %s", strerror(errno));
             printk("probably some other process has opened the CVF read-write.\n");
             close(fd);
             return NULL;
@@ -757,44 +757,44 @@ reopen:
 #endif /* USE_FLOCK */
 #else
     /* open with win32 locking */
-    fd=sopen(filename,rwflag?O_RDWR:O_RDONLY,rwflag?SH_DENYRW:SH_DENYWR);
+    fd = sopen(filename, rwflag ? O_RDWR : O_RDONLY, rwflag ? SH_DENYRW : SH_DENYWR);
 
-    if (fd<0) {
-        printk("unable to open CVF read-write: %s\n",strerror(errno));
+    if (fd < 0) {
+        printk("unable to open CVF read-write: %s\n", strerror(errno));
 
-        if (rwflag==0) { return NULL; }
+        if (rwflag == 0) { return NULL; }
 
         printk("trying again in read-only mode\n");
-        rwflag=0;
+        rwflag = 0;
         goto reopen;
     }
 
 #endif
 
-    s=lseek(fd,0,SEEK_END);
-    blk_size[0][0]=(s%1024)?(s/1024)+1:s/1024;
-    sb=malloc(sizeof(struct super_block));
+    s = lseek(fd, 0, SEEK_END);
+    blk_size[0][0] = (s % 1024) ? (s / 1024) + 1 : s / 1024;
+    sb = malloc(sizeof(struct super_block));
 
-    if (sb==NULL) {
+    if (sb == NULL) {
         printk("malloc failed\n");
 #ifdef USE_FLOCK
-        flock(fd,LOCK_UN);
+        flock(fd, LOCK_UN);
 #endif
         close(fd);
         return NULL;
     }
 
-    sb->s_dev=fd;
-    sb->s_flags=0;
+    sb->s_dev = fd;
+    sb->s_flags = 0;
 
-    if (rwflag==0) { sb->s_flags|=MS_RDONLY; }
+    if (rwflag == 0) { sb->s_flags |= MS_RDONLY; }
 
-    sb->directlist=NULL;
-    sb->directlen=NULL;
+    sb->directlist = NULL;
+    sb->directlen = NULL;
 
-    if (read_super(sb,ext)==NULL) {
+    if (read_super(sb, ext) == NULL) {
 #ifdef USE_FLOCK
-        flock(fd,LOCK_UN);
+        flock(fd, LOCK_UN);
 #endif
         close(fd);
         free(sb);
@@ -806,11 +806,11 @@ reopen:
 
 void close_cvf(struct super_block *sb)
 {
-    int fd=sb->s_dev;
+    int fd = sb->s_dev;
 
     unmount_dblspace(sb);
 #ifdef USE_FLOCK
-    flock(fd,LOCK_UN);
+    flock(fd, LOCK_UN);
 #endif
     close(fd);
 

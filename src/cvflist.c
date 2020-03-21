@@ -55,27 +55,27 @@ See file COPYING for details.
 
 #define MSDOS_FAT12 4078 /* maximum number of clusters in a 12 bit FAT */
 
-struct buffer_head *raw_bread(struct super_block *sb,int block)
+struct buffer_head *raw_bread(struct super_block *sb, int block)
 {
     struct buffer_head *bh;
-    int fd=sb->s_dev;
+    int fd = sb->s_dev;
 
-    if (lseek(fd,block*512,SEEK_SET)<0) { return NULL; }
+    if (lseek(fd, block * 512, SEEK_SET) < 0) { return NULL; }
 
-    bh=malloc(sizeof(struct buffer_head));
+    bh = malloc(sizeof(struct buffer_head));
 
-    if (bh==NULL) { return NULL; }
+    if (bh == NULL) { return NULL; }
 
-    bh->b_data=malloc(512);
+    bh->b_data = malloc(512);
 
-    if (bh->b_data==NULL) {
+    if (bh->b_data == NULL) {
         free(bh);
         return NULL;
     }
 
-    bh->b_blocknr=block;
+    bh->b_blocknr = block;
 
-    if (read(fd,bh->b_data,512)==512) { return bh; }
+    if (read(fd, bh->b_data, 512) == 512) { return bh; }
 
     free(bh->b_data);
     free(bh);
@@ -83,9 +83,9 @@ struct buffer_head *raw_bread(struct super_block *sb,int block)
     return NULL;
 }
 
-void raw_brelse(struct super_block *sb,struct buffer_head *bh)
+void raw_brelse(struct super_block *sb, struct buffer_head *bh)
 {
-    if (bh==NULL) { return; }
+    if (bh == NULL) { return; }
 
     free(bh->b_data);
     free(bh);
@@ -93,49 +93,49 @@ void raw_brelse(struct super_block *sb,struct buffer_head *bh)
 
 int list_cvfs(struct super_block *sb)
 {
-    int i,j,testvers;
+    int i, j, testvers;
     struct buffer_head *bh;
     struct msdos_dir_entry *data;
     char cvfname[20];
 
     /* scan the root directory for a CVF */
 
-    for (i=0; i<MSDOS_SB(sb)->dir_entries/MSDOS_DPS; ++i) {
-        bh=raw_bread(sb,MSDOS_SB(sb)->dir_start+i);
+    for (i = 0; i < MSDOS_SB(sb)->dir_entries / MSDOS_DPS; ++i) {
+        bh = raw_bread(sb, MSDOS_SB(sb)->dir_start + i);
 
-        if (bh==NULL) {
-            fprintf(stderr,"unable to read msdos root directory\n");
+        if (bh == NULL) {
+            fprintf(stderr, "unable to read msdos root directory\n");
             return -1;
         }
 
-        data=(struct msdos_dir_entry *) bh->b_data;
+        data = (struct msdos_dir_entry *) bh->b_data;
 
-        for (j=0; j<MSDOS_DPS; ++j) {
-            testvers=0;
+        for (j = 0; j < MSDOS_DPS; ++j) {
+            testvers = 0;
 
-            if (strncmp(data[j].name,"DRVSPACE",8)==0) { testvers=1; }
+            if (strncmp(data[j].name, "DRVSPACE", 8) == 0) { testvers = 1; }
 
-            if (strncmp(data[j].name,"DBLSPACE",8)==0) { testvers=1; }
+            if (strncmp(data[j].name, "DBLSPACE", 8) == 0) { testvers = 1; }
 
-            if (strncmp(data[j].name,"STACVOL ",8)==0) { testvers=2; }
+            if (strncmp(data[j].name, "STACVOL ", 8) == 0) { testvers = 2; }
 
             if (testvers) {
-                if ( ( data[j].name[8]>='0'&&data[j].name[8]<='9'
-                        &&data[j].name[9]>='0'&&data[j].name[9]<='9'
-                        &&data[j].name[10]>='0'&&data[j].name[10]<='9'
-                     ) | (testvers==2&&strncmp(data[j].name+8,"DSK",3)==0)
+                if ((data[j].name[8] >= '0' && data[j].name[8] <= '9'
+                        && data[j].name[9] >= '0' && data[j].name[9] <= '9'
+                        && data[j].name[10] >= '0' && data[j].name[10] <= '9'
+                    ) | (testvers == 2 && strncmp(data[j].name + 8, "DSK", 3) == 0)
                    ) {
                     /* it is a CVF */
-                    strncpy(cvfname,data[j].name,9-testvers);
-                    cvfname[9-testvers]='\0';
-                    strcat(cvfname,".");
-                    strncat(cvfname,data[j].ext,3);
-                    printf("%s\n",cvfname);
+                    strncpy(cvfname, data[j].name, 9 - testvers);
+                    cvfname[9 - testvers] = '\0';
+                    strcat(cvfname, ".");
+                    strncat(cvfname, data[j].ext, 3);
+                    printf("%s\n", cvfname);
                 }
             }
         }
 
-        raw_brelse(sb,bh);
+        raw_brelse(sb, bh);
     }
 
     return 0;
@@ -149,21 +149,21 @@ int read_super(struct super_block *sb)
 {
     struct buffer_head *bh;
     struct fat_boot_sector *b;
-    int data_sectors,logical_sector_size,sector_mult,fat_clusters=0;
-    int error,fat=0;
+    int data_sectors, logical_sector_size, sector_mult, fat_clusters = 0;
+    int error, fat = 0;
     int blksize = 512;
 
-    MSDOS_SB(sb)->cvf_format=NULL;
-    MSDOS_SB(sb)->private_data=NULL;
+    MSDOS_SB(sb)->cvf_format = NULL;
+    MSDOS_SB(sb)->private_data = NULL;
 
     blksize = 512;
 
     bh = raw_bread(sb, 0);
 
     if (bh == NULL) {
-        raw_brelse (sb, bh);
+        raw_brelse(sb, bh);
         sb->s_dev = 0;
-        fprintf(stderr,"cannot read file\n");
+        fprintf(stderr, "cannot read file\n");
         return -1;
     }
 
@@ -189,15 +189,15 @@ int read_super(struct super_block *sb)
     logical_sector_size =
         cpu_to_le16(get_unaligned((unsigned short *) &b->sector_size));
     sector_mult = logical_sector_size >> SECTOR_BITS;
-    MSDOS_SB(sb)->cluster_size = b->cluster_size*sector_mult;
+    MSDOS_SB(sb)->cluster_size = b->cluster_size * sector_mult;
     MSDOS_SB(sb)->fats = b->fats;
-    MSDOS_SB(sb)->fat_start = cpu_to_le16(b->reserved)*sector_mult;
-    MSDOS_SB(sb)->fat_length = cpu_to_le16(b->fat_length)*sector_mult;
-    MSDOS_SB(sb)->dir_start = (cpu_to_le16(b->reserved)+b->fats*cpu_to_le16(
-                                   b->fat_length))*sector_mult;
+    MSDOS_SB(sb)->fat_start = cpu_to_le16(b->reserved) * sector_mult;
+    MSDOS_SB(sb)->fat_length = cpu_to_le16(b->fat_length) * sector_mult;
+    MSDOS_SB(sb)->dir_start = (cpu_to_le16(b->reserved) + b->fats * cpu_to_le16(
+                                   b->fat_length)) * sector_mult;
     MSDOS_SB(sb)->dir_entries =
         cpu_to_le16(get_unaligned((unsigned short *) &b->dir_entries));
-    MSDOS_SB(sb)->data_start = MSDOS_SB(sb)->dir_start+ROUND_TO_MULTIPLE((
+    MSDOS_SB(sb)->data_start = MSDOS_SB(sb)->dir_start + ROUND_TO_MULTIPLE((
                                    MSDOS_SB(sb)->dir_entries << MSDOS_DIR_BITS) >> SECTOR_BITS,
                                sector_mult);
     data_sectors = cpu_to_le16(get_unaligned((unsigned short *) &b->sectors));
@@ -210,11 +210,11 @@ int read_super(struct super_block *sb)
     error = !b->cluster_size || !sector_mult;
 
     if (!error) {
-        MSDOS_SB(sb)->clusters = b->cluster_size ? data_sectors/
-                                 b->cluster_size/sector_mult : 0;
+        MSDOS_SB(sb)->clusters = b->cluster_size ? data_sectors /
+                                 b->cluster_size / sector_mult : 0;
         MSDOS_SB(sb)->fat_bits = fat ? fat : MSDOS_SB(sb)->clusters >
                                  MSDOS_FAT12 ? 16 : 12;
-        fat_clusters = MSDOS_SB(sb)->fat_length*SECTOR_SIZE*8/
+        fat_clusters = MSDOS_SB(sb)->fat_length * SECTOR_SIZE * 8 /
                        MSDOS_SB(sb)->fat_bits;
         /* this doesn't compile. I don't understand it either...
         error = !MSDOS_SB(sb)->fats || (MSDOS_SB(sb)->dir_entries &
@@ -241,7 +241,7 @@ int read_super(struct super_block *sb)
     return list_cvfs(sb);
 
 c_err:
-    fprintf(stderr,"Not a FAT12 or FAT16 MSDOS filesystem.\n");
+    fprintf(stderr, "Not a FAT12 or FAT16 MSDOS filesystem.\n");
     return -1;
 }
 
@@ -251,34 +251,34 @@ int main(int argc, char *argv[])
     int fd;
     int ret;
 
-    if (argc!=2) {
-        fprintf(stderr,"list names of CVFs in a FAT12 or FAT16 MSDOS fs.\n");
-        fprintf(stderr,"usage: %s filename\n",argv[0]);
+    if (argc != 2) {
+        fprintf(stderr, "list names of CVFs in a FAT12 or FAT16 MSDOS fs.\n");
+        fprintf(stderr, "usage: %s filename\n", argv[0]);
         return -1;
     }
 
-    fd=open(argv[1],O_RDONLY);
+    fd = open(argv[1], O_RDONLY);
 
-    if (fd<0) {
+    if (fd < 0) {
         perror("open");
         return -1;
     }
 
-    sb=malloc(sizeof(struct super_block));
+    sb = malloc(sizeof(struct super_block));
 
-    if (sb==NULL) {
-        fprintf(stderr,"malloc failed\n");
+    if (sb == NULL) {
+        fprintf(stderr, "malloc failed\n");
         close(fd);
         return -1;
     }
 
-    sb->s_flags=0;
-    sb->s_flags|=MS_RDONLY;
-    sb->s_dev=fd;
-    sb->directlist=NULL;
-    sb->directlen=NULL;
+    sb->s_flags = 0;
+    sb->s_flags |= MS_RDONLY;
+    sb->s_dev = fd;
+    sb->directlist = NULL;
+    sb->directlen = NULL;
 
-    ret=read_super(sb);
+    ret = read_super(sb);
     close(fd);
     free(sb);
     return ret;
