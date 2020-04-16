@@ -49,7 +49,7 @@ See file COPYING for details.
 int stac_cwalk_init(Stac_cwalk *cw, struct super_block *sb,
                     int clusternr, int flg)
 {
-    __u8 *pp;
+    uint8_t *pp;
     unsigned u, v;
     int i;
     int last_sect;

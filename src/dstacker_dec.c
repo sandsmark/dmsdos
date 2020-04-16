@@ -63,7 +63,7 @@ __asm__ /*__volatile__*/(\
 	:"0" (D),"1" (S),"2" (C) \
 	:"memory")
 
-INLINE __u16 swap_bytes_in_word(__u16 x)
+INLINE uint16_t swap_bytes_in_word(uint16_t x)
 {
     __asm__("xchgb %b0,%h0"		/* swap bytes		*/
             : "=q"(x)
@@ -74,9 +74,9 @@ INLINE __u16 swap_bytes_in_word(__u16 x)
 
 #else
 
-#define M_MOVSB(D,S,C) for(;(C);(C)--) *((__u8*)(D)++)=*((__u8*)(S)++)
+#define M_MOVSB(D,S,C) for(;(C);(C)--) *((uint8_t*)(D)++)=*((uint8_t*)(S)++)
 
-INLINE __u16 swap_bytes_in_word(__u16 x)
+INLINE uint16_t swap_bytes_in_word(uint16_t x)
 {
     return ((x & 0x00ff) << 8) | ((x & 0xff00) >> 8);
 }
@@ -96,7 +96,7 @@ INLINE __u16 swap_bytes_in_word(__u16 x)
 /*#define INLINE inline*/
 
 typedef struct {
-    __u8 *ptr;
+    uint8_t *ptr;
     int x;
     int pos;
     int max_x;
@@ -104,7 +104,7 @@ typedef struct {
 
 void InitBitStream(bitstreamC *b, void *k, int max_x)
 {
-    b->ptr = (__u8 *)k;
+    b->ptr = (uint8_t *)k;
     b->pos = 0x8;
     b->x = 0;
     b->max_x = max_x;
@@ -231,9 +231,9 @@ int ReadNC(bitstreamC *b)
 
 #define __dcflDebugInfo 0x8000
 
-INLINE __u8 sd3_xorsum_D(__u8 *data, int len)
+INLINE uint8_t sd3_xorsum_D(uint8_t *data, int len)
 {
-    __u8 sum = 0xFF;
+    uint8_t sum = 0xFF;
 
     while (len--) { sum ^= *(data++); }
 
@@ -246,10 +246,10 @@ int sd3_decomp(void *data, int CompSize, void *DecompData, int DecompSize,
     bitstreamC bb;
     int DataSize = DecompSize;
     int token, repN;
-    __u8 *Decomp, *P;
+    uint8_t *Decomp, *P;
 
     InitBitStream(&bb, data, CompSize);
-    Decomp = (__u8 *)DecompData;
+    Decomp = (uint8_t *)DecompData;
 
     while (CompSize > bb.x + 2) {
         token = Read9BitC(&bb);
@@ -289,7 +289,7 @@ int sd3_decomp(void *data, int CompSize, void *DecompData, int DecompSize,
             } else {
                 if (token < 8) {
                     printk(KERN_ERR "DMSDOS: stac3_decomp: Unknown token %d on pos 0x%X->0x%X\n",
-                           token, bb.ptr - (__u8 *)data, Decomp - (__u8 *)DecompData);
+                           token, bb.ptr - (uint8_t *)data, Decomp - (uint8_t *)DecompData);
                     return (0);
                 }
 
@@ -303,7 +303,7 @@ int sd3_decomp(void *data, int CompSize, void *DecompData, int DecompSize,
 
             if (DataSize < repN) {
                 printk(KERN_ERR "DMSDOS: stac3_decomp: Multi rep overrun 0x%x at pos 0x%x->0x%x\n",
-                       repN, bb.ptr - (__u8 *)data, Decomp - (__u8 *)DecompData);
+                       repN, bb.ptr - (uint8_t *)data, Decomp - (uint8_t *)DecompData);
                 repN = DataSize;
                 return (0);
             }
@@ -314,9 +314,9 @@ int sd3_decomp(void *data, int CompSize, void *DecompData, int DecompSize,
             P = Decomp - token;
 
             /* this prevents segfaults in case of strange error */
-            if (P < (__u8 *)DecompData) {
+            if (P < (uint8_t *)DecompData) {
                 printk(KERN_ERR "DMSDOS: stac3_decomp: Illegal back pointer length 0x%x at pos 0x%x->0x%x\n",
-                       token, bb.ptr - (__u8 *)data, Decomp - (__u8 *)DecompData);
+                       token, bb.ptr - (uint8_t *)data, Decomp - (uint8_t *)DecompData);
                 break;
             };
 
@@ -335,8 +335,8 @@ int sd3_decomp(void *data, int CompSize, void *DecompData, int DecompSize,
 
     if (CompSize > bb.x) {
         /* Check data xor sum */
-        __u8 sum;
-        sum = sd3_xorsum_D((__u8 *)DecompData, DecompSize - DataSize);
+        uint8_t sum;
+        sum = sd3_xorsum_D((uint8_t *)DecompData, DecompSize - DataSize);
 
         if (sum^*bb.ptr) {
             printk(KERN_ERR "DMSDOS: stac3_decomp: xor sum error!\n");
@@ -356,21 +356,21 @@ int sd3_decomp(void *data, int CompSize, void *DecompData, int DecompSize,
 
 typedef
 struct {
-    __u32 buf;	/* bit buffer */
+    uint32_t buf;	/* bit buffer */
     int pb;	/* not read bits count in buffer */
-    __u16 *pd;	/* first not readed input data */
-    __u16 *pe;	/* after end of data */
+    uint16_t *pd;	/* first not readed input data */
+    uint16_t *pe;	/* after end of data */
 } bits_t;
 
 typedef
 struct {
-    __u8 ch[0x400];	/* characters codes */
-    __u8 ln[0x400];	/* characters lens .. if >=0x80 controll */
-    __u8 ch1[0x200];	/* for codes vith more than bn bits */
-    __u8 ln1[0x200];
+    uint8_t ch[0x400];	/* characters codes */
+    uint8_t ln[0x400];	/* characters lens .. if >=0x80 controll */
+    uint8_t ch1[0x200];	/* for codes vith more than bn bits */
+    uint8_t ln1[0x200];
     int bn;		/* ch,ln array max convert bits, longer use ch1,cl1 */
-    __u16 cd_ln[16];	/* distribution of bits */
-    __u16 cd_ch[16];	/* distribution of codes codes */
+    uint16_t cd_ln[16];	/* distribution of bits */
+    uint16_t cd_ch[16];	/* distribution of codes codes */
 } huf_t;
 
 const unsigned sd4b_bmsk[] = {
@@ -397,7 +397,7 @@ const unsigned sd4b_bmsk[] = {
 INLINE void sd4b_rdi(bits_t *pbits, void *pin, unsigned lin)
 {
     pbits->pb = 0;
-    pbits->pd = (__u16 *)pin;
+    pbits->pd = (uint16_t *)pin;
     pbits->pe = pbits->pd + ((lin + 1) >> 1);
 };
 
@@ -412,7 +412,7 @@ INLINE unsigned sd4b_rdn(bits_t *pbits, int n)
 #define OUT_OVER 0x100
 
 /* read and huffman decode of characters, stops on tokens or buffer ends */
-INLINE unsigned sd4b_rdh(bits_t *pbits, const huf_t *phuf, __u8 **pout, __u8 *pend)
+INLINE unsigned sd4b_rdh(bits_t *pbits, const huf_t *phuf, uint8_t **pout, uint8_t *pend)
 {
 
     unsigned ch;
@@ -483,7 +483,7 @@ INLINE unsigned sd4b_rdh(bits_t *pbits, const huf_t *phuf, __u8 **pout, __u8 *pe
     };
 };
 
-INLINE int sd4b_rdhufi(huf_t *phuf, int m, int bn, __u8 *ca)
+INLINE int sd4b_rdhufi(huf_t *phuf, int m, int bn, uint8_t *ca)
 {
     if (bn > 10) { bn = 10; }
 
@@ -589,7 +589,7 @@ int sd4_decomp(void *pin, int lin, void *pout, int lout, int flg)
     bits_t bits;
     huf_t *huf;
     unsigned u;
-    __u8 len_150;
+    uint8_t len_150;
 
     sd4b_rdi(&bits, pin, lin);
     u = sd4b_rdn(&bits, 16);
@@ -605,9 +605,9 @@ int sd4_decomp(void *pin, int lin, void *pout, int lout, int flg)
         int ie;
         int bmax1, bmax2;
         unsigned u;
-        __u8 ca[0x180];/* 12B4 */
-        __u8 *pca;
-        __u8 *pcae;
+        uint8_t ca[0x180];/* 12B4 */
+        uint8_t *pca;
+        uint8_t *pcae;
 
         memset(ca, 0, 22);
         i = sd4b_rdn(&bits, 3) + 1;
@@ -702,8 +702,8 @@ int sd4_decomp(void *pin, int lin, void *pout, int lout, int flg)
     };
 
     {
-        __u8 *p, *r, *pe;
-        p = (__u8 *)pout;
+        uint8_t *p, *r, *pe;
+        p = (uint8_t *)pout;
         pe = p + lout;
 
         while ((u = sd4b_rdh(&bits, huf, &p, pe)) < 0x50) {
@@ -729,8 +729,8 @@ int sd4_decomp(void *pin, int lin, void *pout, int lout, int flg)
                                 }
                 };
 
-                if ((__u8 *)pout + m > p)
-                {m = p - (__u8 *)pout; printk(KERN_ERR "DMSDOS: sd4_decomp: Under !!!\n");};
+                if ((uint8_t *)pout + m > p)
+                {m = p - (uint8_t *)pout; printk(KERN_ERR "DMSDOS: sd4_decomp: Under !!!\n");};
 
                 if (p + n > pe)
                 {n = pe - p; printk(KERN_ERR "DMSDOS: sd4_decomp: Over !!!!\n");};
@@ -751,7 +751,7 @@ int sd4_decomp(void *pin, int lin, void *pout, int lout, int flg)
 
         if (u == 0x50) {
             FREE(huf);
-            return (p - (__u8 *)pout);
+            return (p - (uint8_t *)pout);
         } else {printk(KERN_ERR "DMSDOS: sd4_decomp: Error end token %X\n", u);};
     };
 
@@ -768,7 +768,7 @@ int stac_decompress(unsigned char *buf_in, int len_in,
 {
     int alg_info;
 
-    alg_info = le16_to_cpu(*(__u16 *)buf_in);
+    alg_info = le16_to_cpu(*(uint16_t *)buf_in);
 
     switch (alg_info) {
     case 0x0081:
@@ -797,7 +797,7 @@ int stac_read_cluster(struct super_block *sb, unsigned char *clusterd,
     int sect;
     int count, val, bytesperclust;
     struct buffer_head *bh;
-    __u8 *clusterk;
+    uint8_t *clusterk;
     Stac_cwalk cw;
     Dblsb *dblsb = MSDOS_SB(sb)->private_data;
 

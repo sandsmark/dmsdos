@@ -72,10 +72,10 @@ int c_maxtrycount[12] = { 1, 2, 3, 4, 6, 8, 10, 14, 18, 22, 28, 40};
 /* for reading and writting from/to bitstream */
 typedef
 struct {
-    __u32 buf;	/* bit buffer */
+    uint32_t buf;	/* bit buffer */
     int pb;	/* already written bits to buf */
-    __u16 *pd;	/* data write pointer */
-    __u16 *pe;	/* after end of data */
+    uint16_t *pd;	/* data write pointer */
+    uint16_t *pe;	/* after end of data */
 } bits_t;
 
 /* initializes writting to bitstream */
@@ -83,7 +83,7 @@ INLINE void dblb_wri(bits_t *pbits, void *pin, unsigned lin)
 {
     pbits->buf = 0;
     pbits->pb = 0;
-    pbits->pd = (__u16 *)pin;
+    pbits->pd = (uint16_t *)pin;
     pbits->pe = pbits->pd + ((lin + 1) >> 1);
 }
 
@@ -94,7 +94,7 @@ INLINE void dblb_wrn(bits_t *pbits, int cod, int n)
 
     if ((pbits->pb += n) >= 16) {
         if (pbits->pd < pbits->pe) {
-            *(pbits->pd++) = cpu_to_le16((__u16)pbits->buf);
+            *(pbits->pd++) = cpu_to_le16((uint16_t)pbits->buf);
         } else if (pbits->pd == pbits->pe) { pbits->pd++; } /* output overflow */
 
         pbits->buf >>= 16;
@@ -210,16 +210,16 @@ void write_marker(bits_t *pbits, int method)
     dblb_wrn(pbits, 0xFFF, 12);
 }
 
-typedef __u16 hash_t;
+typedef uint16_t hash_t;
 
 /* hashing function is only 2 char because of DS min rep */
-INLINE unsigned dbl_hash(__u8 *p)
+INLINE unsigned dbl_hash(uint8_t *p)
 {
-    return (((__u16)p[0] << 4) ^ ((__u16)p[1] << 0)) & 0x3FF;
+    return (((uint16_t)p[0] << 4) ^ ((uint16_t)p[1] << 0)) & 0x3FF;
 };
 
 /* adds new hash and returns previous occurence */
-INLINE hash_t dbl_newhash(__u8 *clusterd, int pos,
+INLINE hash_t dbl_newhash(uint8_t *clusterd, int pos,
                           hash_t *hash_tab, hash_t *hash_hist, unsigned hash_mask)
 {
     hash_t *hash_ptr;
@@ -236,7 +236,7 @@ INLINE hash_t dbl_newhash(__u8 *clusterd, int pos,
    gets uncompressed size (number of used sectors)
    returns compressed size (in number of used sectors) or -1 if failed
 */
-int dbl_compress(__u8 *clusterk, __u8 *clusterd, int size,
+int dbl_compress(uint8_t *clusterk, uint8_t *clusterd, int size,
                  int method, int cf)
 {
     bits_t bits;
@@ -359,7 +359,7 @@ single_char:
 
         FREE(hash_tab);
         FREE(hash_hist);
-        return (((__u8 *)bits.pd - (__u8 *)clusterk) - 1) / 512 + 1;
+        return (((uint8_t *)bits.pd - (uint8_t *)clusterk) - 1) / 512 + 1;
 
 error:
         FREE(hash_tab);

@@ -44,7 +44,7 @@ extern int daemon_present;
 
 #ifdef DMSDOS_CONFIG_STAC
 /* reads stacker BITFAT sumary informations */
-__u8 *stac_bitfat_sumary(struct super_block *sb,
+uint8_t *stac_bitfat_sumary(struct super_block *sb,
                          struct buffer_head **pbh)
 {
     int pos, sector;
@@ -68,11 +68,11 @@ __u8 *stac_bitfat_sumary(struct super_block *sb,
 int stac_bitfat_state(struct super_block *sb, int new_state)
 {
     int old_state;
-    __u8 *pp;
+    uint8_t *pp;
     struct buffer_head *bh;
-    static __u8 bitfat_up_to_date_fl[4] = {0xAA, 0xBB, 0xAA, 0xAA};
-    static __u8 bitfat_changing_fl[4] = {0xAA, 0xBB, 0x55, 0x55};
-    static __u8 bitfat_bad_fl[4] = {0xAA, 0xBB, 0x00, 0x00};
+    static uint8_t bitfat_up_to_date_fl[4] = {0xAA, 0xBB, 0xAA, 0xAA};
+    static uint8_t bitfat_changing_fl[4] = {0xAA, 0xBB, 0x55, 0x55};
+    static uint8_t bitfat_bad_fl[4] = {0xAA, 0xBB, 0x00, 0x00};
     Dblsb *dblsb = MSDOS_SB(sb)->private_data;
 
     if (dblsb->s_cvf_version < STAC3) { return 0; }
@@ -112,11 +112,11 @@ int stac_simple_check(struct super_block *sb, int repair)
     int non_lin_alloc;
     Stac_cwalk cw;
     struct buffer_head *bh;
-    __u8 *pp;
+    uint8_t *pp;
     int free_sects;
     int deleted_clusts;
     int bitfat_dirty;
-    static __u8 inc_tab[4] = {1, 4, 16, 64};
+    static uint8_t inc_tab[4] = {1, 4, 16, 64};
     Dblsb *dblsb = MSDOS_SB(sb)->private_data;
 
 #define set_bits(field,nr,val) field[nr>>2]|=val<<((nr&3)<<1)

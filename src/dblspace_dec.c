@@ -62,7 +62,7 @@ __asm__ /*__volatile__*/(\
 
 #else
 
-#define M_MOVSB(D,S,C) for(;(C);(C)--) *((__u8*)(D)++)=*((__u8*)(S)++)
+#define M_MOVSB(D,S,C) for(;(C);(C)--) *((uint8_t*)(D)++)=*((uint8_t*)(S)++)
 
 #endif
 
@@ -74,10 +74,10 @@ __asm__ /*__volatile__*/(\
 /* for reading and writting from/to bitstream */
 typedef
 struct {
-    __u32 buf;	/* bit buffer */
+    uint32_t buf;	/* bit buffer */
     int pb;	/* already readed bits from buf */
-    __u16 *pd;	/* first not readed input data */
-    __u16 *pe;	/* after end of data */
+    uint16_t *pd;	/* first not readed input data */
+    uint16_t *pe;	/* after end of data */
 } bits_t;
 
 const unsigned dblb_bmsk[] = {
@@ -92,7 +92,7 @@ const unsigned dblb_bmsk[] = {
     (bits).pb-=16; \
     if((bits).pd<(bits).pe) \
     { \
-     (bits).buf|=((__u32)(le16_to_cpu(*((bits).pd++))))<<16; \
+     (bits).buf|=((uint32_t)(le16_to_cpu(*((bits).pd++))))<<16; \
     }; \
    }
 
@@ -107,7 +107,7 @@ const unsigned dblb_bmsk[] = {
 INLINE void dblb_rdi(bits_t *pbits, void *pin, unsigned lin)
 {
     pbits->pb = 32;
-    pbits->pd = (__u16 *)pin;
+    pbits->pd = (uint16_t *)pin;
     pbits->pe = pbits->pd + ((lin + 1) >> 1);
 }
 
@@ -217,16 +217,16 @@ INLINE int dblb_rdlen(bits_t *pbits)
     return -1;
 }
 
-INLINE int dblb_decrep(bits_t *pbits, __u8 **p, void *pout, __u8 *pend,
+INLINE int dblb_decrep(bits_t *pbits, uint8_t **p, void *pout, uint8_t *pend,
                        int repoffs, int k, int flg)
 {
     int replen;
-    __u8 *r;
+    uint8_t *r;
 
     if (repoffs == 0) {LOG_DECOMP("DMSDOS: decrb: zero offset ?\n"); return -2;}
 
     if (repoffs == 0x113f) {
-        int pos = *p - (__u8 *)pout;
+        int pos = *p - (uint8_t *)pout;
         LOG_DECOMP("DMSDOS: decrb: 0x113f sync found.\n");
 
         if ((pos % 512) && !(flg & 0x4000)) {
@@ -242,7 +242,7 @@ INLINE int dblb_decrep(bits_t *pbits, __u8 **p, void *pout, __u8 *pend,
     if (replen <= 0)
     {LOG_DECOMP("DMSDOS: decrb: illegal count ?\n"); return -2;}
 
-    if ((__u8 *)pout + repoffs > *p)
+    if ((uint8_t *)pout + repoffs > *p)
     {LOG_DECOMP("DMSDOS: decrb: of>pos ?\n"); return -2;}
 
     if (*p + replen > pend)
@@ -259,13 +259,13 @@ INLINE int dblb_decrep(bits_t *pbits, __u8 **p, void *pout, __u8 *pend,
    that last cluster in file can be ended by garbage */
 int ds_dec(void *pin, int lin, void *pout, int lout, int flg)
 {
-    __u8 *p, *pend;
+    uint8_t *p, *pend;
     unsigned u, repoffs;
     int r;
     bits_t bits;
 
     dblb_rdi(&bits, pin, lin);
-    p = (__u8 *)pout;
+    p = (uint8_t *)pout;
     pend = p + lout;
 
     if ((dblb_rdn(&bits, 16)) != 0x5344) { return -1; }
@@ -317,19 +317,19 @@ int ds_dec(void *pin, int lin, void *pout, int lout, int flg)
         }
     }
 
-    return p - (__u8 *)pout;
+    return p - (uint8_t *)pout;
 }
 
 /* JM decompression */
 int jm_dec(void *pin, int lin, void *pout, int lout, int flg)
 {
-    __u8 *p, *pend;
+    uint8_t *p, *pend;
     unsigned u, repoffs;
     int r;
     bits_t bits;
 
     dblb_rdi(&bits, pin, lin);
-    p = (__u8 *)pout;
+    p = (uint8_t *)pout;
     pend = p + lout;
 
     if ((dblb_rdn(&bits, 16)) != 0x4D4A) { return -1; }
@@ -374,7 +374,7 @@ int jm_dec(void *pin, int lin, void *pout, int lout, int flg)
         }
     }
 
-    return p - (__u8 *)pout;
+    return p - (uint8_t *)pout;
 }
 
 

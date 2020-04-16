@@ -100,9 +100,9 @@ __asm__ /*__volatile__*/(\
 
 #else
 
-#define M_MOVSB(D,S,C) for(;(C);(C)--) *((__u8*)(D)++)=*((__u8*)(S)++)
-#define M_FIRSTDIFF(D,S,C) for(;(*(__u8*)(D)==*(__u8*)(S))&&(C);\
-			   (__u8*)(D)++,(__u8*)(S)++,(C)--)
+#define M_MOVSB(D,S,C) for(;(C);(C)--) *((uint8_t*)(D)++)=*((uint8_t*)(S)++)
+#define M_FIRSTDIFF(D,S,C) for(;(*(uint8_t*)(D)==*(uint8_t*)(S))&&(C);\
+			   (uint8_t*)(D)++,(uint8_t*)(S)++,(C)--)
 
 #endif
 
@@ -118,10 +118,10 @@ __asm__ /*__volatile__*/(\
 /* for reading and writting from/to bitstream */
 typedef
 struct {
-    __u32 buf;   /* bit buffer */
+    uint32_t buf;   /* bit buffer */
     int pb;    /* already readed bits from buf */
-    __u16 *pd;   /* first not readed input data */
-    __u16 *pe;   /* after end of data */
+    uint16_t *pd;   /* first not readed input data */
+    uint16_t *pe;   /* after end of data */
 } bits_t;
 
 const unsigned sq_bmsk[] = {
@@ -136,7 +136,7 @@ const unsigned sq_bmsk[] = {
     (bits).pb-=16; \
     if((bits).pd<(bits).pe) \
     { \
-     (bits).buf|=((__u32)(le16_to_cpu(*((bits).pd++))))<<16; \
+     (bits).buf|=((uint32_t)(le16_to_cpu(*((bits).pd++))))<<16; \
     }; \
    }
 
@@ -151,7 +151,7 @@ const unsigned sq_bmsk[] = {
 INLINE void sq_rdi(bits_t *pbits, void *pin, unsigned lin)
 {
     pbits->pb = 32;
-    pbits->pd = (__u16 *)pin;
+    pbits->pd = (uint16_t *)pin;
     pbits->pe = pbits->pd + ((lin + 1) >> 1);
 };
 
@@ -176,8 +176,8 @@ INLINE unsigned sq_rdn(bits_t *pbits, int n)
 
 typedef
 struct {
-    __s8 ln;                      /* character lens .. for tokens -0x40 */
-    __u8 ch;                      /* character/token code */
+    int8_t ln;                      /* character lens .. for tokens -0x40 */
+    uint8_t ch;                      /* character/token code */
 } huf_chln_t;
 
 typedef
@@ -192,7 +192,7 @@ struct {
 #define HUF_RD_SIZE(SPDA_LEN) \
 	((sizeof(huf_rd_t)+SPDA_LEN*sizeof(huf_chln_t)+3)&~3)
 
-const __u8 swap_bits_xlat[] = {
+const uint8_t swap_bits_xlat[] = {
     0x00, 0x80, 0x40, 0xc0, 0x20, 0xa0, 0x60, 0xe0, 0x10, 0x90,
     0x50, 0xd0, 0x30, 0xb0, 0x70, 0xf0, 0x08, 0x88, 0x48, 0xc8,
     0x28, 0xa8, 0x68, 0xe8, 0x18, 0x98, 0x58, 0xd8, 0x38, 0xb8,
@@ -232,8 +232,8 @@ INLINE unsigned swap_bits_order_16(unsigned d)
         XLAT
         :"=a"(r):"0"(d), "b"(swap_bits_xlat));
 #else
-    r = ((unsigned)swap_bits_xlat[(__u8)d]) << 8;
-    r |= swap_bits_xlat[(__u8)(d >> 8)];
+    r = ((unsigned)swap_bits_xlat[(uint8_t)d]) << 8;
+    r |= swap_bits_xlat[(uint8_t)(d >> 8)];
 #endif
     return r;
 };
@@ -251,7 +251,7 @@ INLINE unsigned swap_bits_order(unsigned d, int n)
 /* initializes huffman conversion structure *phuf for m codes,
    *ca code and token bit lengths, ends with 0xFF,
    bn predicated maximal bit length */
-int sq_rdhufi(huf_rd_t *phuf, int m, int bn, __u8 *ca)
+int sq_rdhufi(huf_rd_t *phuf, int m, int bn, uint8_t *ca)
 {
     if (bn > MAX_SPDA_BITS) { bn = MAX_SPDA_BITS; }
 
@@ -321,7 +321,7 @@ int sq_rdhufi(huf_rd_t *phuf, int m, int bn, __u8 *ca)
 };
 
 /* read and huffman decode of characters, stops on tokens or buffer ends */
-INLINE unsigned sq_rdh(bits_t *pbits, const huf_rd_t *phuf, __u8 **pout, __u8 *pend)
+INLINE unsigned sq_rdh(bits_t *pbits, const huf_rd_t *phuf, uint8_t **pout, uint8_t *pend)
 {
     unsigned ch;
     unsigned bmsk = sq_bmsk[phuf->bn];
@@ -370,7 +370,7 @@ INLINE unsigned sq_rdh(bits_t *pbits, const huf_rd_t *phuf, __u8 **pout, __u8 *p
         /* code longer than phuf->bn */
         if (pbits->pb >= 16) { RDN_G16(*pbits); }
 
-        ch = swap_bits_order_16((__u16)(pbits->buf >> pbits->pb));
+        ch = swap_bits_order_16((uint16_t)(pbits->buf >> pbits->pb));
         {
             int i;
             i = phuf->bn;
@@ -407,7 +407,7 @@ INLINE unsigned sq_rdh1(bits_t *pbits, const huf_rd_t *phuf)
 
     if (ch) { return ch + 0x100 - 1; }
 
-    ch = swap_bits_order_16((__u16)(pbits->buf >> pbits->pb));
+    ch = swap_bits_order_16((uint16_t)(pbits->buf >> pbits->pb));
     {
         int i;
         i = phuf->bn;
@@ -463,7 +463,7 @@ const unsigned char sqt_offbln[] = {
 
 int sq_dec(void *pin, int lin, void *pout, int lout, int flg)
 {
-    __u8 *p, *pend, *r;
+    uint8_t *p, *pend, *r;
     unsigned u, u1, repoffs, replen;
     int i, bn_max;
     bits_t bits;
@@ -473,12 +473,12 @@ int sq_dec(void *pin, int lin, void *pout, int lout, int flg)
     int count_3;
     int method;
     unsigned mask;
-    __u8 *code_bln;       /* bitlengths of char, tokens and rep codes [0x150] */
+    uint8_t *code_bln;       /* bitlengths of char, tokens and rep codes [0x150] */
     huf_rd_t *huf1, *huf2; /* tables for huffman decoding */
     char *work_mem;
 
     sq_rdi(&bits, pin, lin);
-    p = (__u8 *)pout;
+    p = (uint8_t *)pout;
     pend = p + lout;
 
     if ((sq_rdn(&bits, 8) != 'S') || (sq_rdn(&bits, 8) != 'Q')) {
@@ -518,9 +518,9 @@ int sq_dec(void *pin, int lin, void *pout, int lout, int flg)
 
             if (replen + sq_rdn(&bits, 16) != 0xFFFF) {FREE(work_mem); return 0;};
 
-            r = (__u8 *)bits.pd - (32 - bits.pb) / 8;
+            r = (uint8_t *)bits.pd - (32 - bits.pb) / 8;
 
-            if (r + replen > (__u8 *)bits.pe) {FREE(work_mem); return 0;};
+            if (r + replen > (uint8_t *)bits.pe) {FREE(work_mem); return 0;};
 
             if (p + replen > pend) {FREE(work_mem); return 0;};
 
@@ -534,7 +534,7 @@ int sq_dec(void *pin, int lin, void *pout, int lout, int flg)
             bits.pd = (typeof(bits.pd))r;
 
 #else
-            bits.pd = (__u16 *)r;
+            bits.pd = (uint16_t *)r;
 
 #endif
             break;
@@ -688,8 +688,8 @@ case_1_cont :
                     return (0);
                 };
 
-                if ((__u8 *)pout + repoffs > p) {
-                    repoffs = p - (__u8 *)pout;
+                if ((uint8_t *)pout + repoffs > p) {
+                    repoffs = p - (uint8_t *)pout;
                     printk(KERN_INFO "DMSDOS: sq_dec: huff offset UNDER\n");
                 };
 
@@ -719,7 +719,7 @@ case_1_cont :
     } while ((!final_flag) && (p < pend));
 
     FREE(work_mem);
-    return (p - (__u8 *)pout);
+    return (p - (uint8_t *)pout);
 };
 
 #endif /* __DMSDOS_LIB__ */
@@ -732,18 +732,18 @@ INLINE void sq_wri(bits_t *pbits, void *pin, unsigned lin)
 {
     pbits->buf = 0;
     pbits->pb = 0;
-    pbits->pd = (__u16 *)pin;
+    pbits->pd = (uint16_t *)pin;
     pbits->pe = pbits->pd + ((lin + 1) >> 1);
 };
 
 /* writes n<=16 bits to bitstream *pbits */
 INLINE void sq_wrn(bits_t *pbits, unsigned u, int n)
 {
-    pbits->buf |= (__u32)(u & sq_bmsk[n]) << pbits->pb;
+    pbits->buf |= (uint32_t)(u & sq_bmsk[n]) << pbits->pb;
 
     if ((pbits->pb += n) >= 16) {
         if (pbits->pd < pbits->pe) {
-            *(pbits->pd++) = cpu_to_le16((__u16)pbits->buf);
+            *(pbits->pd++) = cpu_to_le16((uint16_t)pbits->buf);
         } else if (pbits->pd == pbits->pe) { pbits->pd++; } /* output overflow */
 
         pbits->buf >>= 16;
@@ -764,8 +764,8 @@ struct {
 
 typedef
 struct {
-    __u16 cod;    /* character code */
-    __u16 ln;     /* character len */
+    uint16_t cod;    /* character code */
+    uint16_t ln;     /* character len */
 } huf_wr_t;
 
 /*** Generation of character codes ***/
@@ -802,7 +802,7 @@ void sq_hsort1(ch_tab_t *ch_tab, int ch_num, int cl, ch_tab_t a)
     ch_tab[cl - 1] = a;
 };
 
-int sq_huffman(count_t *ch_cn, __u8 *ch_blen, unsigned *ch_blcn, int cod_num, ch_tab_t *ch_tab)
+int sq_huffman(count_t *ch_cn, uint8_t *ch_blen, unsigned *ch_blcn, int cod_num, ch_tab_t *ch_tab)
 {
     int i, ch_num, cl;
     ch_tab_t a;
@@ -912,7 +912,7 @@ code_done:
     return (0);
 };
 
-INLINE int sq_wrhufi(huf_wr_t *phuf, __u8 *ch_blen,
+INLINE int sq_wrhufi(huf_wr_t *phuf, uint8_t *ch_blen,
                      unsigned *ch_blencn, int cod_num)
 {
     unsigned i, u, t, blen;
@@ -941,11 +941,11 @@ INLINE void sq_wrh(bits_t *pbits, const huf_wr_t *phuf, const unsigned ch)
 /*==============================================================*/
 /* SQ compression */
 
-typedef __u8 *hash_t;
+typedef uint8_t *hash_t;
 
 #define TK_END   0x00
 #define TK_CHRS  0xF0
-#define TKWR_CHRS(p,v) {if(v<15) *(p++)=TK_CHRS+(__u8)v;\
+#define TKWR_CHRS(p,v) {if(v<15) *(p++)=TK_CHRS+(uint8_t)v;\
 			else {*(p++)=TK_CHRS+15;C_ST_u16(p,v);};}
 
 #define HASH_TAB_ENT    (1<<10)
@@ -956,15 +956,15 @@ typedef __u8 *hash_t;
 #define MAX_REP         258
 
 /* definition of data hash function, it can use max 3 chars */
-INLINE unsigned sq_hash(__u8 *p)
+INLINE unsigned sq_hash(uint8_t *p)
 {
-    return (((__u16)p[0] << 2) ^ ((__u16)p[1] << 4) ^ (__u16)p[2]) & (HASH_TAB_ENT - 1);
+    return (((uint16_t)p[0] << 2) ^ ((uint16_t)p[1] << 4) ^ (uint16_t)p[2]) & (HASH_TAB_ENT - 1);
 };
 
 /* store hash of chars at *p in hash_tab, previous occurence is stored */
 /* in hash_hist, which is indexed by next hash positions */
 /* returns previous occurence of same hash as is hash of chars at *p  */
-INLINE hash_t sq_newhash(__u8 *p, hash_t *hash_tab, hash_t *hash_hist, unsigned hist_mask)
+INLINE hash_t sq_newhash(uint8_t *p, hash_t *hash_tab, hash_t *hash_hist, unsigned hist_mask)
 {
     hash_t *hash_ptr;
     hash_t  hash_cur;
@@ -1002,7 +1002,7 @@ unsigned sq_complz(void *pin, int lin, void *pout, int lout, int flg,
     hash_t *hash_hist;     /* [HASH_HIST_ENT] */
     /* previous occurences of hash, index actual pointer&hist_mask */
     unsigned hist_mask = (HASH_HIST_ENT - 1); /* mask for index into hash_hist */
-    __u8 *pi, *po, *pc, *pd, *pend, *poend;
+    uint8_t *pi, *po, *pc, *pd, *pend, *poend;
     hash_t hash_cur;
     unsigned cn;
     unsigned max_match, match, token;
@@ -1026,9 +1026,9 @@ unsigned sq_complz(void *pin, int lin, void *pout, int lout, int flg,
         hash_skiped *= 4;
     };
 
-    pi = (__u8 *)pin;
+    pi = (uint8_t *)pin;
 
-    po = (__u8 *)pout;
+    po = (uint8_t *)pout;
 
     if (!lin) { return (0); }
 
@@ -1208,12 +1208,12 @@ single_char:
 
     *po++ = TK_END;
 
-    return (po - (__u8 *)pout);
+    return (po - (uint8_t *)pout);
 };
 
 /*** Main compression routine ***/
 
-__u16 sq_comp_rat_tab[] = {
+uint16_t sq_comp_rat_tab[] = {
     0x7F9, 0x7F9, 0x621, 0x625,
     0x665, 0x669, 0x6E9, 0x6ED,
     0x7D1, 0x7D9, 0x6E9, 0x47D9,
@@ -1226,8 +1226,8 @@ struct {
     count_t offs_cn[0x20];        /* counts of offset codes */
     union {
         struct {
-            __u8 ch_blen[0x120 + 0x20]; /* bitlengths of character codes and tokens */
-            __u8 code_buf[0x120 + 0x20]; /* precompressed decompression table */
+            uint8_t ch_blen[0x120 + 0x20]; /* bitlengths of character codes and tokens */
+            uint8_t code_buf[0x120 + 0x20]; /* precompressed decompression table */
             ch_tab_t ch_tab[0x120 + 0x20]; /* temporrary table for huffman */
             huf_wr_t ch_huf[0x120];     /* character and token encoding table */
             huf_wr_t offs_huf[0x20];    /* repeat encoding table */
@@ -1241,10 +1241,10 @@ int sq_comp(void *pin, int lin, void *pout, int lout, int flg)
     count_t *ch_cn;        /* [0x120] counts of characters and rep length codes */
     count_t *offs_cn;      /* [0x20] counts of offset codes */
     unsigned lz_length;    /* length of intermediate reprezentation */
-    __u8 *lz_pos;          /* possition of intermediate data in pout */
+    uint8_t *lz_pos;          /* possition of intermediate data in pout */
 
-    __u8 *ch_blen;         /* [0x120] bitlengths of character codes and tokens */
-    __u8 *offs_blen;       /* [0x20] bitlengths of ofset codes are stored in */
+    uint8_t *ch_blen;         /* [0x120] bitlengths of character codes and tokens */
+    uint8_t *offs_blen;       /* [0x20] bitlengths of ofset codes are stored in */
     /* end of ch_blen */
     unsigned ch_blcn[MAX_BITS + 1]; /* counts of bitlengths of chars */
     unsigned offs_blcn[MAX_BITS + 1]; /* counts of bitlengths of offs */
@@ -1252,9 +1252,9 @@ int sq_comp(void *pin, int lin, void *pout, int lout, int flg)
     huf_wr_t *offs_huf;    /* [0x20] repeat encoding table */
 
     ch_tab_t *ch_tab;     /* [0x120+0x20] temporrary table for huffman */
-    __u8 *code_buf;        /* [0x120+0x20] precompressed decompression table */
+    uint8_t *code_buf;        /* [0x120+0x20] precompressed decompression table */
     count_t code_cn[0x20];
-    __u8 code_blen[0x20];
+    uint8_t code_blen[0x20];
     unsigned code_blcn[MAX_BITS + 1];
     unsigned code_buf_len;
     sq_comp_work_t *work_mem = NULL;
@@ -1299,7 +1299,7 @@ int sq_comp(void *pin, int lin, void *pout, int lout, int flg)
     if (lz_length == 0) {FREE(work_mem); return (0);};
 
     /* move intermediate data to end of output buffer */
-    lz_pos = (__u8 *)pout + lout - lz_length;
+    lz_pos = (uint8_t *)pout + lout - lz_length;
 
     memmove(lz_pos, pout, lz_length);
 
@@ -1322,9 +1322,9 @@ int sq_comp(void *pin, int lin, void *pout, int lout, int flg)
     }
 
     {
-        __u8 *pi = ch_blen;
-        __u8 *pe = ch_blen + count_1 + count_2;
-        __u8 *po = code_buf;
+        uint8_t *pi = ch_blen;
+        uint8_t *pe = ch_blen + count_1 + count_2;
+        uint8_t *po = code_buf;
         int code, rep;
 
         for (code = 19; code--;) { code_cn[code] = 0; }
@@ -1402,8 +1402,8 @@ int sq_comp(void *pin, int lin, void *pout, int lout, int flg)
     for (i = 0; i < count_3; i++) { sq_wrn(&bits, code_blen[code_index_1[i]], 3); }
 
     { /* compressed code table write */
-        __u8 *pi = code_buf;
-        __u8 *pe = code_buf + code_buf_len;
+        uint8_t *pi = code_buf;
+        uint8_t *pe = code_buf + code_buf_len;
         int code;
 
         if (sq_wrhufi(ch_huf, code_blen, code_blcn, 19)) {
@@ -1437,7 +1437,7 @@ int sq_comp(void *pin, int lin, void *pout, int lout, int flg)
     { /* real data write */
         int cod;
         int len;
-        __u8 *pi = (__u8 *)pin;
+        uint8_t *pi = (uint8_t *)pin;
 
         if (sq_wrhufi(ch_huf, ch_blen, ch_blcn, count_1)) {
             printk("DMSDOS: sq_comp: Huffman code leakage in table 2\n");
@@ -1452,7 +1452,7 @@ int sq_comp(void *pin, int lin, void *pout, int lout, int flg)
         };
 
         while ((cod = *(lz_pos++)) != TK_END) {
-            if ((__u8 *)bits.pd + 0x20 >= lz_pos) {
+            if ((uint8_t *)bits.pd + 0x20 >= lz_pos) {
                 LOG_DECOMP("DMSDOS: sq_comp: Data overwrites intermediate code\n");
                 FREE(work_mem);
                 return 0;
@@ -1491,15 +1491,15 @@ int sq_comp(void *pin, int lin, void *pout, int lout, int flg)
         sq_wrh(&bits, ch_huf, TK_END + 0x100);
         sq_wrn(&bits, 0, 16);
 
-        if (pi - (__u8 *)pin != lin) {
-            printk("DMSDOS: sq_comp: ERROR: Processed only %d bytes !!!!!!\n", pi - (__u8 *)pin);
+        if (pi - (uint8_t *)pin != lin) {
+            printk("DMSDOS: sq_comp: ERROR: Processed only %d bytes !!!!!!\n", pi - (uint8_t *)pin);
             FREE(work_mem);
             return 0;
         };
 
         FREE(work_mem);
 
-        return ((__u8 *)bits.pd - (__u8 *)pout);
+        return ((uint8_t *)bits.pd - (uint8_t *)pout);
     };
 
     FREE(work_mem);

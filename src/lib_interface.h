@@ -46,21 +46,21 @@ See file COPYING for details.
 #define le16_to_cpu(v) (v)
 
 #define put_unaligned(val, ptr) ((void)( *(ptr) = (val) ))
-#define C_ST_u16(p,v) {put_unaligned(v,(uint16_t*)p);p=(__u8*)((__u16*)p+1);}
+#define C_ST_u16(p,v) {put_unaligned(v,(uint16_t*)p);p=(uint8_t*)((uint16_t*)p+1);}
 
 #define get_unaligned(ptr) (*(ptr))
-#define C_LD_u16(p,v) {v=get_unaligned((uint16_t*)p);p=(__u8*)((__u16*)p+1);}
+#define C_LD_u16(p,v) {v=get_unaligned((uint16_t*)p);p=(uint8_t*)((uint16_t*)p+1);}
 
 #else
 #error "Please implement the macros for big endian"
 #endif // __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 
-typedef uint8_t __u8;
-typedef int8_t __s8;
-typedef uint16_t __u16;
-typedef int16_t __s16;
-typedef uint32_t __u32;
-typedef int32_t __s32;
+typedef uint8_t uint8_t;
+typedef int8_t int8_t;
+typedef uint16_t uint16_t;
+typedef int16_t int16_t;
+typedef uint32_t uint32_t;
+typedef int32_t int32_t;
 
 int printk(const char *fmt, ...);
 void panic(const char *fmt, ...);
@@ -99,16 +99,16 @@ struct buffer_head {
 #define MSDOS_SB(s) (&((s)->u.msdos_sb))
 
 struct msdos_dir_entry {
-    __s8    name[8],ext[3]; /* name and extension */
-    __u8    attr;           /* attribute bits */
-    __u8    lcase;          /* Case for base and extension */
-    __u8    ctime_ms;       /* Creation time, milliseconds */
-    __u16   ctime;          /* Creation time */
-    __u16   cdate;          /* Creation date */
-    __u16   adate;          /* Last access date */
-    __u16   starthi;        /* High 16 bits of cluster in FAT32 */
-    __u16   time,date,start;/* time, date and first cluster */
-    __u32   size;           /* file size (in bytes) */
+    int8_t    name[8],ext[3]; /* name and extension */
+    uint8_t    attr;           /* attribute bits */
+    uint8_t    lcase;          /* Case for base and extension */
+    uint8_t    ctime_ms;       /* Creation time, milliseconds */
+    uint16_t   ctime;          /* Creation time */
+    uint16_t   cdate;          /* Creation date */
+    uint16_t   adate;          /* Last access date */
+    uint16_t   starthi;        /* High 16 bits of cluster in FAT32 */
+    uint16_t   time,date,start;/* time, date and first cluster */
+    uint32_t   size;           /* file size (in bytes) */
 };
 
 struct msdos_sb_info {
@@ -147,29 +147,29 @@ struct super_block {
 };
 
 struct fat_boot_sector {
-    __s8    ignored[3];     /* Boot strap short or near jump */
-    __s8    system_id[8];   /* Name - can be used to special case
+    int8_t    ignored[3];     /* Boot strap short or near jump */
+    int8_t    system_id[8];   /* Name - can be used to special case
                                    partition manager volumes */
-    __u8    sector_size[2]; /* bytes per logical sector */
-    __u8    cluster_size;   /* sectors/cluster */
-    __u16   reserved;       /* reserved sectors */
-    __u8    fats;           /* number of FATs */
-    __u8    dir_entries[2]; /* root directory entries */
-    __u8    sectors[2];     /* number of sectors */
-    __u8    media;          /* media code (unused) */
-    __u16   fat_length;     /* sectors/FAT */
-    __u16   secs_track;     /* sectors per track */
-    __u16   heads;          /* number of heads */
-    __u32   hidden;         /* hidden sectors (unused) */
-    __u32   total_sect;     /* number of sectors (if sectors == 0) */
+    uint8_t    sector_size[2]; /* bytes per logical sector */
+    uint8_t    cluster_size;   /* sectors/cluster */
+    uint16_t   reserved;       /* reserved sectors */
+    uint8_t    fats;           /* number of FATs */
+    uint8_t    dir_entries[2]; /* root directory entries */
+    uint8_t    sectors[2];     /* number of sectors */
+    uint8_t    media;          /* media code (unused) */
+    uint16_t   fat_length;     /* sectors/FAT */
+    uint16_t   secs_track;     /* sectors per track */
+    uint16_t   heads;          /* number of heads */
+    uint32_t   hidden;         /* hidden sectors (unused) */
+    uint32_t   total_sect;     /* number of sectors (if sectors == 0) */
     /* The following fields are only used by FAT32 */
-    __u32   fat32_length;   /* sectors/FAT */
-    __u16   flags;          /* bit 8: fat mirroring, low 4: active fat */
-    __u8    version[2];     /* major, minor filesystem version */
-    __u32   root_cluster;   /* first cluster in root directory */
-    __u16   info_sector;    /* filesystem info sector */
-    __u16   backup_boot;    /* backup boot sector */
-    __u16   reserved2[6];   /* Unused */
+    uint32_t   fat32_length;   /* sectors/FAT */
+    uint16_t   flags;          /* bit 8: fat mirroring, low 4: active fat */
+    uint8_t    version[2];     /* major, minor filesystem version */
+    uint32_t   root_cluster;   /* first cluster in root directory */
+    uint16_t   info_sector;    /* filesystem info sector */
+    uint16_t   backup_boot;    /* backup boot sector */
+    uint16_t   reserved2[6];   /* Unused */
 };
 
 #define MALLOC malloc

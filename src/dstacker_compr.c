@@ -81,7 +81,7 @@ __asm__ /*__volatile__*/(\
 	:"0" (D),"1" (S),"2" (C) \
 	)
 
-INLINE __u16 swap_bytes_in_word(__u16 x)
+INLINE uint16_t swap_bytes_in_word(uint16_t x)
 {
     __asm__("xchgb %b0,%h0"         /* swap bytes           */
             : "=q"(x)
@@ -91,10 +91,10 @@ INLINE __u16 swap_bytes_in_word(__u16 x)
 
 #else
 
-#define M_FIRSTDIFF(D,S,C) for(;(*(__u8*)(D)==*(__u8*)(S))&&(C);\
-			   (__u8*)(D)++,(__u8*)(S)++,(C)--)
+#define M_FIRSTDIFF(D,S,C) for(;(*(uint8_t*)(D)==*(uint8_t*)(S))&&(C);\
+			   (uint8_t*)(D)++,(uint8_t*)(S)++,(C)--)
 
-INLINE __u16 swap_bytes_in_word(__u16 x)
+INLINE uint16_t swap_bytes_in_word(uint16_t x)
 {
     return ((x & 0x00ff) << 8) | ((x & 0xff00) >> 8);
 }
@@ -104,10 +104,10 @@ INLINE __u16 swap_bytes_in_word(__u16 x)
 /* for reading and writting from/to bitstream */
 typedef
 struct {
-    __u32 buf;   /* bit buffer */
+    uint32_t buf;   /* bit buffer */
     int pb;    /* not read bits count in buffer */
-    __u16 *pd;   /* first not readed input data */
-    __u16 *pe;   /* after end of data */
+    uint16_t *pd;   /* first not readed input data */
+    uint16_t *pe;   /* after end of data */
 } bits_t;
 
 /*************************************************************************/
@@ -115,7 +115,7 @@ struct {
 /*************** begin code from sd4_bs1.c *******************************/
 
 typedef unsigned int count_t;
-typedef __u8 *hash_t;
+typedef uint8_t *hash_t;
 typedef
 struct {
     count_t cn;
@@ -124,8 +124,8 @@ struct {
 
 typedef
 struct {
-    __u16 cod[0x180];     /* characters codes */
-    __u8  ln[0x180];      /* characters lens */
+    uint16_t cod[0x180];     /* characters codes */
+    uint8_t  ln[0x180];      /* characters lens */
 } huf_wr_t;
 
 #ifdef MAX_COMP
@@ -136,7 +136,7 @@ struct {
 
 #define TK_END   0x4F
 #define TK_CHRS  0xF0
-#define TKWR_CHRS(p,v) {if(v<15) *(p++)=TK_CHRS+(__u8)v;\
+#define TKWR_CHRS(p,v) {if(v<15) *(p++)=TK_CHRS+(uint8_t)v;\
 			else {*(p++)=TK_CHRS+15;C_ST_u16(p,v);};}
 
 /* compression level table */
@@ -164,7 +164,7 @@ const unsigned int  sd4b_reps_m[] = {1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 9
 
 #if 0
 
-INLINE unsigned sd4_hash(__u8 *p)
+INLINE unsigned sd4_hash(uint8_t *p)
 {
     unsigned a;
     /*a=(p[0]>>1)^(p[1]<<7)^(p[1]>>4)^(p[2]<<2);*/
@@ -181,14 +181,14 @@ INLINE unsigned sd4_hash(__u8 *p)
 
 #else
 
-INLINE unsigned sd4_hash(__u8 *p)
+INLINE unsigned sd4_hash(uint8_t *p)
 {
-    return (((__u16)p[0] << 2) ^ ((__u16)p[1] << 4) ^ (__u16)p[2]) & 0x3FF;
+    return (((uint16_t)p[0] << 2) ^ ((uint16_t)p[1] << 4) ^ (uint16_t)p[2]) & 0x3FF;
 };
 
 #endif
 
-INLINE hash_t sd4_newhash(__u8 *p, hash_t *hash_tab, hash_t *hash_hist, unsigned hash_mask)
+INLINE hash_t sd4_newhash(uint8_t *p, hash_t *hash_tab, hash_t *hash_hist, unsigned hash_mask)
 {
     hash_t *hash_ptr;
     hash_t  hash_cur;
@@ -209,7 +209,7 @@ unsigned sd4_complz(void *pin, int lin, void *pout, int lout, int flg, count_t *
     hash_t *hash_hist;
     /* previous occurences of hash, index actual pointer&hash_mask */
     unsigned hash_mask = 0x7FF; /* mask for index into hash_hist */
-    __u8 *pi, *po, *pc, *pd, *pend, *poend;
+    uint8_t *pi, *po, *pc, *pd, *pend, *poend;
     hash_t hash_cur;
     unsigned cn;
     unsigned max_match, match, token;
@@ -243,8 +243,8 @@ unsigned sd4_complz(void *pin, int lin, void *pout, int lout, int flg, count_t *
     hash_tab = (hash_t *)work_mem;
     hash_hist = ((hash_t *)work_mem) + 0x400;
 
-    pi = (__u8 *)pin;
-    po = (__u8 *)pout;
+    pi = (uint8_t *)pin;
+    po = (uint8_t *)pout;
 
     if (!lin) { goto return_error; }
 
@@ -436,7 +436,7 @@ single_char:
 
     FREE(work_mem);
 
-    return (po - (__u8 *)pout);
+    return (po - (uint8_t *)pout);
 
 return_error:
     FREE(work_mem);
@@ -448,17 +448,17 @@ INLINE void sd4b_wri(bits_t *pbits, void *pin, unsigned lin)
 {
     pbits->buf = 0;
     pbits->pb = 32;
-    pbits->pd = (__u16 *)pin;
+    pbits->pd = (uint16_t *)pin;
     pbits->pe = pbits->pd + ((lin + 1) >> 1);
 };
 
 INLINE void sd4b_wrn(bits_t *pbits, int cod, int n)
 {
     pbits->pb -= n;
-    pbits->buf |= (__u32)cod << pbits->pb;
+    pbits->buf |= (uint32_t)cod << pbits->pb;
 
     if (pbits->pb < 16) {
-        *(pbits->pd++) = cpu_to_le16((__u16)(pbits->buf >> 16));
+        *(pbits->pd++) = cpu_to_le16((uint16_t)(pbits->buf >> 16));
         pbits->buf <<= 16;
         pbits->pb += 16;
     };
@@ -647,8 +647,8 @@ int sd4_comp(void *pin, int lin, void *pout, int lout, int flg)
         count_t bl_cn[0x16];    /* occurecces of bit lens */
         unsigned bl_blcn[0x16]; /* bitlength couts for bit lens */
         int min_bl, max_bl;
-        __u8 *lz_pos;
-        __u8 *pdata;
+        uint8_t *lz_pos;
+        uint8_t *pdata;
         bits_t bits;
         unsigned token, u;
         huf_wr_t *huf;
@@ -713,7 +713,7 @@ int sd4_comp(void *pin, int lin, void *pout, int lout, int flg)
 
         sd4b_wri(&bits, pout, lout - lz_length);
 
-        lz_pos = (__u8 *)pout + lout - lz_length;
+        lz_pos = (uint8_t *)pout + lout - lz_length;
 
         memmove(lz_pos, pout, lz_length);
 
@@ -760,14 +760,14 @@ int sd4_comp(void *pin, int lin, void *pout, int lout, int flg)
 
         /* write compressed data */
         {
-            pdata = (__u8 *)pin;
+            pdata = (uint8_t *)pin;
 
             if (sd4b_wrhufi(huf, ch_cn, ch_blcn, 0x150))
             {printk("DMSDOS: sd4_comp: Hufman code leakage in table 2\n"); goto return_error;};
 
             while (1) {
                 /* check of LZ and huff contact in output buffer */
-                if ((__u8 *)bits.pd + 0x20 >= lz_pos) { goto return_error; }
+                if ((uint8_t *)bits.pd + 0x20 >= lz_pos) { goto return_error; }
 
                 token = *(lz_pos++);
 
@@ -779,7 +779,7 @@ int sd4_comp(void *pin, int lin, void *pout, int lout, int flg)
                         C_LD_u16(lz_pos, u);
 
                         while (u--)
-                            if ((__u8 *)bits.pd + 1 >= lz_pos) { goto return_error; }
+                            if ((uint8_t *)bits.pd + 1 >= lz_pos) { goto return_error; }
                             else { sd4b_wrh(&bits, huf, *(pdata++)); }
                     } else while (u--) { sd4b_wrh(&bits, huf, *(pdata++)); }
                 } else {
@@ -835,7 +835,7 @@ int sd4_comp(void *pin, int lin, void *pout, int lout, int flg)
                 };
             };
 
-            if ((token != TK_END) || (pdata - (__u8 *)pin != lin)) {
+            if ((token != TK_END) || (pdata - (uint8_t *)pin != lin)) {
                 printk("DMSDOS: sd4_comp: Compression ends with mismash\n");
                 goto return_error;
             };
@@ -847,7 +847,7 @@ int sd4_comp(void *pin, int lin, void *pout, int lout, int flg)
 
         FREE(work_mem);
 
-        return ((__u8 *)bits.pd - (__u8 *)pout);
+        return ((uint8_t *)bits.pd - (uint8_t *)pout);
     };
 
 return_error:
@@ -868,37 +868,37 @@ INLINE void sd3b_wri(bits_t *pbits, void *pin, unsigned lin)
 {
     pbits->buf = 0;
     pbits->pb = 32;
-    pbits->pd = (__u16 *)pin;
+    pbits->pd = (uint16_t *)pin;
     pbits->pe = pbits->pd + ((lin + 1) >> 1);
 };
 
 INLINE void sd3b_wrn(bits_t *pbits, int cod, int n)
 {
     pbits->pb -= n;
-    pbits->buf |= (__u32)cod << pbits->pb;
+    pbits->buf |= (uint32_t)cod << pbits->pb;
 
     if (pbits->pb < 16) {
-        *(pbits->pd++) = cpu_to_be16((__u16)(pbits->buf >> 16));
+        *(pbits->pd++) = cpu_to_be16((uint16_t)(pbits->buf >> 16));
         pbits->buf <<= 16;
         pbits->pb += 16;
     };
 };
 
-INLINE __u8 sd3_xorsum(__u8 *data, int len)
+INLINE uint8_t sd3_xorsum(uint8_t *data, int len)
 {
-    __u8 sum = 0xFF;
+    uint8_t sum = 0xFF;
 
     while (len--) { sum ^= *(data++); }
 
     return (sum);
 };
 
-INLINE unsigned sd3_hash(__u8 *p)
+INLINE unsigned sd3_hash(uint8_t *p)
 {
-    return (((__u16)p[0] << 4) ^ ((__u16)p[1] << 0)) & 0x3FF;
+    return (((uint16_t)p[0] << 4) ^ ((uint16_t)p[1] << 0)) & 0x3FF;
 };
 
-INLINE hash_t sd3_newhash(__u8 *p, hash_t *hash_tab, hash_t *hash_hist, unsigned hash_mask)
+INLINE hash_t sd3_newhash(uint8_t *p, hash_t *hash_tab, hash_t *hash_hist, unsigned hash_mask)
 {
     hash_t *hash_ptr;
     hash_t  hash_cur;
@@ -919,7 +919,7 @@ int sd3_comp(void *pin, int lin, void *pout, int lout, int flg)
     hash_t *hash_hist;
     /* [0x800] previous occurences of hash, index actual pointer&hash_mask */
     unsigned hash_mask = 0x7FF; /* mask for index into hash_hist */
-    __u8 *pi, *pc, *pd, *pend;
+    uint8_t *pi, *pc, *pd, *pend;
     hash_t hash_cur;
     unsigned offs;
     unsigned max_match, match, rep;
@@ -929,7 +929,7 @@ int sd3_comp(void *pin, int lin, void *pout, int lout, int flg)
     try_count = 2 << ((flg >> 2) & 0x7); /* number of tested entries with same hash */
     hash_skiped = ((flg >> 5) + 1) & 0xF; /* when rep found last # bytes are procesed */
 
-    pi = (__u8 *)pin;
+    pi = (uint8_t *)pin;
 
     if (!lin) { return (0); }
 
@@ -1039,7 +1039,7 @@ single_char:
 
     FREE(hash_hist);
     FREE(hash_tab);
-    return ((__u8 *)bits.pd - (__u8 *)pout);
+    return ((uint8_t *)bits.pd - (uint8_t *)pout);
 
 };
 
