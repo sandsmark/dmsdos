@@ -170,8 +170,18 @@ struct fat_boot_sector {
     uint32_t   root_cluster;   /* first cluster in root directory */
     uint16_t   info_sector;    /* filesystem info sector */
     uint16_t   backup_boot;    /* backup boot sector */
-    uint8_t    reserved2[12];     /* Unused */
-};
+    uint8_t    reserved2[12];  /* Unused */
+    uint8_t drive_number;      /* Logical Drive Number */
+    uint8_t reserved3;         /* Unused */
+
+    uint8_t extended_sig;      /* Extended Signature (0x29) */
+    uint32_t serial;           /* Serial number */
+    uint8_t label[11];         /* FS label */
+    uint8_t fs_type[8];        /* FS Type */
+
+    /* fill up to 512 bytes */
+    uint8_t junk[422];
+} __attribute__ ((packed));
 
 #define MALLOC malloc
 #define FREE free
