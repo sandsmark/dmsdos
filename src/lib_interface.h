@@ -147,8 +147,8 @@ struct super_block {
 };
 
 struct fat_boot_sector {
-    int8_t    ignored[3];     /* Boot strap short or near jump */
-    int8_t    system_id[8];   /* Name - can be used to special case
+    uint8_t    ignored[3];     /* Boot strap short or near jump */
+    uint8_t    system_id[8];   /* Name - can be used to special case
                                    partition manager volumes */
     uint8_t    sector_size[2]; /* bytes per logical sector */
     uint8_t    cluster_size;   /* sectors/cluster */
@@ -162,6 +162,7 @@ struct fat_boot_sector {
     uint16_t   heads;          /* number of heads */
     uint32_t   hidden;         /* hidden sectors (unused) */
     uint32_t   total_sect;     /* number of sectors (if sectors == 0) */
+
     /* The following fields are only used by FAT32 */
     uint32_t   fat32_length;   /* sectors/FAT */
     uint16_t   flags;          /* bit 8: fat mirroring, low 4: active fat */
@@ -169,7 +170,7 @@ struct fat_boot_sector {
     uint32_t   root_cluster;   /* first cluster in root directory */
     uint16_t   info_sector;    /* filesystem info sector */
     uint16_t   backup_boot;    /* backup boot sector */
-    uint16_t   reserved2[6];   /* Unused */
+    uint8_t    reserved2[12];     /* Unused */
 };
 
 #define MALLOC malloc
