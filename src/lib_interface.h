@@ -35,6 +35,7 @@ See file COPYING for details.
 /* machine and system dependent hacks */
 
 #include <stdint.h>
+#include <sys/types.h>
 
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 
@@ -72,9 +73,9 @@ void panic(const char *fmt, ...);
 #define SECTOR_BITS 9
 #define MSDOS_DPB       (MSDOS_DPS) /* dir entries per block */
 #define MSDOS_DPB_BITS  4 /* log2(MSDOS_DPB) */
-#define MSDOS_DPS       (SECTOR_SIZE/sizeof(struct msdos_dir_entry))
+#define MSDOS_DPS       (SECTOR_SIZE/sizeof(struct DIR_ENT))
 #define MSDOS_DPS_BITS  4 /* log2(MSDOS_DPS) */
-#define MSDOS_DIR_BITS  5 /* log2(sizeof(struct msdos_dir_entry)) */
+#define MSDOS_DIR_BITS  5 /* log2(sizeof(struct DIR_ENT)) */
 
 #define MSDOS_SUPER_MAGIC 0x4d44 /* MD */
 
@@ -98,7 +99,7 @@ struct buffer_head {
 #define MS_RDONLY   1      /* Mount read-only */
 #define MSDOS_SB(s) (&((s)->u.msdos_sb))
 
-struct msdos_dir_entry {
+struct DIR_ENT {
     int8_t    name[8],ext[3]; /* name and extension */
     uint8_t    attr;           /* attribute bits */
     uint8_t    lcase;          /* Case for base and extension */
@@ -146,7 +147,7 @@ struct super_block {
 
 };
 
-struct fat_boot_sector {
+struct boot_sector {
     uint8_t    ignored[3];     /* Boot strap short or near jump */
     uint8_t    system_id[8];   /* Name - can be used to special case
                                    partition manager volumes */
@@ -182,6 +183,77 @@ struct fat_boot_sector {
     /* fill up to 512 bytes */
     uint8_t junk[422];
 } __attribute__ ((packed));
+
+struct boot_sector_16 {
+    uint8_t ignored[3];		/* Boot strap short or near jump */
+    uint8_t system_id[8];	/* Name - can be used to special case
+				   partition manager volumes */
+    uint8_t sector_size[2];	/* bytes per logical sector */
+    uint8_t cluster_size;	/* sectors/cluster */
+    uint16_t reserved;		/* reserved sectors */
+    uint8_t fats;		/* number of FATs */
+    uint8_t dir_entries[2];	/* root directory entries */
+    uint8_t sectors[2];		/* number of sectors */
+    uint8_t media;		/* media code (unused) */
+    uint16_t fat_length;	/* sectors/FAT */
+    uint16_t secs_track;	/* sectors per track */
+    uint16_t heads;		/* number of heads */
+    uint32_t hidden;		/* hidden sectors (unused) */
+    uint32_t total_sect;	/* number of sectors (if sectors == 0) */
+
+    uint8_t drive_number;	/* Logical Drive Number */
+    uint8_t reserved2;		/* Unused */
+
+    uint8_t extended_sig;	/* Extended Signature (0x29) */
+    uint32_t serial;		/* Serial number */
+    uint8_t label[11];		/* FS label */
+    uint8_t fs_type[8];		/* FS Type */
+
+    /* fill up to 512 bytes */
+    uint8_t junk[450];
+} __attribute__ ((packed));
+
+struct info_sector {
+    uint32_t magic;		/* Magic for info sector ('RRaA') */
+    uint8_t reserved1[480];
+    uint32_t signature;		/* 0x61417272 ('rrAa') */
+    uint32_t free_clusters;	/* Free cluster count.  -1 if unknown */
+    uint32_t next_cluster;	/* Most recently allocated cluster. */
+    uint8_t reserved2[12];
+    uint32_t boot_sign;
+};
+
+typedef struct _dos_file {
+    struct DIR_ENT dir_ent;
+    char *lfn;
+    off_t offset;
+    off_t lfn_offset;
+    struct _dos_file *parent;	/* parent directory */
+    struct _dos_file *next;	/* next entry */
+    struct _dos_file *first;	/* first entry (directory only) */
+} DOS_FILE;
+
+typedef struct {
+    int nfats;
+    off_t fat_start;
+    off_t fat_size;		/* unit is bytes */
+    unsigned int fat_bits;	/* size of a FAT entry */
+    unsigned int eff_fat_bits;	/* # of used bits in a FAT entry */
+    uint32_t root_cluster;	/* 0 for old-style root dir */
+    off_t root_start;
+    unsigned int root_entries;
+    off_t data_start;
+    unsigned int cluster_size;
+    uint32_t data_clusters;	/* not including two reserved cluster numbers */
+    off_t fsinfo_start;		/* 0 if not present */
+    long free_clusters;
+    off_t backupboot_start;	/* 0 if not present */
+    unsigned char *fat;
+    DOS_FILE **cluster_owner;
+    uint32_t serial;
+    char label[11];
+} DOS_FS;
+
 
 #define MALLOC malloc
 #define FREE free

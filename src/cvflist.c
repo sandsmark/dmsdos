@@ -32,8 +32,6 @@ See file COPYING for details.
 #include<unistd.h>
 #include<fcntl.h>
 
-#define fat_boot_sector msdos_boot_sector
-
 /* some interface hacks */
 #include"lib_interface.h"
 #undef MALLOC
@@ -95,7 +93,7 @@ int list_cvfs(struct super_block *sb)
 {
     int i, j, testvers;
     struct buffer_head *bh;
-    struct msdos_dir_entry *data;
+    struct DIR_ENT *data;
     char cvfname[20];
 
     /* scan the root directory for a CVF */
@@ -108,7 +106,7 @@ int list_cvfs(struct super_block *sb)
             return -1;
         }
 
-        data = (struct msdos_dir_entry *) bh->b_data;
+        data = (struct DIR_ENT *) bh->b_data;
 
         for (j = 0; j < MSDOS_DPS; ++j) {
             testvers = 0;
@@ -148,7 +146,7 @@ int list_cvfs(struct super_block *sb)
 int read_super(struct super_block *sb)
 {
     struct buffer_head *bh;
-    struct fat_boot_sector *b;
+    struct boot_sector *b;
     int data_sectors, logical_sector_size, sector_mult, fat_clusters = 0;
     int error, fat = 0;
     int blksize = 512;
@@ -167,7 +165,7 @@ int read_super(struct super_block *sb)
         return -1;
     }
 
-    b = (struct fat_boot_sector *) bh->b_data;
+    b = (struct boot_sector *) bh->b_data;
     /*
      * The DOS3 partition size limit is *not* 32M as many people think.
      * Instead, it is 64K sectors (with the usual sector size being

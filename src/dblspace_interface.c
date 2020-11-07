@@ -460,10 +460,14 @@ int mount_dblspace(struct super_block *sb, char *options)
         MOD_DEC_USE_COUNT;
         return -1;
     } else {
+        unsigned long bitSizeSig = CHL(pp);
         pp = &(bh->b_data[62]);
         dblsb->s_16bitfat = (CHS(pp) > 32) ? 1 : 0;
-        printk(KERN_WARNING "DMSDOS: FAT bit size not recognized, guessed %d bit\n",
-               CHS(pp) > 32 ? 16 : 12);
+        printk(KERN_WARNING "DMSDOS: FAT bit size (0x%lx) not recognized, guessed %d bit because %d is more than 32\n",
+                bitSizeSig,
+               CHS(pp) > 32 ? 16 : 12,
+               CHS(pp)
+               );
     }
 
     raw_brelse(sb, bh2);
