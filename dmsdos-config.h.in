@@ -1,0 +1,49 @@
+#pragma once
+
+/// CVF formats to be supported
+#cmakedefine DMSDOS_CONFIG_DBLSP_DRVSP 1
+#cmakedefine DMSDOS_CONFIG_DRVSP3 1
+#cmakedefine DMSDOS_CONFIG_STAC3 1
+#cmakedefine DMSDOS_CONFIG_STAC4 1
+
+// Memory Management
+#cmakedefine USE_XMALLOC
+#cmakedefine USE_VMALLOC
+
+// Cache setup
+#define LISTSIZE @LISTSIZE@
+#cmakedefine MDFATCACHESIZE @MDFATCACHESIZE@
+#cmakedefine DFATCACHESIZE @DFATCACHESIZE@
+#cmakedefine BITFATCACHESIZE @BITFATCACHESIZE@
+#cmakedefine MAX_CACHE_TIME @MAX_CACHE_TIME@
+#cmakedefine CCACHESIZE @CCACHESIZE@
+#cmakedefine MAX_CCACHE_TIME @MAX_CCACHE_TIME@
+
+// Read-ahead Options
+#define MAX_READA @MAX_READA@
+#cmakedefine USE_READA_LIST
+#define READA_LIST_SIZE @READA_LIST_SIZE@
+#define READA_THRESHOLD @READA_THRESHOLD@
+
+// Misc Options
+#cmakedefine DBL_WRITEACCESS
+#define DEFAULT_LOGLEVEL @DEFAULT_LOGLEVEL@
+#cmakedefine NOLOG
+#define DEFAULT_CF @DEFAULT_CF@
+#cmakedefine SEQLOG
+#cmakedefine DMSDOS_USE_READPAGE
+
+// Internal compression daemon
+#cmakedefine INTERNAL_DAEMON
+#define IDMSDOSD_TIME @IDMSDOSD_TIME@
+
+// Speedup Tricks & Hacks
+#cmakedefine SP_BIT0
+#cmakedefine SP_BIT1
+#cmakedefine SP_BIT2
+#cmakedefine SP_BIT3
+#cmakedefine SP_BIT4
+#cmakedefine SP_BIT5
+#cmakedefine SP_BIT6
+#cmakedefine SP_BIT7
+#cmakedefine SP_BIT8
