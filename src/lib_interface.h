@@ -58,6 +58,7 @@ See file COPYING for details.
 
 extern long int blk_size[1][1];
 
+
 int printk(const char *fmt, ...);
 void panic(const char *fmt, ...);
 

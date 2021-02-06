@@ -180,12 +180,12 @@ See file COPYING for details.
 #define DMSDOS_VLT "pl" DMSDOS_PL DMSDOS_EXTRA
 
 /* config hacks */
-#define DMSDOS_CONFIG_DBLSP_DRVSP
-#define DMSDOS_CONFIG_DRVSP3
+//#define DMSDOS_CONFIG_DBLSP_DRVSP
+//#define DMSDOS_CONFIG_DRVSP3
 #define DMSDOS_CONFIG_DBL
 
-#define DMSDOS_CONFIG_STAC3
-#define DMSDOS_CONFIG_STAC4
+//#define DMSDOS_CONFIG_STAC3
+//#define DMSDOS_CONFIG_STAC4
 #define DMSDOS_CONFIG_STAC
 
 /* known compression methods */
@@ -290,6 +290,10 @@ typedef struct {
     unsigned int a_acc;
 } Acache;
 
+extern Acache mdfat[];
+extern Acache dfat[];
+extern Acache bitfat[];
+
 #define C_FREE 0                /* cluster cache entry is free */
 #define C_VALID 1               /* data points to valid cluster data */
 #define C_DIRTY_NORMAL 2        /* like VALID but data need to be written */
@@ -360,7 +364,6 @@ int sq_dec(void *pin,int lin, void *pout, int lout, int flg);
 
 /* Stacker cluster allocation types access */
 
-#if defined(__DMSDOS_LIB__)
 /* structure for walking/working with each sector of cluster */
 typedef struct {
     struct super_block *sb;
@@ -386,7 +389,6 @@ int stac_cwalk_init(Stac_cwalk *cw,struct super_block *sb,
                     int clusternr,int flg);
 int stac_cwalk_sector(Stac_cwalk *cw);
 void stac_cwalk_done(Stac_cwalk *cw);
-#endif /* __DMSDOS_LIB__*/
 
 /* loglevel defines */
 

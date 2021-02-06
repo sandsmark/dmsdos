@@ -30,29 +30,14 @@ See file COPYING for details.
 
 #include <string.h>
 
-#if defined(__DMSDOS_LIB__)
 extern unsigned long dmsdos_speedup;
-#endif
 
-#ifdef __DMSDOS_DAEMON__
-extern int cfaktor;
-void panic(char *);
-#include <malloc.h>
-#include <asm/types.h>
-#include <asm/byteorder.h>
-#define MALLOC malloc
-#define FREE   free
-#define SECTOR_SIZE 512
-#endif
-
-#ifdef __DMSDOS_LIB__
 /* some interface hacks */
 #include "lib_interface.h"
 #include <malloc.h>
 #include <errno.h>
-#endif
 
-int c_maxtrycount[12] = { 1, 2, 3, 4, 6, 8, 10, 14, 18, 22, 28, 40};
+static int c_maxtrycount[12] = { 1, 2, 3, 4, 6, 8, 10, 14, 18, 22, 28, 40};
 
 #ifdef __GNUC__
 #define INLINE static inline
@@ -386,7 +371,6 @@ error:
     return -1;
 }
 
-#if defined(__DMSDOS_LIB__)
 //#ifdef DMSDOS_CONFIG_DRVSP3
 int write_fragmented(struct super_block *sb, unsigned char *fraglist,
                      unsigned char *clusterk, Mdfat_entry *mde, int ksize)
@@ -762,5 +746,3 @@ int dmsdos_write_cluster(struct super_block *sb,
 
     return ret;
 }
-
-#endif /* __DMSDOS_LIB__*/

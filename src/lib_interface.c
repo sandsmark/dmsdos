@@ -67,10 +67,6 @@ See file COPYING for details.
 
 long int blk_size[1][1];
 
-extern Acache mdfat[];
-extern Acache dfat[];
-extern Acache bitfat[];
-
 /* hacks for the low-level interface */
 
 #include <stdarg.h>

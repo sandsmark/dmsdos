@@ -28,12 +28,10 @@ See file COPYING for details.
 
 #include "dmsdos.h"
 
-#ifdef __DMSDOS_LIB__
 /* some interface hacks */
 #include "lib_interface.h"
 #include <malloc.h>
 #include <errno.h>
-#endif
 
 #include <string.h>
 
@@ -43,66 +41,9 @@ extern unsigned long dmsdos_speedup;
 /* no change for doublespace, but fixes drivespace 3 problems (was 50) */
 #define BIG_HOLE (dblsb->s_sectperclust*3+2)
 
-/* experimental new memory allocation routines */
-#if defined(USE_XMALLOC) && !defined(__DMSDOS_LIB__)
-
-int told = 0;
-
-#include <linux/mm.h>
-#include <linux/malloc.h>
-
-#ifndef MAX_KMALLOC_SIZE
-#define MAX_KMALLOC_SIZE 128*1024
-#endif
-
-void *xmalloc(unsigned long size)
-{
-    void *result;
-
-    if (size <= MAX_KMALLOC_SIZE) {
-        result = kmalloc(size, GFP_KERNEL);
-
-        if (result) {
-            /* the xfree routine recognizes kmalloc'd memory due to that it is
-               usually not page-aligned --  we double-check here to be sure */
-            if ((((unsigned long)result) & (PAGE_SIZE - 1)) == 0) {
-                /* uhhh.... the trick is broken...
-                   tell the user and go safe using vmalloc */
-                kfree(result);
-
-                if (told++) { printk(KERN_ERR "DMSDOS: page-aligned memory returned by kmalloc - please disable XMALLOC\n"); }
-            } else { return result; }
-        }
-    }
-
-    result = vmalloc(size);
-
-    /* again check alignment to be 100% sure */
-    if (((unsigned long)result) & (PAGE_SIZE - 1)) {
-        panic("DMSDOS: vmalloc returned unaligned memory - please disable XMALLOC\n");
-    }
-
-    return result;
-}
-
-void xfree(void *data)
-{
-    unsigned long address = (unsigned long)data;
-
-    /* we rely on the fact that kmalloc'ed memory is unaligned but
-       vmalloc'ed memory is page-aligned */
-    /* we are causing SERIOUS kernel problems if the wrong routine is called -
-       therefore xmalloc tests kmalloc's return address above */
-    if (address & (PAGE_SIZE - 1)) { kfree(data); }
-    else { vfree(data); }
-}
-#endif
-
-#ifdef __DMSDOS_LIB__
 /* we don't need locking in the library */
 void lock_mdfat_alloc(Dblsb *dblsb) {}
 void unlock_mdfat_alloc(Dblsb *dblsb) {}
-#endif
 
 //#ifdef DMSDOS_CONFIG_DBL
 void u_free_cluster_sectors(struct super_block *sb, int clusternr,

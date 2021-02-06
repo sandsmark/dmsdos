@@ -32,13 +32,11 @@ See file COPYING for details.
 
 #include "dmsdos.h"
 
-#ifdef __DMSDOS_LIB__
 /* some interface hacks */
 #include"lib_interface.h"
 #include<malloc.h>
 #include<string.h>
 #include<errno.h>
-#endif
 
 #ifdef __GNUC__
 #define INLINE static inline

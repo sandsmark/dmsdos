@@ -30,24 +30,11 @@ See file COPYING for details.
 
 #include <stdint.h>
 
-#ifdef __DMSDOS_LIB__
 /* some interface hacks */
 #include "lib_interface.h"
 #include <malloc.h>
 #include <string.h>
 #include <errno.h>
-#endif
-
-#ifdef __DMSDOS_DAEMON__
-#include <malloc.h>
-#include <string.h>
-#include <asm/unaligned.h>
-#include <asm/types.h>
-#include <asm/byteorder.h>
-#define MALLOC malloc
-#define FREE free
-int printk(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
-#endif
 
 #ifdef __GNUC__
 #define INLINE static inline
@@ -1141,8 +1128,6 @@ int stac_compress(unsigned char *pin, int lin, unsigned char *pout, int lout,
    the compressed data may still do.
 */
 
-#if defined(__DMSDOS_LIB__)
-
 int stac_write_cluster(struct super_block *sb,
                        unsigned char *clusterd, int length, int clusternr,
                        int near_sector, int ucflag)
@@ -1358,5 +1343,3 @@ error_return:
 
     return res;
 }
-
-#endif /* __DMSDOS_LIB__*/

@@ -28,15 +28,12 @@ See file COPYING for details.
 
 #include"dmsdos.h"
 
-#ifdef __DMSDOS_LIB__
 /* some interface hacks */
 # include"lib_interface.h"
 # include<string.h>
 # include<malloc.h>
 # define MAJOR(x) 0
 # define MINOR(x) 0
-extern long int blk_size[1][1];
-#endif
 
 extern Acache mdfat[];
 extern Acache dfat[];
@@ -177,90 +174,6 @@ int ilog2(int arg)
 
     return i;
 }
-
-#ifndef __DMSDOS_LIB__
-void do_spc_init(void)
-{
-    /* first call of DMSDOS filesystem, initialising variables */
-    int i;
-
-    printk(KERN_NOTICE "DMSDOS CVF-FAT extension version %d.%d.%d" DMSDOS_VLT
-           " compiled " __DATE__ " " __TIME__ " with options:"
-#ifndef DBL_WRITEACCESS
-           " read-only"
-#else
-           " read-write"
-#endif
-#ifdef   USE_XMALLOC
-           ", xmalloc"
-#else
-#ifdef   USE_VMALLOC
-           ", vmalloc"
-#else
-           ", kmalloc"
-#endif
-#endif
-#ifdef DMSDOS_USE_READPAGE
-           ", readpage"
-#endif
-#ifdef   USE_READA_LIST
-           ", reada list"
-#endif
-#ifdef INTERNAL_DAEMON
-           ", internal daemon"
-#endif
-#ifdef DMSDOS_CONFIG_DBLSP_DRVSP
-           ", doublespace/drivespace(<3)"
-#endif
-#ifdef DMSDOS_CONFIG_DRVSP3
-           ", drivespace 3"
-#endif
-#ifdef DMSDOS_CONFIG_STAC3
-           ", stacker 3"
-#endif
-#ifdef DMSDOS_CONFIG_STAC4
-           ", stacker 4"
-#endif
-           "\n",
-           DMSDOS_MAJOR, DMSDOS_MINOR, DMSDOS_ACT_REL);
-
-    /* init cluster cache */
-    ccache_init();
-
-    /* no this is done by mount ... and removed by unmount
-       otherwise the module cannot be unloaded again if the
-       internal daemon is running
-      init_daemon();
-    */
-
-#ifdef USE_READA_LIST
-    init_reada_list();
-#endif
-
-    for (i = 0; i < MDFATCACHESIZE; ++i) {
-        mdfat[i].a_time = 0;
-        mdfat[i].a_acc = 0;
-        mdfat[i].a_buffer = NULL;
-    }
-
-    for (i = 0; i < DFATCACHESIZE; ++i) {
-        dfat[i].a_time = 0;
-        dfat[i].a_acc = 0;
-        dfat[i].a_buffer = NULL;
-    }
-
-    for (i = 0; i < BITFATCACHESIZE; ++i) {
-        bitfat[i].a_time = 0;
-        bitfat[i].a_acc = 0;
-        bitfat[i].a_buffer = NULL;
-    }
-}
-
-void do_spc_exit(void)
-{
-    force_exit_daemon();
-}
-#endif
 
 //#ifdef DMSDOS_CONFIG_DBL
 int detect_dblspace(struct super_block *sb)
@@ -1014,134 +927,11 @@ int mount_stacker(struct super_block *sb, char *options)
 #define RMFLAG 0
 #endif
 
-#ifndef __DMSDOS_LIB__
-#ifdef DMSDOS_CONFIG_DBL
-struct cvf_format dblspace_format = {
-    0x0001,                     /* version id */
-    "dblspace",                 /* version text */
-    RMFLAG,                     /* flags */
-    detect_dblspace,            /* detect */
-    mount_dblspace,             /* mount */
-    unmount_dblspace,           /* unmount */
-    dblspace_bread,             /* bread */
-    dblspace_getblk,            /* getblk */
-    dblspace_brelse,            /* brelse */
-    dblspace_mark_buffer_dirty, /* mark_buffer_dirty */
-    dblspace_set_uptodate,      /* set_uptodate */
-    dblspace_is_uptodate,       /* is_uptodate */
-    dblspace_ll_rw_block,       /* ll_rw_block */
-    dblspace_fat_access,        /* fat_access */
-    NULL,                       /* statfs */
-    dblspace_bmap,              /* bmap */
-    dblspace_smap,              /* smap */
-    dblspace_file_read,         /* file_read */
-    dblspace_file_write,        /* file_write */
-    MMAP,                       /* mmap */
-    READPAGE,                   /* readpage */
-    NULL,                       /* writepage */
-    dmsdos_ioctl_dir,           /* dir ioctl */
-    dblspace_zero_new_cluster   /* zero_new_cluster */
-};
-#endif
-
-#ifdef DMSDOS_CONFIG_STAC
-struct cvf_format stacker_format = {
-    0x0002,                     /* version id */       /**** only ****/
-    "stacker",                  /* version text */     /**** these ****/
-    RMFLAG,                     /* flags */
-    detect_stacker,             /* detect */           /**** four ****/
-    mount_stacker,              /* mount */            /**** differ :) ****/
-    unmount_dblspace,           /* unmount */
-    dblspace_bread,             /* bread */
-    dblspace_getblk,            /* getblk */
-    dblspace_brelse,            /* brelse */
-    dblspace_mark_buffer_dirty, /* mark_buffer_dirty */
-    dblspace_set_uptodate,      /* set_uptodate */
-    dblspace_is_uptodate,       /* is_uptodate */
-    dblspace_ll_rw_block,       /* ll_rw_block */
-    dblspace_fat_access,        /* fat_access */
-    NULL,                       /* statfs */
-    dblspace_bmap,              /* bmap */
-    dblspace_smap,              /* smap */
-    dblspace_file_read,         /* file_read */
-    dblspace_file_write,        /* file_write */
-    MMAP,                       /* mmap */
-    READPAGE,                   /* readpage */
-    NULL,                       /* writepage */
-    dmsdos_ioctl_dir,           /* dir ioctl */
-    dblspace_zero_new_cluster   /* zero_new_cluster */
-};
-#endif
-
-int init_dmsdos(void)
-{
-    int i;
-
-    do_spc_init();
-#ifdef DMSDOS_CONFIG_DBL
-    i = register_cvf_format(&dblspace_format);
-
-    if (i < 0) {
-        printk(KERN_ERR "register_cvf_format failed, dmsdos not loaded successfully\n");
-        do_spc_exit();
-        return i;
-    }
-
-#endif
-#ifdef DMSDOS_CONFIG_STAC
-    i = register_cvf_format(&stacker_format);
-
-    if (i < 0) {
-        printk(KERN_ERR "register_cvf_format failed, dmsdos not loaded successfully\n");
-        do_spc_exit();
-#ifdef DMSDOS_CONFIG_DBL
-        unregister_cvf_format(&dblspace_format);
-#endif
-        return i;
-    }
-
-#endif
-    LOG_REST("CVF format(s) successfully registered\n");
-
-    return 0;
-}
-
-#ifdef MODULE
-int init_module(void)
-{
-    return init_dmsdos();
-}
-
-void cleanup_module(void)
-{
-    do_spc_exit();
-#ifdef DMSDOS_CONFIG_DBL
-    unregister_cvf_format(&dblspace_format);
-#endif
-#ifdef DMSDOS_CONFIG_STAC
-    unregister_cvf_format(&stacker_format);
-#endif
-}
-#endif /* MODULE */
-#endif /* ifndef __DMSDOS_LIB__ */
-
 static char seq[] = "000000";
-
-#ifdef __DMSDOS_LIB__
-/* we don't need locking in the library */
-void lock_prseq(void) {}
-void unlock_prseq(void) {}
-#else
-DECLARE_MUTEX(prseq_sem);   /* Must be initialized to green light */
-void lock_prseq(void) {down(&prseq_sem);}
-void unlock_prseq(void) {up(&prseq_sem);}
-#endif
 
 int log_prseq(void)
 {
     int i;
-
-    lock_prseq();
 
     i = 5;
 
@@ -1155,8 +945,6 @@ int log_prseq(void)
     }
 
     printk(seq);
-
-    unlock_prseq();
 
     return 1;
 }

@@ -28,14 +28,10 @@ See file COPYING for details.
 
 #include "dmsdos.h"
 
-#ifdef __DMSDOS_LIB__
 /* some interface hacks */
 #include"lib_interface.h"
 #include<malloc.h>
 #include<errno.h>
-#endif
-
-//#ifdef DMSDOS_CONFIG_STAC
 
 /* initializes Stac_cwalk structure, which can be used for sequential
    access to all sectors of cluster and when needed informs about
@@ -544,5 +540,3 @@ int stac_replace_existing_cluster(struct super_block *sb, int cluster,
     unlock_mdfat_alloc(dblsb);
     return sector; /* okay */
 }
-
-//#endif /* DMSDOS_CONFIG_STAC */

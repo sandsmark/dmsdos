@@ -28,13 +28,11 @@ See file COPYING for details.
 
 #include "dmsdos.h"
 
-#ifdef __DMSDOS_LIB__
 /* some interface hacks */
 #include "lib_interface.h"
 #include <malloc.h>
 #include <time.h>
 #include <errno.h>
-#endif
 
 #include <string.h>
 #include <stdint.h>
@@ -44,32 +42,6 @@ Acache dfat[DFATCACHESIZE];
 Acache bitfat[BITFATCACHESIZE];
 
 extern unsigned long int dmsdos_speedup;
-
-#ifdef __DMSDOS_LIB__
-
-/* we don't need locking in the library */
-void lock_mdfat(void) {}
-void unlock_mdfat(void) {}
-void lock_dfat(void) {}
-void unlock_dfat(void) {}
-void lock_bitfat(void) {}
-void unlock_bitfat(void) {}
-
-#else
-
-DECLARE_MUTEX(mdfat_sem);   /* Must be initialized to green light */
-void lock_mdfat(void) {down(&mdfat_sem);}
-void unlock_mdfat(void) {up(&mdfat_sem);}
-
-DECLARE_MUTEX(dfat_sem);   /* Must be initialized to green light */
-void lock_dfat(void) {down(&dfat_sem);}
-void unlock_dfat(void) {up(&dfat_sem);}
-
-DECLARE_MUTEX(bitfat_sem);   /* Must be initialized to green light */
-void lock_bitfat(void) {down(&bitfat_sem);}
-void unlock_bitfat(void) {up(&bitfat_sem);}
-
-#endif /* else / __DMSDOS_LIB__ */
 
 int acache_get(struct super_block *sb, Acache *acache, int area, int never,
                int cachesize)
@@ -158,58 +130,6 @@ void dumpcache(void)
     for (i = 0; i < BITFATCACHESIZE; ++i) { u_dumpcache(&(bitfat[i])); }
 }
 
-#ifndef __DMSDOS_LIB__
-void get_memory_usage_acache(int *size, int *max)
-{
-    int i;
-    int used = 0;
-
-    for (i = 0; i < MDFATCACHESIZE; ++i)if (mdfat[i].a_buffer) { ++used; }
-
-    for (i = 0; i < DFATCACHESIZE; ++i)if (dfat[i].a_buffer) { ++used; }
-
-    for (i = 0; i < BITFATCACHESIZE; ++i)if (bitfat[i].a_buffer) { ++used; }
-
-    if (size) { *size = used * SECTOR_SIZE; }
-
-    if (max) { *max = (MDFATCACHESIZE + DFATCACHESIZE + BITFATCACHESIZE) * SECTOR_SIZE; }
-}
-
-void u_free_idle_cache(Acache *c)
-{
-    if (c->a_buffer != NULL && c->a_time - CURRENT_TIME > MAX_CACHE_TIME) {
-        raw_brelse(c->a_sb, c->a_buffer);
-        c->a_buffer = NULL;
-        c->a_time = 0;
-        c->a_acc = 0;
-    }
-}
-
-void free_idle_cache(void)
-{
-    int i;
-
-    lock_mdfat();
-
-    for (i = 0; i < MDFATCACHESIZE; ++i) { u_free_idle_cache(&(mdfat[i])); }
-
-    unlock_mdfat();
-    lock_dfat();
-
-    for (i = 0; i < DFATCACHESIZE; ++i) { u_free_idle_cache(&(dfat[i])); }
-
-    unlock_dfat();
-    lock_bitfat();
-
-    for (i = 0; i < BITFATCACHESIZE; ++i) { u_free_idle_cache(&(bitfat[i])); }
-
-    unlock_bitfat();
-
-    /* handle cluster cache */
-    free_idle_ccache();
-}
-#endif
-
 int dbl_mdfat_value(struct super_block *sb, int clusternr,
                     Mdfat_entry *new,
                     Mdfat_entry *mde)
@@ -251,7 +171,6 @@ int dbl_mdfat_value(struct super_block *sb, int clusternr,
         area = pos / SECTOR_SIZE;
         offset = pos % SECTOR_SIZE;
         area = (area / 6) * 9 + (area % 6) + 3 + dblsb->s_fatstart; /* yes!!! */
-        lock_mdfat();
         merk_i = acache_get(sb, mdfat, area, -1, MDFATCACHESIZE);
 
         if (merk_i < 0) { goto mdfat_error; }
@@ -387,7 +306,6 @@ give_up:
             ;
         }
 
-        unlock_mdfat();
         return 0;
 
     case DBLSP:
@@ -395,7 +313,6 @@ give_up:
         pos = (dblsb->s_dcluster + clusternr) * 4 + 512 * dblsb->s_mdfatstart;
         area = pos / SECTOR_SIZE;
         offset = (pos % SECTOR_SIZE);
-        lock_mdfat();
         merk_i = acache_get(sb, mdfat, area, -1, MDFATCACHESIZE);
 
         if (merk_i < 0) { goto mdfat_error; }
@@ -424,7 +341,6 @@ give_up:
             raw_mark_buffer_dirty(sb, mdfat[merk_i].a_buffer, 1);
         }
 
-        unlock_mdfat();
         return 0;
 
     case DRVSP3:
@@ -433,7 +349,6 @@ give_up:
               + 512 * dblsb->s_mdfatstart;
         area = pos / SECTOR_SIZE;
         offset = (pos % SECTOR_SIZE);
-        lock_mdfat();
         merk_i = acache_get(sb, mdfat, area, -1, MDFATCACHESIZE);
 
         if (merk_i < 0) { goto mdfat_error; }
@@ -461,7 +376,6 @@ give_up:
             raw_mark_buffer_dirty(sb, mdfat[merk_i].a_buffer, 1);
         }
 
-        unlock_mdfat();
         return 0;
     } /* end switch(dblsb->s_cvf_version) */
 
@@ -469,7 +383,6 @@ give_up:
     goto fake_mde;
 
 mdfat_error:
-    unlock_mdfat();
     printk(KERN_ERR "DMSDOS: unable to read mdfat area %d for cluster %d\n", area,
            clusternr);
 
@@ -524,13 +437,10 @@ int dbl_fat_nextcluster(struct super_block *sb, int clusternr, int *new)
 
     area += dblsb->s_fatstart;
 
-    lock_dfat();
-
     merk_i = acache_get(sb, dfat, area, -1, DFATCACHESIZE);
 
     if (merk_i < 0) {
 dfat_error:
-        unlock_dfat();
         printk(KERN_ERR "DMSDOS: unable to read dfat area %d for cluster %d\n", area,
                clusternr);
         return -1;
@@ -613,8 +523,6 @@ give_up:
         ;
     }
 
-    unlock_dfat();
-
     if (dblsb->s_16bitfat) { return res >= 0xFFF7 ? -1 : res; }
 
     if (clusternr & 1) { res >>= 4; }
@@ -652,7 +560,6 @@ int dbl_bitfat_value(struct super_block *sb, int sectornr, int *new)
         area = (pos >> SECTOR_BITS)/*pos/SECTOR_SIZE*/ + dblsb->s_mdfatstart; /* misused */
         shiftval = ((sectornr - dblsb->s_datastart) & 7);
         bitmask = 0x1;
-        lock_bitfat();
         merk_i = acache_get(sb, bitfat, area, -1, BITFATCACHESIZE);
 
         if (merk_i < 0) { goto bitfat_error; }
@@ -669,7 +576,6 @@ int dbl_bitfat_value(struct super_block *sb, int sectornr, int *new)
             raw_mark_buffer_dirty(sb, bitfat[merk_i].a_buffer, 1);
         }
 
-        unlock_bitfat();
         return res;
 
     case STAC4:
@@ -678,7 +584,6 @@ int dbl_bitfat_value(struct super_block *sb, int sectornr, int *new)
         area = (pos >> SECTOR_BITS)/*pos/SECTOR_SIZE*/ + dblsb->s_mdfatstart; /* misused */
         shiftval = ((sectornr - dblsb->s_datastart) & 3) << 1/**2*/;
         bitmask = 0x3;
-        lock_bitfat();
         merk_i = acache_get(sb, bitfat, area, -1, BITFATCACHESIZE);
 
         if (merk_i < 0) { goto bitfat_error; }
@@ -695,7 +600,6 @@ int dbl_bitfat_value(struct super_block *sb, int sectornr, int *new)
             raw_mark_buffer_dirty(sb, bitfat[merk_i].a_buffer, 1);
         }
 
-        unlock_bitfat();
         return res;
     case DBLSP:
     case DRVSP:
@@ -704,7 +608,6 @@ int dbl_bitfat_value(struct super_block *sb, int sectornr, int *new)
         area = pos >> SECTOR_BITS/*pos/SECTOR_SIZE*/;
         offset = pos & (SECTOR_SIZE - 1)/*(pos%SECTOR_SIZE)*/;
         bitmask = 0x8000 >> ((sectornr - dblsb->s_datastart) & 15);
-        lock_bitfat();
         merk_i = acache_get(sb, bitfat, area, -1, BITFATCACHESIZE);
 
         if (merk_i < 0) { goto bitfat_error; }
@@ -728,7 +631,6 @@ int dbl_bitfat_value(struct super_block *sb, int sectornr, int *new)
             if (dblsb->s_free_sectors >= 0 && res == 0 && *new != 0) { --dblsb->s_free_sectors; }
         }
 
-        unlock_bitfat();
         return res;
     }
 
@@ -736,120 +638,7 @@ int dbl_bitfat_value(struct super_block *sb, int sectornr, int *new)
     return -1;
 
 bitfat_error:
-    unlock_bitfat();
     printk(KERN_ERR "DMSDOS: unable to read bitfat area %d for sector %d\n", area,
            sectornr);
     return -1;
 }
-
-#ifndef __DMSDOS_LIB__
-int dblspace_fat_access(struct super_block *sb, int clusternr, int newval)
-{
-    int cl;
-
-    cl = dbl_fat_nextcluster(sb, clusternr, NULL);
-
-    if (newval == -1) { return cl; }
-
-    if (sb->s_flags & MS_RDONLY) {
-        printk(KERN_ERR "DMSDOS: dblspace_fat_access: READ-ONLY filesystem\n");
-        /* This is a bad hack in order to work around a problem with the
-           FAT driver: The FAT driver assumes fat_access never fails. Thus
-           returning -EROFS results in an endless loop (i.e. system hang)
-           at least in fat_free. We return -1 here in order to simulate EOF
-           which should break any loop in the FAT driver. */
-        return /* -EROFS */ -1;
-    }
-
-    if (newval == 0) { delete_cache_cluster(sb, clusternr); }
-
-    dbl_fat_nextcluster(sb, clusternr, &newval);
-
-    if (cl < 0) { return -1; } /* see comment above -- just to be sure :) */
-
-    /* if cl _is_ -1 (EOF) this is ok. */
-    /* if it is a negative error it is replaced by EOF. */
-    return cl;
-}
-
-int dblspace_bmap(struct inode *inode, int block)
-{
-#ifdef __FOR_KERNEL_2_3_99
-    return dblspace_smap(inode, block);
-#else
-    printk(KERN_WARNING "DMSDOS: bmap called, unsupported!\n");
-    return -EIO;
-#endif
-}
-
-int dblspace_smap(struct inode *inode, int block)
-{
-    int cluster;
-    int sect_offs;
-    Dblsb *dblsb = MSDOS_SB(inode->i_sb)->private_data;
-
-    cluster = block / dblsb->s_sectperclust;
-    sect_offs = block % dblsb->s_sectperclust;
-
-    LOG_FS("DMSDOS: smap called, block=%d cluster_offs=%d sector_offs=%d\n",
-           block, cluster, sect_offs);
-
-    if (inode->i_ino == MSDOS_ROOT_INO || (S_ISDIR(inode->i_mode) &&
-                                           !MSDOS_I(inode)->i_start)) {
-        if (block >= MSDOS_SB(inode->i_sb)->dir_entries >> MSDOS_DPS_BITS) {
-            LOG_FS("DMSDOS: smap: root dir beyond end, returning 0\n");
-            return 0;
-        }
-
-        LOG_FS("DMSDOS: smap: root dir, returning %d\n", block + FAKED_ROOT_DIR_OFFSET);
-        return block + FAKED_ROOT_DIR_OFFSET;
-    }
-
-    if (!(cluster = get_cluster(inode, cluster))) {
-        LOG_FS("DMSDOS: smap: get_cluster returned 0\n");
-        return 0;
-    }
-
-    LOG_FS("DMSDOS: smap: returning vsector(cluster=%d sector=%d)\n",
-           cluster, sect_offs);
-    return ((cluster - 2) * dblsb->s_sectperclust) + sect_offs + FAKED_DATA_START_OFFSET;
-}
-
-/* clusternr is absolute, not relative to inode */
-void dblspace_zero_new_cluster(struct inode *inode, int clusternr)
-{
-    /* we decide upon the inode whether this is a dir cluster */
-    struct super_block *sb = inode->i_sb;
-    Dblsb *dblsb = MSDOS_SB(sb)->private_data;
-    Cluster_head *ch;
-    int i;
-
-    if (!S_ISDIR(inode->i_mode)) {
-        /* we just throw the cluster away if it has an mdfat entry */
-        delete_cache_cluster(sb, clusternr);
-    } else {
-        /* it may be in cache, so ... */
-        ch = ch_read(sb, clusternr, C_NO_READ | C_KEEP_LOCK); /* I hope that noread is OK there, Pavel */
-
-        if (ch == NULL) {
-            printk(KERN_ERR "DMSDOS: zero_new_cluster: ch_noread failed???\n");
-            return;
-        }
-
-        memset(ch->c_data, 0, dblsb->s_sectperclust * SECTOR_SIZE);
-
-        if (DIR_MAY_BE_SHORT(dblsb)) { ch->c_length = SECTOR_SIZE; }
-        else { ch->c_length = dblsb->s_sectperclust * SECTOR_SIZE; }
-
-        /* ch_dirty_locked unlocks the cluster *after* write */
-        i = ch_dirty_locked(ch, 0,
-                            DIR_MAY_BE_COMPRESSED(dblsb) ? UC_NORMAL : UC_UNCOMPR);
-
-        if (i < 0 && i != -EROFS) /* don't try until death on a read-only filesystem */
-            ch_dirty_retry_until_success(ch, 0,
-                                         DIR_MAY_BE_COMPRESSED(dblsb) ? UC_NORMAL : UC_UNCOMPR);
-
-        ch_free(ch);
-    }
-}
-#endif
