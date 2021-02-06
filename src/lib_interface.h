@@ -93,14 +93,14 @@ void panic(const char *fmt, ...);
 
 struct buffer_head {
     unsigned long b_blocknr;        /* block number */
-    char *b_data;                   /* pointer to data block */
-};
+    uint8_t *b_data;                /* pointer to data block */
+} __attribute__ ((packed));
 
 #define MS_RDONLY   1      /* Mount read-only */
 #define MSDOS_SB(s) (&((s)->u.msdos_sb))
 
 struct DIR_ENT {
-    int8_t    name[8],ext[3]; /* name and extension */
+    char    name[8],ext[3]; /* name and extension */
     uint8_t    attr;           /* attribute bits */
     uint8_t    lcase;          /* Case for base and extension */
     uint8_t    ctime_ms;       /* Creation time, milliseconds */
@@ -110,7 +110,7 @@ struct DIR_ENT {
     uint16_t   starthi;        /* High 16 bits of cluster in FAT32 */
     uint16_t   time,date,start;/* time, date and first cluster */
     uint32_t   size;           /* file size (in bytes) */
-};
+} __attribute__ ((packed));
 
 struct msdos_sb_info {
     unsigned short cluster_size; /* sectors/cluster */
@@ -130,7 +130,7 @@ struct msdos_sb_info {
     struct nls_table *nls_io;    /* Charset used for input and display */
     struct cvf_format *cvf_format;
     void *private_data;
-};
+} __attribute__ ((packed));
 
 struct super_block {
     int s_dev;
@@ -145,7 +145,7 @@ struct super_block {
         struct msdos_sb_info msdos_sb;
     } u;
 
-};
+} __attribute__ ((packed));
 
 struct boot_sector {
     uint8_t    ignored[3];     /* Boot strap short or near jump */
@@ -221,7 +221,7 @@ struct info_sector {
     uint32_t next_cluster;	/* Most recently allocated cluster. */
     uint8_t reserved2[12];
     uint32_t boot_sign;
-};
+} __attribute__ ((packed));
 
 typedef struct _dos_file {
     struct DIR_ENT dir_ent;
@@ -231,7 +231,7 @@ typedef struct _dos_file {
     struct _dos_file *parent;	/* parent directory */
     struct _dos_file *next;	/* next entry */
     struct _dos_file *first;	/* first entry (directory only) */
-} DOS_FILE;
+} __attribute__ ((packed)) DOS_FILE;
 
 typedef struct {
     int nfats;
@@ -252,7 +252,7 @@ typedef struct {
     DOS_FILE **cluster_owner;
     uint32_t serial;
     char label[11];
-} DOS_FS;
+}__attribute__ ((packed)) DOS_FS;
 
 
 #define MALLOC malloc
