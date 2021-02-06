@@ -3,28 +3,6 @@ cmake_minimum_required(VERSION 3.2)
 
 set(CMAKE_C_STANDARD 11)
 
-set(DMSDOS_CONFIG_DBLSP_DRVSP ON CACHE BOOL
-  "Say Y if you want support for this kind of CVFs. This kind of CVF
-  format is built into MSDOS 6.0-6.22 and older versions of Win95.
-  If unsure, saying Y won't hurt except making the module larger."
-  )
-set(DMSDOS_CONFIG_DRVSP3 ON CACHE BOOL
-    "Say Y if you want support for this kind of CVFs. Note that
-    Drivespace 3 has been sold seperately from Win95 for some time, but
-    newer versions of Win95 seem to have Drivespace 3 built in.
-    The software should tell its version number in the Help/Info menu
-    under Win95. If unsure, saying Y won't hurt except making the module
-    larger."
-    )
-set(DMSDOS_CONFIG_STAC3 ON CACHE BOOL
-    "Say Y if you want support for this kind of CVFs. If unsure, saying Y
-    won't hurt except making the module larger."
-    )
-set(DMSDOS_CONFIG_STAC4 ON CACHE BOOL
-    "Say Y if you want support for this kind of CVFs. If unsure, saying Y
-    won't hurt except making the module larger."
-    )
-
 set(USE_XMALLOC OFF CACHE BOOL
     "Enables optimized memory allocation routine - it decides itself 
     whether to use kmalloc or vmalloc depending on the requested size 

@@ -1,11 +1,5 @@
 #pragma once
 
-/// CVF formats to be supported
-#cmakedefine DMSDOS_CONFIG_DBLSP_DRVSP 1
-#cmakedefine DMSDOS_CONFIG_DRVSP3 1
-#cmakedefine DMSDOS_CONFIG_STAC3 1
-#cmakedefine DMSDOS_CONFIG_STAC4 1
-
 // Memory Management
 #cmakedefine USE_XMALLOC
 #cmakedefine USE_VMALLOC
