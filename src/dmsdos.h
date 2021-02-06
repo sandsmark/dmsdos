@@ -343,13 +343,7 @@ int stac_write_cluster(struct super_block *sb,
                        int near_sector, int ucflag);
 int stac_read_cluster(struct super_block *sb,unsigned char *clusterd,
                       int clusternr);
-void free_idle_cache(void);
-void free_idle_ccache(void);
-void ccache_init(void);
 
-void delete_cache_cluster(struct super_block *sb, int clusternr);
-void log_list_statistics(void);
-void log_ccache_statistics(void);
 void log_found_statistics(void);
 int sq_dec(void *pin,int lin, void *pout, int lout, int flg);
 
@@ -438,14 +432,6 @@ void raw_set_uptodate (
     struct super_block *sb,
     struct buffer_head *bh,
     int val);
-int raw_is_uptodate (
-    struct super_block *sb,
-    struct buffer_head *bh);
-void raw_ll_rw_block (
-    struct super_block *sb,
-    int opr,
-    int nbreq,
-    struct buffer_head *bh[32]);
 
 #define FAKED_ROOT_DIR_OFFSET 1
 #define FAKED_DATA_START_OFFSET 1000
@@ -472,16 +458,11 @@ void dblspace_ll_rw_block (
     int nbreq,
     struct buffer_head *bh[32]);
 int stac_bitfat_state(struct super_block *sb,int new_state);
-int dblspace_fat_access(struct super_block *sb, int clusternr,int newval);
 
 int ds_dec(void *pin,int lin, void *pout, int lout, int flg);
 
 void dblspace_reada(struct super_block *sb, int sector,int count);
-void init_reada_list(void);
-void kill_reada_list_dev(int dev);
 void check_free_sectors(struct super_block *sb);
-void get_memory_usage_acache(int *, int *max);
-void get_memory_usage_ccache(int *, int *max);
 int mount_dblspace(struct super_block *sb,char *options);
 int mount_stacker(struct super_block *sb,char *options);
 int detect_dblspace(struct super_block *sb);
@@ -505,48 +486,6 @@ typedef struct {
 #define SP_USE_READ_AHEAD 0x0020
 #define SP_FAST_BITFAT_ALLOC 0x0040
 #define SP_NO_FRAG_WRITE 0x0100
-
-typedef struct {
-    int ccachebytes;
-    int max_ccachebytes;
-    int acachebytes;
-    int max_acachebytes;
-} Memuse;
-
-
-#define DMSDOS_IOCTL_MIN 0x2000
-#define DMSDOS_IOCTL_MAX 0x201F
-#define DMSDOS_GET_DBLSB 0x2000
-#define DMSDOS_EXTRA_STATFS 0x2001
-#define DMSDOS_READ_BLOCK 0x2002
-#define DMSDOS_WRITE_BLOCK 0x2003
-#define DMSDOS_READ_DIRENTRY 0x2004  /* obsolete */
-#define DMSDOS_WRITE_DIRENTRY 0x2005 /* obsolete */
-#define DMSDOS_READ_BITFAT 0x2006
-#define DMSDOS_WRITE_BITFAT 0x2007
-#define DMSDOS_READ_MDFAT 0x2008
-#define DMSDOS_WRITE_MDFAT 0x2009
-#define DMSDOS_READ_DFAT 0x200a
-#define DMSDOS_WRITE_DFAT 0x200b
-#define DMSDOS_SET_COMP 0x200c
-#define DMSDOS_SET_CF 0x200d
-#define DMSDOS_SIMPLE_CHECK 0x200e
-#define DMSDOS_DUMPCACHE 0x200f
-#define DMSDOS_D_ASK 0x2010
-#define DMSDOS_D_READ 0x2011
-#define DMSDOS_D_WRITE 0x2012
-#define DMSDOS_D_EXIT 0x2013
-#define DMSDOS_MOVEBACK 0x2014       /* obsolete */
-#define DMSDOS_SET_MAXCLUSTER 0x2015 /* currently not supported */
-#define DMSDOS_READ_CLUSTER 0x2016
-#define DMSDOS_FREE_IDLE_CACHE 0x2017
-#define DMSDOS_SET_LOGLEVEL 0x2018
-#define DMSDOS_SYNC_CCACHE 0x2019
-#define DMSDOS_LOG_STATISTICS 0x201a
-#define DMSDOS_SET_SPEEDUP 0x201b
-#define DMSDOS_RECOMPRESS 0x201c     /* obsolete */
-#define DMSDOS_REPORT_MEMORY 0x201d
-#define IS_DMSDOS_IOCTL(cmd) ((cmd)>=DMSDOS_IOCTL_MIN&&(cmd)<=DMSDOS_IOCTL_MAX)
 
 /* dmsdos library interface */
 struct super_block *open_cvf(char *filename,int rwflag);

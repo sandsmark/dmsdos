@@ -59,8 +59,8 @@ to read through the source code. :)
 #define M_VERBOSE 16
 
 /*this is not good - but currently we have only one CVF open at a time*/
-struct super_block *sb;
-Dblsb *dblsb;
+static struct super_block *sb;
+static Dblsb *dblsb;
 
 int scan(char *text)
 {
