@@ -31,6 +31,7 @@ See file COPYING for details.
 #include<stdlib.h>
 #include<string.h>
 #include<ctype.h>
+#include<assert.h>
 
 #include"dmsdos.h"
 #include"lib_interface.h"
@@ -40,8 +41,8 @@ See file COPYING for details.
 #define M_IN 3
 
 /*this is not good - but currently we have only one CVF open at a time*/
-struct super_block *sb;
-Dblsb *dblsb;
+static struct super_block *sb;
+static Dblsb *dblsb;
 
 int scan(char *text)
 {
@@ -109,7 +110,7 @@ int copy_cluster_out(int nr, int len, FILE *f)
 
 int handle_dir_chain(int start, int rek, char *prefix);
 
-static void print_filename(const unsigned char *filename)
+static void print_filename(const char *filename)
 {
     for (int i = 0; i < strlen(filename); ++i) {
         if (filename[i] >= 32 && filename[i] < 127) {
@@ -118,7 +119,7 @@ static void print_filename(const unsigned char *filename)
         }
 
         // TODO: proper codepage support, this is Code page 865 (DOS Nordic)
-        switch (filename[i]) {
+        switch ((uint8_t)filename[i]) {
         case 0x92:
             printf("æ");
             break;
@@ -355,9 +356,9 @@ int scan_dir(char *entry, int start, int *len)
     char buf[] = "           ";
     /*12345678EXT*/
     int i;
-    int size;
+    int size = -1;
     unsigned char *data;
-    int next;
+    int next = -1;
 
     if (strcmp(entry, ".") == 0) { return start; }
     else if (strcmp(entry, "..") == 0) { strncpy(buf, "..", 2); }
@@ -402,6 +403,7 @@ int scan_dir(char *entry, int start, int *len)
 
         if (data == NULL) { return -1; }
 
+        assert(size != -1);
         for (i = 0; i < size; ++i) {
             if (strncmp(&(data[i * 32]), buf, 11) == 0) {
                 unsigned char *pp;

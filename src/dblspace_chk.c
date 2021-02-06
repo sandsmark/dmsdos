@@ -62,7 +62,7 @@ uint8_t *stac_bitfat_sumary(struct super_block *sb,
     if (bh == NULL) { return (NULL); }
 
     return (bh->b_data + pos % SECTOR_SIZE);
-};
+}
 
 /* sets bitfat state, 0=query only, 1=clean, 2=dirty, 3=bad, 11=force clean */
 int stac_bitfat_state(struct super_block *sb, int new_state)
@@ -102,7 +102,7 @@ int stac_bitfat_state(struct super_block *sb, int new_state)
     raw_brelse(sb, bh);
 
     return old_state;
-};
+}
 
 /* prepared for repair of BITFAT */
 int stac_simple_check(struct super_block *sb, int repair)

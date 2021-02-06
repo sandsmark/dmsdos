@@ -38,8 +38,8 @@ See file COPYING for details.
 int check_dir(int parent, int clusternr);
 
 /*this is not good - but currently we have only one CVF open at a time*/
-struct super_block *sb;
-Dblsb *dblsb;
+static struct super_block *sb;
+static Dblsb *dblsb;
 
 typedef struct {
     int referrenced_from;
@@ -50,11 +50,11 @@ Fatdata fat[65536];
 
 #define FAT_EOF -1
 
-int seenlist[65536];
-int repair_automatically = 0;
-int repair_interactively = 0;
-int verbose = 0;
-int listfiles = 0;
+static int seenlist[65536];
+static int repair_automatically = 0;
+static int repair_interactively = 0;
+static int verbose = 0;
+static int listfiles = 0;
 
 #define vprintf if(verbose)printf
 #define lprintf if(listfiles)printf

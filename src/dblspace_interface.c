@@ -1176,7 +1176,7 @@ void cleanup_module(void)
 #endif /* MODULE */
 #endif /* ifndef __DMSDOS_LIB__ */
 
-char seq[] = "000000";
+static char seq[] = "000000";
 
 #ifdef __DMSDOS_LIB__
 /* we don't need locking in the library */

@@ -33,7 +33,6 @@ See file COPYING for details.
 int main(int argc, char *argv[])
 {
     unsigned char sb[512];
-    int i;
     FILE *f;
     char *fn;
 
@@ -64,7 +63,7 @@ usage:
         }
     }
 
-    for (i = 0; i < 512; ++i) { sb[i] = fgetc(f); }
+    for (int i = 0; i < 512; ++i) { sb[i] = fgetc(f); }
 
     if (fgetc(f) == EOF) {
         if (ferror(f)) {
@@ -95,7 +94,6 @@ usage:
         int i;
         unsigned char b, c;
         unsigned char *p;
-        int StacVersion;
 
         /* decode super block */
         for (i = 0x30, p = sb + 0x50, b = sb[0x4c]; i--; p++) {
@@ -109,7 +107,7 @@ usage:
         if (sb[0x4e] != 0xa || sb[0x4f] != 0x1a) {
             printf("unknown (new? damaged?) stacker CVF\n");
         } else {
-            StacVersion = sb[0x60];
+            int StacVersion = sb[0x60];
             StacVersion &= 0xff;
             StacVersion |= sb[0x61] << 8;
             StacVersion &= 0xffff;

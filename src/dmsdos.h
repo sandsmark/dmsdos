@@ -393,6 +393,7 @@ void stac_cwalk_done(Stac_cwalk *cw);
 /* loglevel defines */
 
 extern unsigned long loglevel;
+extern unsigned long dmsdos_speedup;
 
 #ifdef SEQLOG
 int log_prseq(void);

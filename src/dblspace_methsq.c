@@ -800,7 +800,7 @@ void sq_hsort1(ch_tab_t *ch_tab, int ch_num, int cl, ch_tab_t a)
     };
 
     ch_tab[cl - 1] = a;
-};
+}
 
 int sq_huffman(count_t *ch_cn, uint8_t *ch_blen, unsigned *ch_blcn, int cod_num, ch_tab_t *ch_tab)
 {
