@@ -47,8 +47,6 @@ See file COPYING for details.
 #define INLINE static
 #endif
 
-#ifdef DMSDOS_CONFIG_STAC
-
 #if defined(__GNUC__) && defined(__i386__) && defined(USE_ASM)
 #define USE_GNU_ASM_i386
 
@@ -901,5 +899,3 @@ error1:
 
     return (count);
 }
-
-#endif /* DMSDOS_CONFIG_STAC */

@@ -262,7 +262,7 @@ void do_spc_exit(void)
 }
 #endif
 
-#ifdef DMSDOS_CONFIG_DBL
+//#ifdef DMSDOS_CONFIG_DBL
 int detect_dblspace(struct super_block *sb)
 {
     struct buffer_head *bh;
@@ -410,31 +410,6 @@ int mount_dblspace(struct super_block *sb, char *options)
 
     if (version_flag > 3)printk(KERN_WARNING "DMSDOS: strange version flag %d, assuming 0.\n",
                                     version_flag);
-
-#ifndef DMSDOS_CONFIG_DBLSP_DRVSP
-
-    if (dblsb->s_cvf_version <= DRVSP) {
-        printk(KERN_ERR "DMSDOS: support for doublespace/drivespace(<3) not compiled in.\n");
-        raw_brelse(sb, bh);
-        free_dblsb(dblsb);
-        MSDOS_SB(sb)->private_data = NULL;
-        MOD_DEC_USE_COUNT;
-        return -1;
-    }
-
-#endif
-#ifndef DMSDOS_CONFIG_DRVSP3
-
-    if (dblsb->s_cvf_version == DRVSP3) {
-        printk(KERN_ERR "DMSDOS: support for drivespace 3 not compiled in.\n");
-        raw_brelse(sb, bh);
-        free_dblsb(dblsb);
-        MSDOS_SB(sb)->private_data = NULL;
-        MOD_DEC_USE_COUNT;
-        return -1;
-    }
-
-#endif
 
     bh2 = raw_bread(sb, dblsb->s_bootblock);
 
@@ -622,7 +597,7 @@ int mount_dblspace(struct super_block *sb, char *options)
 
     return 0;
 }
-#endif
+//#endif
 
 int unmount_dblspace(struct super_block *sb)
 {
@@ -636,14 +611,10 @@ int unmount_dblspace(struct super_block *sb)
     /* the same for the daemon if it is running */
     clear_list_dev(sb);
 
-#ifdef DMSDOS_CONFIG_STAC
-
     /* mark stacker bitfat as up to date and unmounted */
     if (dblsb->s_cvf_version >= STAC3) {
         stac_bitfat_state(sb, 1);
     }
-
-#endif
 
     /* kill buffers used by unmounted cvf */
     for (j = 0; j < MDFATCACHESIZE; ++j) {
@@ -692,7 +663,6 @@ int unmount_dblspace(struct super_block *sb)
     return 0;
 }
 
-#ifdef DMSDOS_CONFIG_STAC
 int detect_stacker(struct super_block *sb)
 {
     struct buffer_head *bh;
@@ -829,31 +799,6 @@ int mount_stacker(struct super_block *sb, char *options)
 
     /* if(buf[0x64]==9)dblsb->s_cvf_version=STAC4;
     else dblsb->s_cvf_version=STAC3; */
-
-#ifndef DMSDOS_CONFIG_STAC3
-
-    if (dblsb->s_cvf_version == STAC3) {
-        printk(KERN_ERR "DMSDOS: support for stacker 3 not compiled in.\n");
-        raw_brelse(sb, bh);
-        free_dblsb(dblsb);
-        MSDOS_SB(sb)->private_data = NULL;
-        MOD_DEC_USE_COUNT;
-        return -1;
-    }
-
-#endif
-#ifndef DMSDOS_CONFIG_STAC4
-
-    if (dblsb->s_cvf_version == STAC4) {
-        printk(KERN_ERR "DMSDOS: support for stacker 4 not compiled in.\n");
-        raw_brelse(sb, bh);
-        free_dblsb(dblsb);
-        MSDOS_SB(sb)->private_data = NULL;
-        MOD_DEC_USE_COUNT;
-        return -1;
-    }
-
-#endif
 
     /* now we need the boot block */
     bh2 = raw_bread(sb, dblsb->s_bootblock);
@@ -1057,7 +1002,7 @@ int mount_stacker(struct super_block *sb, char *options)
 
     return 0;
 }
-#endif
+//#endif
 
 #ifdef DMSDOS_USE_READPAGE
 #define READPAGE dblspace_readpage

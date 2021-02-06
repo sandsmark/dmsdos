@@ -51,7 +51,7 @@ extern int debug;
 #include <string.h>
 #endif
 
-#ifdef DMSDOS_CONFIG_DRVSP3
+//#ifdef DMSDOS_CONFIG_DRVSP3
 
 #ifdef __GNUC__
 #define INLINE  static inline
@@ -1507,4 +1507,4 @@ int sq_comp(void *pin, int lin, void *pout, int lout, int flg)
     return 0;
 };
 
-#endif /* DMSDOS_CONFIG_DRVSP3 */
+//#endif /* DMSDOS_CONFIG_DRVSP3 */

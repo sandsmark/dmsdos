@@ -42,7 +42,7 @@ extern unsigned long loglevel;
 extern unsigned long dmsdos_speedup;
 extern int daemon_present;
 
-#ifdef DMSDOS_CONFIG_STAC
+//#ifdef DMSDOS_CONFIG_STAC
 /* reads stacker BITFAT sumary informations */
 uint8_t *stac_bitfat_sumary(struct super_block *sb,
                          struct buffer_head **pbh)
@@ -282,7 +282,7 @@ mde_sect_error:
 
     return 0;
 }
-#endif
+//#endif
 
 /* simple fs check routines (DON'T mount obviously damaged filesystems rw)
 */
@@ -297,10 +297,10 @@ int simple_check(struct super_block *sb, int repair)
     int mdfat_dead_msg_count = 0;
     int maxmsg = 0;
     int errorcode = 0;
-#ifdef DMSDOS_CONFIG_DBL
+//#ifdef DMSDOS_CONFIG_DBL
     int free_sects;
     int j;
-#endif
+//#endif
 
     /* can't repair ro filesystems */
     if (dblsb->s_comp == READ_ONLY) { repair = 0; }
@@ -392,15 +392,11 @@ int simple_check(struct super_block *sb, int repair)
         return errorcode;
     }
 
-#ifdef DMSDOS_CONFIG_STAC
-
     if (dblsb->s_cvf_version >= STAC3) {
         return stac_simple_check(sb, repair);
     }
 
-#endif
-
-#ifdef DMSDOS_CONFIG_DBL
+//#ifdef DMSDOS_CONFIG_DBL
     /* check mdfat */
 
     val = dblsb->s_dataend / 8 + 1;
@@ -441,7 +437,7 @@ int simple_check(struct super_block *sb, int repair)
                     setbit(val);
                 }
 
-#ifdef DMSDOS_CONFIG_DRVSP3
+//#ifdef DMSDOS_CONFIG_DRVSP3
 
             /* check fragmented clusters */
             if (mde.unknown & 2) {
@@ -526,7 +522,7 @@ int simple_check(struct super_block *sb, int repair)
                 }
             } /* end check fragmented cluster */
 
-#endif
+//#endif DMSDOS_CONFIG_DRVSP3
 
         }
 
@@ -606,7 +602,8 @@ int simple_check(struct super_block *sb, int repair)
 
     dblsb->s_free_sectors = free_sects;
     printk(KERN_INFO "DMSDOS: free sectors=%d\n", dblsb->s_free_sectors);
-#endif
+
+//#endif DMSDOS_CONFIG_DBL
 
     return 0;
 }

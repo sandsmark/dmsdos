@@ -218,20 +218,20 @@ int dbl_mdfat_value(struct super_block *sb, int clusternr,
     int pos;
     int offset;
     int merk_i;
-#ifdef DMSDOS_CONFIG_STAC
+//#ifdef DMSDOS_CONFIG_STAC
     int i;
     int merk_i2;
     int nr_of_bytes;
-#endif
-#ifdef DMSDOS_CONFIG_DBL
+//#endif
+//#ifdef DMSDOS_CONFIG_DBL
     unsigned char *pp;
-#endif
-#ifdef DMSDOS_CONFIG_DBLSP_DRVSP
+//#endif
+//#ifdef DMSDOS_CONFIG_DBLSP_DRVSP
     int res;
-#endif
-#ifdef DMSDOS_CONFIG_STAC
+//#endif
+//#ifdef DMSDOS_CONFIG_STAC
     unsigned char mdfat_raw_field[5];
-#endif
+//#endif
     Dblsb *dblsb = MSDOS_SB(sb)->private_data;
 
     if (clusternr < 2 || clusternr > dblsb->s_max_cluster2) {
@@ -241,7 +241,7 @@ int dbl_mdfat_value(struct super_block *sb, int clusternr,
     }
 
     switch (dblsb->s_cvf_version) {
-#ifdef DMSDOS_CONFIG_STAC
+//#ifdef DMSDOS_CONFIG_STAC
 
     case STAC3:
     case STAC4:
@@ -389,8 +389,6 @@ give_up:
 
         unlock_mdfat();
         return 0;
-#endif
-#ifdef DMSDOS_CONFIG_DBLSP_DRVSP
 
     case DBLSP:
     case DRVSP:
@@ -428,8 +426,6 @@ give_up:
 
         unlock_mdfat();
         return 0;
-#endif
-#ifdef DMSDOS_CONFIG_DRVSP3
 
     case DRVSP3:
         pos = (dblsb->s_dcluster + clusternr) * 5
@@ -467,7 +463,6 @@ give_up:
 
         unlock_mdfat();
         return 0;
-#endif
     } /* end switch(dblsb->s_cvf_version) */
 
     printk(KERN_ERR "DMSDOS: dbl_mdfat_value: unknown version?? This is a bug.\n");
@@ -634,14 +629,14 @@ int dbl_bitfat_value(struct super_block *sb, int sectornr, int *new)
     int pos;
     int offset;
     int merk_i;
-#ifdef DMSDOS_CONFIG_DBL
+//#ifdef DMSDOS_CONFIG_DBL
     unsigned char *pp;
     int newval;
-#endif
+//#endif
     int bitmask;
-#ifdef DMSDOS_CONFIG_STAC
+//#ifdef DMSDOS_CONFIG_STAC
     int shiftval;
-#endif
+//#endif
     int res;
     Dblsb *dblsb = MSDOS_SB(sb)->private_data;
 
@@ -650,7 +645,6 @@ int dbl_bitfat_value(struct super_block *sb, int sectornr, int *new)
     if (sectornr > dblsb->s_dataend) { return -1; }
 
     switch (dblsb->s_cvf_version) {
-#ifdef DMSDOS_CONFIG_STAC3
 
     case STAC3:
         pos = ((sectornr - dblsb->s_datastart) >> 3);
@@ -677,8 +671,6 @@ int dbl_bitfat_value(struct super_block *sb, int sectornr, int *new)
 
         unlock_bitfat();
         return res;
-#endif
-#ifdef DMSDOS_CONFIG_STAC4
 
     case STAC4:
         pos = ((sectornr - dblsb->s_datastart) >> 2);
@@ -705,9 +697,6 @@ int dbl_bitfat_value(struct super_block *sb, int sectornr, int *new)
 
         unlock_bitfat();
         return res;
-#endif
-#ifdef DMSDOS_CONFIG_DBL
-
     case DBLSP:
     case DRVSP:
     case DRVSP3:
@@ -741,7 +730,6 @@ int dbl_bitfat_value(struct super_block *sb, int sectornr, int *new)
 
         unlock_bitfat();
         return res;
-#endif
     }
 
     printk(KERN_ERR "DMSDOS: dbl_bitfat_value: version not found?? cannot happen\n");

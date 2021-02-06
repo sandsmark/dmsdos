@@ -35,7 +35,7 @@ See file COPYING for details.
 #include<errno.h>
 #endif
 
-#ifdef DMSDOS_CONFIG_STAC
+//#ifdef DMSDOS_CONFIG_STAC
 
 /* initializes Stac_cwalk structure, which can be used for sequential
    access to all sectors of cluster and when needed informs about
@@ -545,4 +545,4 @@ int stac_replace_existing_cluster(struct super_block *sb, int cluster,
     return sector; /* okay */
 }
 
-#endif /* DMSDOS_CONFIG_STAC */
+//#endif /* DMSDOS_CONFIG_STAC */

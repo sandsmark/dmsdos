@@ -104,7 +104,7 @@ void lock_mdfat_alloc(Dblsb *dblsb) {}
 void unlock_mdfat_alloc(Dblsb *dblsb) {}
 #endif
 
-#ifdef DMSDOS_CONFIG_DBL
+//#ifdef DMSDOS_CONFIG_DBL
 void u_free_cluster_sectors(struct super_block *sb, int clusternr,
                             unsigned long *undo_list)
 {
@@ -209,7 +209,6 @@ void free_cluster_sectors(struct super_block *sb, int clusternr)
     u_free_cluster_sectors(sb, clusternr, NULL);
     unlock_mdfat_alloc(MSDOS_SB(sb)->private_data);
 }
-#endif
 
 /* for statistics - just for interest */
 int nearfound = 0;
@@ -444,7 +443,7 @@ void log_found_statistics()
            nearfound, bigfound, exactfound, anyfound, fragfound, notfound);
 }
 
-#ifdef DMSDOS_CONFIG_DRVSP3
+//#ifdef DMSDOS_CONFIG_DRVSP3
 int try_fragmented(struct super_block *sb, int anear, int nr,
                    unsigned char *fraglist)
 {
@@ -547,9 +546,9 @@ retry:
     LOG_ALLOC("DMSDOS: try_fragmented: success, frags=%d\n", frags);
     return 0;
 }
-#endif /* DMSDOS_CONFIG_DRVSP3 */
+//#endif /* DMSDOS_CONFIG_DRVSP3 */
 
-#ifdef DMSDOS_CONFIG_DBL
+//#ifdef DMSDOS_CONFIG_DBL
 /* replaces an existing cluster;
    this unusual function must be called before rewriting any file cluster;
    *** size must be known (encoded in mde) ***
@@ -676,7 +675,7 @@ check_failed:  ; /*Win32 compiler wants a semicolon here */
               sector);
 
     if (sector <= 0) {
-#ifdef DMSDOS_CONFIG_DRVSP3
+//#ifdef DMSDOS_CONFIG_DRVSP3
 
         if (dblsb->s_cvf_version == DRVSP3 && fraglist != NULL
                 && (dmsdos_speedup & SP_NO_FRAG_WRITE) == 0) {
@@ -733,7 +732,7 @@ check_failed:  ; /*Win32 compiler wants a semicolon here */
             /* try_fragmented failed: fall through */
         }
 
-#endif /* DMSDOS_CONFIG_DRVSP3 */
+//#endif /* DMSDOS_CONFIG_DRVSP3 */
 
         if (old_mde.flags & 2) {
             /* undo bitfat free */
@@ -773,4 +772,4 @@ mdfat_update:
     unlock_mdfat_alloc(dblsb);
     return sector; /* okay */
 }
-#endif
+//#endif

@@ -366,7 +366,7 @@ error:
         FREE(hash_hist);
         return -1;
 
-#ifdef DMSDOS_CONFIG_DRVSP3
+//#ifdef DMSDOS_CONFIG_DRVSP3
 
     case SQ_0_0:
         size = size * SECTOR_SIZE;
@@ -376,7 +376,7 @@ error:
         if ((i <= 0) || (i + SECTOR_SIZE > size)) { return -1; }
 
         return ((i - 1) / SECTOR_SIZE + 1);
-#endif
+//#endif
 
     default:
         /* sorry, other compression methods currently not available */
@@ -387,7 +387,7 @@ error:
 }
 
 #if defined(__DMSDOS_LIB__)
-#ifdef DMSDOS_CONFIG_DRVSP3
+//#ifdef DMSDOS_CONFIG_DRVSP3
 int write_fragmented(struct super_block *sb, unsigned char *fraglist,
                      unsigned char *clusterk, Mdfat_entry *mde, int ksize)
 {
@@ -457,7 +457,7 @@ int write_fragmented(struct super_block *sb, unsigned char *fraglist,
 
     return 0;
 }
-#endif
+//#endif
 
 /* write a dmsdos cluster, compress before if possible;
    length is the number of used bytes, may be < SECTOR_SIZE*sectperclust only
@@ -476,7 +476,6 @@ int write_fragmented(struct super_block *sb, unsigned char *fraglist,
    *********** This function is doublespace/drivespace specific ******
 */
 
-#ifdef DMSDOS_CONFIG_DBL
 int dbl_write_cluster(struct super_block *sb,
                       unsigned char *clusterd, int length, int clusternr,
                       int near_sector, int ucflag)
@@ -645,12 +644,12 @@ wr_uc:
     else {
         res = 0;
         /* no SIMULATE write here, this is caught above */
-#ifdef DMSDOS_CONFIG_DRVSP3
+//#ifdef DMSDOS_CONFIG_DRVSP3
 
         if (mde.unknown & 2) { /* fragmented */
             res = write_fragmented(sb, fraglist, clusterk, &mde, ksize);
         } else
-#endif
+//#endif
             for (i = 0; i < ksize; ++i) {
                 bh = raw_getblk(sb, sector + i);
 
@@ -668,7 +667,6 @@ wr_uc:
 
     return res;
 }
-#endif
 
 #define CHECK_INTERVAL 1000
 static int fsc_count = 0;
@@ -744,23 +742,18 @@ int dmsdos_write_cluster(struct super_block *sb,
     check_free_sectors(sb);
 
     switch (dblsb->s_cvf_version) {
-#ifdef DMSDOS_CONFIG_DBL
-
     case DBLSP:
     case DRVSP:
     case DRVSP3:
         ret = dbl_write_cluster(sb, clusterd, length, clusternr, near_sector,
                                 ucflag);
         break;
-#endif
-#ifdef DMSDOS_CONFIG_STAC
 
     case STAC3:
     case STAC4:
         ret = stac_write_cluster(sb, clusterd, length, clusternr, near_sector,
                                  ucflag);
         break;
-#endif
 
     default:
         printk(KERN_ERR "DMSDOS: write_cluster: illegal cvf_version flag!\n");

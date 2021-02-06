@@ -180,15 +180,13 @@ See file COPYING for details.
 #define DMSDOS_VLT "pl" DMSDOS_PL DMSDOS_EXTRA
 
 /* config hacks */
-#if (defined(DMSDOS_CONFIG_DBLSP_DRVSP) || defined(DMSDOS_CONFIG_DRVSP3))
+#define DMSDOS_CONFIG_DBLSP_DRVSP
+#define DMSDOS_CONFIG_DRVSP3
 #define DMSDOS_CONFIG_DBL
-#endif
-#if (defined(DMSDOS_CONFIG_STAC3) || defined(DMSDOS_CONFIG_STAC4))
+
+#define DMSDOS_CONFIG_STAC3
+#define DMSDOS_CONFIG_STAC4
 #define DMSDOS_CONFIG_STAC
-#endif
-#if (!defined(DMSDOS_CONFIG_DBL) && !defined(DMSDOS_CONFIG_STAC))
-#error configuration: no CVF format to compile in !!!
-#endif
 
 /* known compression methods */
 #define DS_0_0 0x00005344

@@ -419,7 +419,7 @@ int dbl_decompress(unsigned char *clusterd, unsigned char *clusterk,
         LOG_DECOMP("DMSDOS: decompress finished.\n");
         return 0;
 
-#ifdef DMSDOS_CONFIG_DRVSP3
+//#ifdef DMSDOS_CONFIG_DRVSP3
 
     case SQ_0_0:
         LOG_DECOMP("DMSDOS: decompressing SQ-0-0\n");
@@ -432,7 +432,7 @@ int dbl_decompress(unsigned char *clusterd, unsigned char *clusterk,
 
         LOG_DECOMP("DMSDOS: decompress finished.\n");
         return 0;
-#endif
+//#endif
 
     default:
         printk(KERN_ERR "DMSDOS: compression method not recognized.\n");
@@ -443,7 +443,7 @@ int dbl_decompress(unsigned char *clusterd, unsigned char *clusterk,
     return 0;
 }
 
-#ifdef DMSDOS_CONFIG_DRVSP3
+//#ifdef DMSDOS_CONFIG_DRVSP3
 /* read the fragments of a fragmented cluster and assemble them */
 /* warning: this is guessed from low level viewing drivespace 3 disks
    and may be awfully wrong... we'll see... */
@@ -546,9 +546,9 @@ int read_fragments(struct super_block *sb, Mdfat_entry *mde, unsigned char *data
 
     return safety_counter;
 }
-#endif
+//#endif
 
-#ifdef DMSDOS_CONFIG_DBL
+//#ifdef DMSDOS_CONFIG_DBL
 /* read a complete file cluster and decompress it if necessary;
    this function is unable to read cluster 0 (CVF root directory) */
 /* returns cluster length in bytes or error (<0) */
@@ -596,7 +596,7 @@ int dbl_read_cluster(struct super_block *sb,
         return 0;
     }
 
-#ifdef DMSDOS_CONFIG_DRVSP3
+//#ifdef DMSDOS_CONFIG_DRVSP3
 
     if (mde.unknown & 2) {
         /* we suppose this bit indicates a fragmented cluster */
@@ -660,7 +660,7 @@ int dbl_read_cluster(struct super_block *sb,
 
     } /* end of read routine for fragmented cluster */
 
-#endif
+//#endif
 
     if (mde.flags & 1) {
         /* cluster is not compressed */
@@ -717,7 +717,7 @@ int dbl_read_cluster(struct super_block *sb,
 
     return (mde.size_hi_minus_1 + 1) * SECTOR_SIZE;
 }
-#endif
+//#endif
 
 /* read a complete file cluster and decompress it if necessary;
    it must be able to read directories
@@ -733,21 +733,15 @@ int dmsdos_read_cluster(struct super_block *sb,
     LOG_CLUST("DMSDOS: read_cluster %d\n", clusternr);
 
     switch (dblsb->s_cvf_version) {
-#ifdef DMSDOS_CONFIG_DBL
-
     case DBLSP:
     case DRVSP:
     case DRVSP3:
         ret = dbl_read_cluster(sb, clusterd, clusternr);
         break;
-#endif
-#ifdef DMSDOS_CONFIG_STAC
-
     case STAC3:
     case STAC4:
         ret = stac_read_cluster(sb, clusterd, clusternr);
         break;
-#endif
 
     default:
         printk(KERN_ERR "DMSDOS: read_cluster: illegal cvf version flag!\n");

@@ -919,7 +919,7 @@ retry:
     sb->s_blocksize_bits = blksize == 512 ? 9 : 10;
     i = 0;
 
-#ifdef DMSDOS_CONFIG_DBL
+//#ifdef DMSDOS_CONFIG_DBL
 
     if (i == 0) {
         i = detect_dblspace(sb);
@@ -927,8 +927,8 @@ retry:
         if (i > 0) {mt++; i = mount_dblspace(sb, cvf_options);}
     }
 
-#endif
-#ifdef DMSDOS_CONFIG_STAC
+//#endif
+//#ifdef DMSDOS_CONFIG_STAC
 
     if (i == 0) {
         i = detect_stacker(sb);
@@ -936,7 +936,7 @@ retry:
         if (i > 0) {mt++; i = mount_stacker(sb, cvf_options);}
     }
 
-#endif
+//#endif
 
     if (mt == 0) {
         /* looks like a real msdos filesystem */
@@ -1029,18 +1029,10 @@ void do_lib_init(void)
 #else
            " read-write"
 #endif
-#ifdef DMSDOS_CONFIG_DBLSP_DRVSP
            ", doublespace/drivespace(<3)"
-#endif
-#ifdef DMSDOS_CONFIG_DRVSP3
            ", drivespace 3"
-#endif
-#ifdef DMSDOS_CONFIG_STAC3
            ", stacker 3"
-#endif
-#ifdef DMSDOS_CONFIG_STAC4
            ", stacker 4"
-#endif
            "\n",
            DMSDOS_MAJOR, DMSDOS_MINOR, DMSDOS_ACT_REL);
 

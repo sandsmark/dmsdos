@@ -38,9 +38,6 @@ See file COPYING for details.
 #include <errno.h>
 #endif
 
-
-#ifdef DMSDOS_CONFIG_STAC
-
 #ifdef __DMSDOS_DAEMON__
 #include <malloc.h>
 #include <string.h>
@@ -1363,5 +1360,3 @@ error_return:
 }
 
 #endif /* __DMSDOS_LIB__*/
-
-#endif /* DMSDOS_CONFIG_STAC */
