@@ -598,7 +598,7 @@ int mount_dblspace(struct super_block *sb, char *options)
     MSDOS_SB(sb)->data_start = FAKED_DATA_START_OFFSET; /*begin of virtual cluster 2*/
     MSDOS_SB(sb)->clusters = dblsb->s_max_cluster;
 
-    if (MSDOS_SB(sb)->fat_bits != dblsb->s_16bitfat ? 16 : 12) {
+    if (MSDOS_SB(sb)->fat_bits != (dblsb->s_16bitfat ? 16 : 12)) {
         LOG_REST("DMSDOS: fat bit size mismatch in fat driver, trying to correct\n");
         MSDOS_SB(sb)->fat_bits = dblsb->s_16bitfat ? 16 : 12;
     }
@@ -999,7 +999,7 @@ int mount_stacker(struct super_block *sb, char *options)
     MSDOS_SB(sb)->data_start = FAKED_DATA_START_OFFSET; /*begin of virtual cluster 2*/
     MSDOS_SB(sb)->clusters = BB_ClustCnt;
 
-    if (MSDOS_SB(sb)->fat_bits != dblsb->s_16bitfat ? 16 : 12) {
+    if (MSDOS_SB(sb)->fat_bits != (dblsb->s_16bitfat ? 16 : 12)) {
         LOG_REST("DMSDOS: fat bit size mismatch in fat driver, trying to correct\n");
         MSDOS_SB(sb)->fat_bits = dblsb->s_16bitfat ? 16 : 12;
     }
