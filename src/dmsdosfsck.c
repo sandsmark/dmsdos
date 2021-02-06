@@ -377,15 +377,7 @@ int check_direntry(int dirstartclust, unsigned char *data, int *need_write,
     }
 
     if (add_name(namelist, data)) {
-        printf("duplicate filename '");
-
-        for (i = 0; i < 11; ++i) {
-            if (i == 8) { printf(" "); }
-
-            printf("%c", data[i]);
-        }
-
-        printf("'\n");
+        puts("ERR: duplicate filename");
 
         if (repair("Rename?") != 0) {
             char teststr[10];
@@ -411,7 +403,7 @@ int check_direntry(int dirstartclust, unsigned char *data, int *need_write,
     }
 
     if (cluster < 0 || cluster == 1 || cluster > dblsb->s_max_cluster) {
-        printf("clusternr invalid\n");
+        printf("ERR: Dir at invalid cluster %d, max is %d\n", cluster, dblsb->s_max_cluster);
 
         if (repair("Truncate?") == 0) { return -1; }
 
@@ -441,9 +433,9 @@ int check_direntry(int dirstartclust, unsigned char *data, int *need_write,
         }
 
         lprintf("OK\n");
-        lprintf("descending directory...\n");
+        lprintf("Descending directory...\n");
         i = check_dir(dirstartclust, cluster);
-        lprintf("ascending...\n");
+        lprintf("Ascending...\n");
 
         if (i >= 0) {
             if (size) {
@@ -483,7 +475,7 @@ irrepdir:
 
     if (cluster == 0) {
         if (size == 0) {
-            lprintf("OK\n");
+            lprintf("OK, empty file at cluster 0\n");
             return 0;
         }
 
@@ -514,7 +506,7 @@ irrepdir:
     }
 
     if (cluster == 0) {
-        printf("fat alloc ends with zero\n");
+        printf("WARN: file at cluster 0\n");
         cluster = prevcluster;
         fatsize -= clustersize;
 
@@ -522,10 +514,11 @@ irrepdir:
 
         newval = FAT_EOF;
         dbl_fat_nextcluster(sb, cluster, &newval);
+        printf("WARN: new val at %d, cluster now at %d\n", newval, cluster);
     }
 
     if (cluster == 1 || cluster > dblsb->s_max_cluster) {
-        printf("fat alloc invalid\n");
+        printf("ERR: File at invalid cluster %d, max is %d\n", cluster, dblsb->s_max_cluster);
         return -1;
     }
 
@@ -539,7 +532,7 @@ irrepdir:
         return 0;
     }
 
-    printf("file size wrong\n");
+    printf("ERR: File size %lu (%lu clusters), actual %lu (%lu clusters)\n", size, size/clustersize, fatsize, (fatsize - 1) / clustersize);
 
     if (repair("Recalculate file size?") == 0) { return -1; }
 
@@ -746,9 +739,9 @@ usage:
     i = check_fat();
 
     if (i) {
-        printf("Filesystem has fatal FAT errors\n");
-        printf("Cannot continue, sorry.\n");
-        printf("Don't mount this filesystem, it may crash or hang the FAT driver.\n");
+        puts("Filesystem has fatal FAT errors");
+        puts("Cannot continue, sorry.\n");
+        puts("Don't mount this filesystem, it may crash or hang the FAT driver.");
         close_cvf(sb);
         exit(4);
     }
@@ -762,15 +755,15 @@ usage:
         ++errors;
     }
 
-    printf("pass 3: calling dmsdos simple_check...\n");
+    puts("pass 3: calling dmsdos simple_check...");
 
     i = simple_check(sb, 0);
 
     if (i == -1) { /* there were fatal FAT errors detected */
-        printf("Filesystem still has fatal FAT errors\n");
-        printf("CANNOT HAPPEN. THIS IS A BUG.\n");
-        close_cvf(sb);
-        abort();
+        puts("Filesystem still has fatal FAT errors");
+//        printf("CANNOT HAPPEN. THIS IS A BUG.\n");
+//        close_cvf(sb);
+//        abort();
     }
 
     if (i) {

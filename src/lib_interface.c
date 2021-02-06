@@ -617,7 +617,7 @@ int setup_translation(struct super_block *sb, char *ext)
 
     /* scan the root directory for a CVF */
 
-    printf("%d / %d loops, offset %x\n", MSDOS_SB(sb)->dir_entries, MSDOS_DPS, MSDOS_SB(sb));
+    printf("%hu / %lu loops, offset %p\n", MSDOS_SB(sb)->dir_entries, MSDOS_DPS, MSDOS_SB(sb));
 
     for (i = 0; i < MSDOS_SB(sb)->dir_entries / MSDOS_DPS; ++i) {
         bh = raw_bread(sb, MSDOS_SB(sb)->dir_start + i);

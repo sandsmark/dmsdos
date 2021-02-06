@@ -272,7 +272,7 @@ int sd3_decomp(void *data, int CompSize, void *DecompData, int DecompSize,
 
                 if (DataSize < repN) {
                     repN = DataSize;
-                    printk(KERN_ERR "DMSDOS: stac3_decomp: char repeat overrun!\n");
+                    printk(KERN_ERR "DMSDOS: stac3_decomp: char repeat overrun! repN: %d\n", repN);
                     return (0);
                 }
 
@@ -305,6 +305,7 @@ int sd3_decomp(void *data, int CompSize, void *DecompData, int DecompSize,
                 printk(KERN_ERR "DMSDOS: stac3_decomp: Multi rep overrun 0x%x at pos 0x%x->0x%x\n",
                        repN, bb.ptr - (uint8_t *)data, Decomp - (uint8_t *)DecompData);
                 repN = DataSize;
+                printk(KERN_ERR, "repN after: %d\n", repN);
                 return (0);
             }
 

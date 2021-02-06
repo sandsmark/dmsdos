@@ -321,14 +321,20 @@ int simple_check(struct super_block *sb, int repair)
 
     for (i = 0; i < val; ++i) { field[i] = 0; }
 
-    for (i = 2; i <= dblsb->s_max_cluster2 && maxmsg <= MAXMSG; ++i) {
+    int cvfDeadSector = 0;
+    int mdfatDeadSectors = 0;
+    int deletedClusters = 0;
+    for (i = 2; i <= dblsb->s_max_cluster2 /*&& maxmsg <= MAXMSG*/; ++i) {
+        if (maxmsg == MAXMSG) {
+            puts("Max errors printed, not printing anymore!");
+        }
         val = dbl_fat_nextcluster(sb, i, NULL);
         dbl_mdfat_value(sb, i, NULL, &mde);
 
         if (val != 0 && val != -1) {
             if (getbit(val)) {
-                printk(KERN_ERR "DMSDOS: FAT crosslink or loop in CVF detected (cluster %d), giving up.\n",
-                       i);
+                printk(KERN_ERR "DMSDOS: FAT crosslink or loop in CVF detected (cluster %d/%d), giving up.\n",
+                       i, dblsb->s_max_cluster2);
                 ++maxmsg;
                 repair = 0; /* unable to fix this - refuse to do further repair */
                 errorcode = -1;
@@ -341,17 +347,23 @@ int simple_check(struct super_block *sb, int repair)
         if (val == 0 && (mde.flags & 2) != 0) {
             if (repair == 0) {
                 if (dblsb->s_cvf_version < STAC3) {
-                    printk(KERN_ERR "DMSDOS: MDFAT-level dead sectors found in CVF (cluster %d)\n",
-                           i);
+                    cvfDeadSector++;
+                    if (maxmsg < MAXMSG)
+                        printk(KERN_ERR "DMSDOS: MDFAT-level dead sectors found in CVF (cluster %d)\n",
+                               i);
                     ++maxmsg;
                     errorcode = -2;
                 }
             } else {
                 if (mdfat_dead_msg_count++ == 0) { /* print message only once */
                     if (dblsb->s_cvf_version < STAC3) {
-                        printk(KERN_NOTICE "DMSDOS: MDFAT-level dead sectors found, removing...\n");
+                        mdfatDeadSectors++;
+                        if (maxmsg < MAXMSG)
+                            printk(KERN_NOTICE "DMSDOS: MDFAT-level dead sectors found, removing...\n");
                     } else {
-                        printk(KERN_INFO "DMSDOS: Deleted clusters found, removing...\n");
+                        deletedClusters++;
+                        if (maxmsg < MAXMSG)
+                            printk(KERN_INFO "DMSDOS: Deleted clusters found, removing...\n");
                     }
                 }
 
@@ -362,6 +374,10 @@ int simple_check(struct super_block *sb, int repair)
                 dbl_mdfat_value(sb, i, &mde, &dummy);
             }
         }
+    }
+
+    if (cvfDeadSector || mdfatDeadSectors || deletedClusters) {
+        printk(KERN_ERR "CVF dead sectors: %d, MDFAT dead sectors: %d, deleted clusters: %d\n", cvfDeadSector, mdfatDeadSectors, deletedClusters);
     }
 
     vfree(field);

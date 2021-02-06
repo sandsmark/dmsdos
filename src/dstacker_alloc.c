@@ -488,6 +488,8 @@ int stac_replace_existing_cluster(struct super_block *sb, int cluster,
     old_sector = old_mde.sector_minus_1 + 1;
     new_size = mde->size_lo_minus_1 + 1;
 
+    LOG_ALLOC("Old size: %d, old sector: %d\n", old_size, old_sector);
+
     if (old_mde.flags & 2) {
         /* stacker routines always replace mdfat entry */
         newval = 0;

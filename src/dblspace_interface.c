@@ -892,6 +892,8 @@ int mount_stacker(struct super_block *sb, char *options)
     pp = &(bh2->b_data[0x13]);
     BB_TotalSects = CHS(pp);
 
+    printf("Cluster size: %d\n", ClustSize);
+
     if (!BB_TotalSects)
     { pp = &(bh2->b_data[0x20]); BB_TotalSects = CHL(pp);};
 
@@ -902,6 +904,8 @@ int mount_stacker(struct super_block *sb, char *options)
     pp = &(bh2->b_data[0x1B]);
 
     HidenSects = CHS(pp);
+
+    printf("Hidden sectors: %d\n", HidenSects);
 
     if (BB_SectSize != SectSize) { printk(KERN_WARNING "DMSDOS: Inconsistent sector length\n"); }
 
