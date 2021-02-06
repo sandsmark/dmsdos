@@ -46,7 +46,7 @@ typedef struct {
     int start;
 } Fatdata;
 
-Fatdata fat[65536];
+static Fatdata fat[65536];
 
 #define FAT_EOF -1
 
@@ -59,7 +59,7 @@ static int listfiles = 0;
 #define vprintf if(verbose)printf
 #define lprintf if(listfiles)printf
 
-int repair(char *text)
+static int repair(char *text)
 {
     int c;
 
@@ -78,7 +78,7 @@ int repair(char *text)
     return 0;
 }
 
-int check_fat_loop(int begin)
+static int check_fat_loop(int begin)
 {
     int seen = 0;
     int next;
@@ -114,7 +114,7 @@ int check_fat_loop(int begin)
     return 0;
 }
 
-int check_fat()
+static int check_fat()
 {
     int i;
     int val;
@@ -171,7 +171,7 @@ int check_fat()
     return errors;
 }
 
-int check_chains()
+static int check_chains()
 {
     int i;
     int val;
@@ -213,9 +213,9 @@ rchain:
 struct nametest {
     unsigned char name[12];
     struct nametest *next;
-} nametest;
+};
 
-int add_name(struct nametest **namelist, unsigned char *text)
+static int add_name(struct nametest **namelist, unsigned char *text)
 {
     struct nametest *akt = *namelist;
 
@@ -661,7 +661,7 @@ int check_dir(int parent, int clusternr)
     return errors;
 }
 
-int check_unused_chains()
+static int check_unused_chains()
 {
     int i;
     int val;
