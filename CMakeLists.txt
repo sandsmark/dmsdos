@@ -350,5 +350,5 @@ install(
         man/dutil.1
         man/mcdmsdos.1
     DESTINATION
-        CMAKE_INSTALL_MANDIR
+        ${CMAKE_INSTALL_MANDIR}
 )
