@@ -346,9 +346,14 @@ install(
     FILES
         man/cvflist.1
         man/cvftest.1
-        man/dmsdosfsck.8
         man/dutil.1
         man/mcdmsdos.1
     DESTINATION
-        ${CMAKE_INSTALL_MANDIR}
+        ${CMAKE_INSTALL_MANDIR}/man1
+)
+install(
+    FILES
+        man/dmsdosfsck.8
+    DESTINATION
+        ${CMAKE_INSTALL_MANDIR}/man8
 )
