@@ -26,8 +26,8 @@ See file COPYING for details.
 
 */
 
-#ifndef _DMSDOS_H
-#define _DMSDOS_H
+#ifndef DMSDOS_H
+#define DMSDOS_H
 
 /* version number hacks */
 #define LVC(x,y,z) ((x)*65536+(y)*256+(z))

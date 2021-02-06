@@ -159,7 +159,8 @@ int display_cluster(int nr, int mode)
 
             if (data[j] == 0) { break; }
 
-            if (data[j] == 0xe5) {printf("--DELETED--\n"); continue;}
+            // shouldn't this just be data[0]?
+            if (data[j] == DELETED_FLAG) { puts("-- DELETED --\n"); continue;}
 
             for (i = 0; i < 11; ++i) {
                 if (i == 8) { printf(" "); }

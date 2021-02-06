@@ -49,7 +49,9 @@ int scan(char *text)
     int v = 0;
 
     if (strncmp(text, "0x", 2) == 0 || strncmp(text, "0X", 2) == 0) {
-        sscanf(text + 2, "%x", &v);
+        unsigned int uns = 0;
+        sscanf(text + 2, "%x", &uns);
+        v = uns;
     } else {
         sscanf(text, "%d", &v);
     }
@@ -60,15 +62,15 @@ int scan(char *text)
 unsigned char *get_root_dir(void)
 {
     unsigned char *data;
-    struct buffer_head *bh;
     int i;
 
     data = malloc(dblsb->s_rootdirentries * 32);
 
     if (data == NULL) { return NULL; }
+    assert(dblsb->s_rootdirentries * 32 / 512 > 0);
 
     for (i = 0; i < dblsb->s_rootdirentries * 32 / 512; ++i) {
-        bh = raw_bread(sb, dblsb->s_rootdir + i);
+        struct buffer_head *bh = raw_bread(sb, dblsb->s_rootdir + i);
 
         if (bh == NULL) {free(data); return NULL;}
 
@@ -177,7 +179,7 @@ int display_dir_cluster(int nr, int rek, char *prefix)
 
     j = 0;
 
-    while (data[j] == 0 && j < i) { j++; }
+    while (j < i && data[j] == 0) { j++; }
 
     for (; j < dblsb->s_sectperclust * 512; j += 32) {
         unsigned char *pp;
@@ -192,7 +194,7 @@ int display_dir_cluster(int nr, int rek, char *prefix)
 
         if (data[j] == 0) { continue; }
 
-        if (data[j] == 0xe5) { continue; }
+        if (data[j] == DELETED_FLAG) { continue; }
 
         const uint8_t entry_flags = data[j + 11];
 
@@ -249,7 +251,7 @@ int display_dir_cluster(int nr, int rek, char *prefix)
 
         pp = &(data[j + 28]);
         size = CHL(pp);
-        printf(" %7lu", size);
+        printf(" %7ld", size);
 
         pp = &(data[j + 24]);
         x = CHS(pp);
@@ -259,14 +261,15 @@ int display_dir_cluster(int nr, int rek, char *prefix)
             shortyear -= 99;
         }
 
-        printf(" %02d.%02d.%02d", x & 31, (x >> 5) & 15, shortyear);
+        printf(" %02u.%02u.%02d", x & 31, (x >> 5) & 15, shortyear);
         printf(" %s", datestr[(x >> 5) & 15]);
-        printf(" %02d", x & 31);
-        printf(" %04d", (x >> 9) + 1980); /* y2k compliant :) */
+        printf(" %02u", x & 31);
+        printf(" %04u", (x >> 9) + 1980); /* y2k compliant :) */
 
+        /*
         pp = &(data[j + 22]);
         x = CHS(pp);
-        /*printf("  %02d:%02d:%02d",x>>11,(x>>5)&63,(x&31)<<1);
+        printf("  %02d:%02d:%02d",x>>11,(x>>5)&63,(x&31)<<1);
         printf(" %02d:%02d",x>>11,(x>>5)&63);*/
 
         pp = &(data[j + 26]);
@@ -301,7 +304,7 @@ int display_dir_cluster(int nr, int rek, char *prefix)
 
 int handle_dir_chain(int start, int rek, char *prefix)
 {
-    int i, next;
+    int next;
 
     if (start == 0) { return display_dir_cluster(0, rek, prefix); }
 
@@ -309,7 +312,7 @@ int handle_dir_chain(int start, int rek, char *prefix)
 
     do {
         next = dbl_fat_nextcluster(sb, start, NULL);
-        i = display_dir_cluster(start, rek, prefix);
+        int i = display_dir_cluster(start, rek, prefix);
 
         if (i < 0) { return i; }
 
@@ -325,7 +328,7 @@ int handle_dir_chain(int start, int rek, char *prefix)
 
 int handle_file_chain(int start, int len, FILE *f)
 {
-    int i, next;
+    int next;
 
     if (start == 0) { return -1; } /* never a file :) */
 
@@ -333,7 +336,7 @@ int handle_file_chain(int start, int len, FILE *f)
 
     do {
         next = dbl_fat_nextcluster(sb, start, NULL);
-        i = copy_cluster_out(start, len, f);
+        int i = copy_cluster_out(start, len, f);
 
         if (i < 0) { return i; }
 
@@ -429,11 +432,10 @@ int scan_dir(char *entry, int start, int *len)
 
 int scan_path(char *path, int start, int *len)
 {
-    int i;
     char *p;
 
     for (p = strtok(path, "/"); p; p = strtok(NULL, "/")) {
-        i = scan_dir(p, start, len);
+        int i = scan_dir(p, start, len);
 
         if (i < 0) {
             fprintf(stderr, "path component %s not found\n", p);
@@ -451,7 +453,7 @@ int main(int argc, char *argv[])
     int mode = 0;
     int cluster;
     int i;
-    char *p;
+    char *path;
     int len;
     FILE *f;
 
@@ -483,14 +485,13 @@ int main(int argc, char *argv[])
             return 1;
         }
     } else if (strcmp(argv[1], "copyin") == 0) {
-        mode = M_IN;
+        //mode = M_IN;
 
         if (argc != 5) {
             fprintf(stderr, "wrong number of arguments\n");
             return 1;
         }
 
-        fprintf(stderr, "copyin command is not implemented\n");
         return -2;
     } else {
         fprintf(stderr, "unknown command\n");
@@ -512,8 +513,9 @@ int main(int argc, char *argv[])
     }
 
     else if (mode == M_OUT) {
-        p = malloc(strlen(argv[3]) + 1);
-        strcpy(p, argv[3]);
+        char *buffer = malloc(strlen(argv[3]) + 1);
+        path = buffer;
+        strcpy(path, argv[3]);
 #ifdef _WIN32
 
         /* convert to Unix style path */
@@ -521,9 +523,11 @@ int main(int argc, char *argv[])
 
 #endif
 
-        if (*p == '/') { ++p; }
+        if (*path == '/') { ++path; }
 
-        cluster = scan_path(p, 0, &len);
+        len = 1;
+        cluster = scan_path(path, 0, &len);
+        free(buffer);
 
         if (cluster < 0) {
             fprintf(stderr, "%s not found\n", argv[3]);
@@ -539,6 +543,9 @@ int main(int argc, char *argv[])
             i = handle_file_chain(cluster, len, f);
             fclose(f);
         }
+    } else {
+        puts("Unhandled mode");
+        i = -1;
     }
 
     close_cvf(sb);

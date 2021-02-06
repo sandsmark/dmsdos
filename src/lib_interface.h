@@ -37,8 +37,17 @@ See file COPYING for details.
 #include <stdint.h>
 #include <sys/types.h>
 
-#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#if BYTE_ORDER == BIG_ENDIAN
+#warning "Untested big endian crap"
 
+#define cpu_to_le16(v) (swap_bytes_in_word(v))
+#define cpu_to_le32(v) ((((u_int32_t)v & 0x000000ffU) << 24) | (((u_int32_t)v & 0x0000ff00U) <<  8) | (((u_int32_t)v & 0x00ff0000U) >>  8) | (((u_int32_t)v & 0xff000000U) >> 24))
+#define cpu_to_be16(v) (v)
+
+#define be16_to_cpu(v) (v)
+#define le16_to_cpu(v) (swap_bytes_in_word(v))
+
+#else // BYTE_ORDER == BIG_ENDIAN
 #define cpu_to_le16(v) (v)
 #define cpu_to_le32(v) (v)
 #define cpu_to_be16(v) (swap_bytes_in_word(v))
@@ -51,10 +60,7 @@ See file COPYING for details.
 
 #define get_unaligned(ptr) (*(ptr))
 #define C_LD_u16(p,v) {v=get_unaligned((uint16_t*)p);p=(uint8_t*)((uint16_t*)p+1);}
-
-#else
-#error "Please implement the macros for big endian"
-#endif // __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#endif // BYTE_ORDER == BIG_ENDIAN
 
 extern long int blk_size[1][1];
 
@@ -77,6 +83,9 @@ void panic(const char *fmt, ...);
 
 #define MSDOS_MAX_EXTRA 3 /* tolerate up to that number of clusters which are
                              inaccessible because the FAT is too short */
+
+#define DELETED_FLAG 0xe5	/* marks file as deleted when in name[0] */
+#define IS_FREE(n) (!*(n) || *(n) == DELETED_FLAG)
 
 #define KERN_EMERG      "<0>"   /* system is unusable                   */
 #define KERN_ALERT      "<1>"   /* action must be taken immediately     */
