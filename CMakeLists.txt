@@ -304,6 +304,16 @@ set(IDMSDOSD_TIME 30 CACHE STRING
     only an effect if the internal compression daemon is used."
     )
 
+option(ENABLE_SANITIZERS "Enable runtime sanitizing (for development)")
+if (ENABLE_SANITIZERS)
+    message("Enabling asan and ubsan")
+    set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+    set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+endif()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-pointer-sign")
+endif()
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 configure_file(dmsdos-config.h.in dmsdos-config.h)
 
