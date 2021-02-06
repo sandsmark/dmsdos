@@ -639,9 +639,9 @@ int setup_translation(struct super_block *sb, char *ext)
             if (strncmp(data[j].name, "STACVOL ", 8) == 0) { testvers = 2; }
 
             if (testvers) {
-                if ((data[j].name[8] >= '0' && data[j].name[8] <= '9'
-                        && data[j].name[9] >= '0' && data[j].name[9] <= '9'
-                        && data[j].name[10] >= '0' && data[j].name[10] <= '9'
+                if ((data[j].ext[0] >= '0' && data[j].ext[0] <= '9'
+                        && data[j].ext[1] >= '0' && data[j].ext[1] <= '9'
+                        && data[j].ext[2] >= '0' && data[j].ext[2] <= '9'
                     ) | (testvers == 2 && strncmp(data[j].name + 8, "DSK", 3) == 0)
                    ) {
                     /* it is a CVF */
