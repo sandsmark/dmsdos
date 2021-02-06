@@ -337,7 +337,7 @@ error1:
     };
 
     return cw->bytes_in_clust;
-};
+}
 
 /* returns in order all sectors of cluster */
 /* in Stac_cwalk updates fields sect, offset and bytes */
@@ -379,12 +379,12 @@ int stac_cwalk_sector(Stac_cwalk *cw)
     };
 
     return cw->sect;
-};
+}
 
 void stac_cwalk_done(Stac_cwalk *cw)
 {
     if (cw->fbh != NULL) { raw_brelse(cw->sb, cw->fbh); }
-};
+}
 
 
 void stac_special_free(struct super_block *sb, int clusternr)
@@ -473,9 +473,6 @@ int stac_replace_existing_cluster(struct super_block *sb, int cluster,
     int old_sector;
     int old_size;
     int new_size;
-    Dblsb *dblsb = MSDOS_SB(sb)->private_data;
-
-    lock_mdfat_alloc(dblsb);
 
     LOG_ALLOC("DMSDOS: stac_replace_existing_cluster cluster=%d near_sector=%d\n",
               cluster, near_sector);
@@ -511,7 +508,6 @@ int stac_replace_existing_cluster(struct super_block *sb, int cluster,
             dbl_mdfat_value(sb, cluster, &new_mde, &dummy);
         }
 
-        unlock_mdfat_alloc(dblsb);
         return -ENOSPC; /* disk full */
     }
 
@@ -520,7 +516,6 @@ int stac_replace_existing_cluster(struct super_block *sb, int cluster,
         if (dbl_bitfat_value(sb, sector + i, NULL)) {
             printk(KERN_EMERG "DMSDOS: find_free_bitfat returned sector %d size %d but they are not all free!\n",
                    sector, new_size);
-            unlock_mdfat_alloc(dblsb);
             panic("DMSDOS: stac_replace_existing_cluster: This is a bug - reboot and check filesystem\n");
             return -EIO;
         }
@@ -537,6 +532,5 @@ int stac_replace_existing_cluster(struct super_block *sb, int cluster,
     new_mde.flags = mde->flags | 2;
     LOG_ALLOC("DMSDOS: stac_replace_existing_cluster: writing mdfat...\n");
     dbl_mdfat_value(sb, cluster, &new_mde, &dummy);
-    unlock_mdfat_alloc(dblsb);
     return sector; /* okay */
 }

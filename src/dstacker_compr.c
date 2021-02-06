@@ -1147,9 +1147,7 @@ int stac_write_cluster(struct super_block *sb,
 
     /* check if we are deleting a cluster */
     if (clusterd == NULL || length == 0) {
-        lock_mdfat_alloc(dblsb);
         stac_special_free(sb, clusternr);
-        unlock_mdfat_alloc(dblsb);
         return 0;
     }
 

@@ -336,8 +336,6 @@ int dbl_mdfat_cluster2sector(struct super_block *sb,int clusternr);
 int simple_check(struct super_block *sb,int repair);
 void do_spc_init(void);
 void do_spc_exit(void);
-void lock_mdfat_alloc(Dblsb *);
-void unlock_mdfat_alloc(Dblsb *);
 void free_cluster_sectors(struct super_block *sb, int clusternr);
 void stac_special_free(struct super_block *sb, int clusternr);
 int stac_write_cluster(struct super_block *sb,

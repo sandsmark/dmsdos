@@ -41,10 +41,6 @@ extern unsigned long dmsdos_speedup;
 /* no change for doublespace, but fixes drivespace 3 problems (was 50) */
 #define BIG_HOLE (dblsb->s_sectperclust*3+2)
 
-/* we don't need locking in the library */
-void lock_mdfat_alloc(Dblsb *dblsb) {}
-void unlock_mdfat_alloc(Dblsb *dblsb) {}
-
 //#ifdef DMSDOS_CONFIG_DBL
 void u_free_cluster_sectors(struct super_block *sb, int clusternr,
                             unsigned long *undo_list)
@@ -146,18 +142,16 @@ nfree:
 
 void free_cluster_sectors(struct super_block *sb, int clusternr)
 {
-    lock_mdfat_alloc(MSDOS_SB(sb)->private_data);
     u_free_cluster_sectors(sb, clusternr, NULL);
-    unlock_mdfat_alloc(MSDOS_SB(sb)->private_data);
 }
 
 /* for statistics - just for interest */
-int nearfound = 0;
-int bigfound = 0;
-int exactfound = 0;
-int anyfound = 0;
-int notfound = 0;
-int fragfound = 0;
+static int nearfound = 0;
+static int bigfound = 0;
+static int exactfound = 0;
+static int anyfound = 0;
+static int notfound = 0;
+static int fragfound = 0;
 
 /* this function must be called locked */
 int find_free_bitfat(struct super_block *sb, int sectornr, int size)
@@ -515,8 +509,6 @@ int dbl_replace_existing_cluster(struct super_block *sb, int cluster,
     unsigned long undo_list[MAX_UNDO_LIST];
     Dblsb *dblsb = MSDOS_SB(sb)->private_data;
 
-    lock_mdfat_alloc(dblsb);
-
     LOG_ALLOC("DMSDOS: dbl_replace_existing_cluster cluster=%d near_sector=%d\n",
               cluster, near_sector);
     dbl_mdfat_value(sb, cluster, NULL, &old_mde);
@@ -657,7 +649,6 @@ check_failed:  ; /*Win32 compiler wants a semicolon here */
                         if (dbl_bitfat_value(sb, usector + j, NULL)) {
                             printk(KERN_EMERG "DMSDOS: try_fragmented returned non-free sectors!\n");
                             /* WARNING: bitfat is corrupt now */
-                            unlock_mdfat_alloc(dblsb);
                             panic("DMSDOS: dbl_replace_existing_cluster: This is a bug - reboot and check filesystem\n");
                             return -EIO;
                         }
@@ -685,7 +676,6 @@ check_failed:  ; /*Win32 compiler wants a semicolon here */
             }
         }
 
-        unlock_mdfat_alloc(dblsb);
         return -ENOSPC; /* disk full */
     }
 
@@ -694,7 +684,6 @@ check_failed:  ; /*Win32 compiler wants a semicolon here */
         if (dbl_bitfat_value(sb, sector + i, NULL)) {
             printk(KERN_EMERG "DMSDOS: find_free_bitfat returned sector %d size %d but they are not all free!\n",
                    sector, new_size);
-            unlock_mdfat_alloc(dblsb);
             panic("DMSDOS: dbl_replace_existing_cluster: This is a bug - reboot and check filesystem\n");
             return -EIO;
         }
@@ -710,7 +699,6 @@ mdfat_update:
     mde->flags |= 2;
     LOG_ALLOC("DMSDOS: dbl_replace_existing_cluster: writing mdfat...\n");
     dbl_mdfat_value(sb, cluster, mde, &dummy);
-    unlock_mdfat_alloc(dblsb);
     return sector; /* okay */
 }
 //#endif
