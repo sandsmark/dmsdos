@@ -53,7 +53,7 @@ See file COPYING for details.
 
 #define MSDOS_FAT12 4078 /* maximum number of clusters in a 12 bit FAT */
 
-struct buffer_head *raw_bread(struct super_block *sb, int block)
+static struct buffer_head *cvflist_raw_bread(struct super_block *sb, int block)
 {
     struct buffer_head *bh;
     int fd = sb->s_dev;
@@ -81,7 +81,7 @@ struct buffer_head *raw_bread(struct super_block *sb, int block)
     return NULL;
 }
 
-void raw_brelse(struct super_block *sb, struct buffer_head *bh)
+static void cvflist_raw_brelse(struct super_block *sb, struct buffer_head *bh)
 {
     if (bh == NULL) { return; }
 
@@ -89,7 +89,7 @@ void raw_brelse(struct super_block *sb, struct buffer_head *bh)
     free(bh);
 }
 
-int list_cvfs(struct super_block *sb)
+static int list_cvfs(struct super_block *sb)
 {
     int i, j, testvers;
     struct buffer_head *bh;
@@ -99,7 +99,7 @@ int list_cvfs(struct super_block *sb)
     /* scan the root directory for a CVF */
 
     for (i = 0; i < MSDOS_SB(sb)->dir_entries / MSDOS_DPS; ++i) {
-        bh = raw_bread(sb, MSDOS_SB(sb)->dir_start + i);
+        bh = cvflist_raw_bread(sb, MSDOS_SB(sb)->dir_start + i);
 
         if (bh == NULL) {
             fprintf(stderr, "unable to read msdos root directory\n");
@@ -133,7 +133,7 @@ int list_cvfs(struct super_block *sb)
             }
         }
 
-        raw_brelse(sb, bh);
+        cvflist_raw_brelse(sb, bh);
     }
 
     return 0;
@@ -156,10 +156,10 @@ int read_super(struct super_block *sb)
 
     blksize = 512;
 
-    bh = raw_bread(sb, 0);
+    bh = cvflist_raw_bread(sb, 0);
 
     if (bh == NULL) {
-        raw_brelse(sb, bh);
+        cvflist_raw_brelse(sb, bh);
         sb->s_dev = 0;
         fprintf(stderr, "cannot read file\n");
         return -1;
@@ -222,7 +222,7 @@ int read_super(struct super_block *sb)
         */
     }
 
-    raw_brelse(sb, bh);
+    cvflist_raw_brelse(sb, bh);
 
     if (error) { goto c_err; }
 
