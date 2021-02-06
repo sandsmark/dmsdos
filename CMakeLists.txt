@@ -329,3 +329,26 @@ target_link_libraries(cvftest dmsdos)
 
 add_executable(cvflist src/cvflist.c)
 target_link_libraries(cvflist dmsdos)
+
+install(
+    TARGETS
+        dcread
+        mcdmsdos
+        dmsdosfsck
+        cvftest
+        cvflist
+    DESTINATION
+        bin
+    )
+
+include(GNUInstallDirs)
+install(
+    FILES
+        man/cvflist.1
+        man/cvftest.1
+        man/dmsdosfsck.8
+        man/dutil.1
+        man/mcdmsdos.1
+    DESTINATION
+        CMAKE_INSTALL_MANDIR
+)
