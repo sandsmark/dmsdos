@@ -55,7 +55,6 @@ See file COPYING for details.
 #define SP_BIT1 /* never compress EMD */
 #define SP_BIT4 /* write-back caching */
 #define SP_BIT5 /* read-ahead */
-#define SP_BIT7 /* daemon compresses */
 #endif /* DMSDOS_EXPERT */
 
 #ifndef SP_BIT0
@@ -236,10 +235,6 @@ typedef struct {
 /* flag values */
 #define D_EMPTY       0
 #define D_VALID       1    /* entry is valid -> cluster to be compressed */
-#define D_IN_D_ACTION 2    /* is being compressed by daemon */
-#define D_OVERWRITTEN 3    /* has been overwritten by dmsdos while daemon
-                            is compressing it -> throw away the result from
-                            the daemon */
 /* this must be known outside the kernel too */
 typedef struct {
     int s_dcluster;/*[45-46]*/
@@ -353,9 +348,7 @@ int stac_read_cluster(struct super_block *sb,unsigned char *clusterd,
 void free_idle_cache(void);
 void free_idle_ccache(void);
 void ccache_init(void);
-void free_ccache_dev(struct super_block *sb);
 
-void sync_cluster_cache(int allow_daemon);
 void delete_cache_cluster(struct super_block *sb, int clusternr);
 void log_list_statistics(void);
 void log_ccache_statistics(void);
@@ -412,7 +405,6 @@ int log_prseq(void);
 #define LOG_DECOMP  if(loglevel&0x00000080)LOGCMD
 #define LOG_COMP    if(loglevel&0x00000100)LOGCMD
 #define LOG_ALLOC   if(loglevel&0x00000200)LOGCMD
-#define LOG_DAEMON  if(loglevel&0x00000400)LOGCMD
 #define LOG_CCACHE  if(loglevel&0x00000800)LOGCMD
 #define LOG_ACACHE  if(loglevel&0x00001000)LOGCMD
 #define LOG_REST    if(loglevel&0x80000000)LOGCMD
@@ -426,7 +418,6 @@ int log_prseq(void);
 #define LOG_DECOMP(x,args...)
 #define LOG_COMP(x,args...)
 #define LOG_ALLOC(x,args...)
-#define LOG_DAEMON(x,args...)
 #define LOG_CCACHE(x,args...)
 #define LOG_ACACHE(x,args...)
 #define LOG_REST(x,args...)
@@ -487,14 +478,9 @@ int dblspace_fat_access(struct super_block *sb, int clusternr,int newval);
 
 int ds_dec(void *pin,int lin, void *pout, int lout, int flg);
 
-int try_daemon(struct super_block *sb,int clusternr, int length, int method);
-void remove_from_daemon_list(struct super_block *sb,int clusternr);
-void force_exit_daemon(void);
 void dblspace_reada(struct super_block *sb, int sector,int count);
 void init_reada_list(void);
 void kill_reada_list_dev(int dev);
-int daemon_write_cluster(struct super_block *sb,unsigned char *data,
-                         int len, int clusternr, int rawlen);
 void check_free_sectors(struct super_block *sb);
 void get_memory_usage_acache(int *, int *max);
 void get_memory_usage_ccache(int *, int *max);
@@ -512,10 +498,6 @@ typedef struct {
     int method;
 } Rwlist;
 
-void init_daemon(void);
-void exit_daemon(void);
-void clear_list_dev(struct super_block *sb);
-
 /* speedup bits */
 #define SP_NO_DIR_COMPR 0x0001
 #define SP_NO_EMD_COMPR 0x0002
@@ -524,7 +506,6 @@ void clear_list_dev(struct super_block *sb);
 #define SP_USE_WRITE_BACK 0x0010
 #define SP_USE_READ_AHEAD 0x0020
 #define SP_FAST_BITFAT_ALLOC 0x0040
-#define SP_USE_DAEMON 0x0080
 #define SP_NO_FRAG_WRITE 0x0100
 
 typedef struct {

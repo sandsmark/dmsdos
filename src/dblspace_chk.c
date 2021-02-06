@@ -38,7 +38,6 @@ See file COPYING for details.
 
 extern unsigned long loglevel;
 extern unsigned long dmsdos_speedup;
-extern int daemon_present;
 
 //#ifdef DMSDOS_CONFIG_STAC
 /* reads stacker BITFAT sumary informations */

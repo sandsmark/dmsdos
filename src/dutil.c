@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
         printf("       %s (directory) setcomp (comp_option)\n", argv[0]);
         printf("       %s (directory) setcf (cf_option)\n", argv[0]);
         printf("       %s (directory) dumpcache\n", argv[0]);
-        printf("       %s (directory) synccache [(allow_daemon)]\n", argv[0]);
+        printf("       %s (directory) synccache\n", argv[0]);
         printf("       %s (directory) logstat\n", argv[0]);
         printf("       %s (directory) memory\n", argv[0]);
         printf("       %s (directory) checkfs [(repair)]\n", argv[0]);

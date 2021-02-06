@@ -505,9 +505,6 @@ int mount_dblspace(struct super_block *sb, char *options)
     /* these *must* always match */
     if (dblsb->s_comp == READ_ONLY) { sb->s_flags |= MS_RDONLY; }
 
-    /* we allow using the daemon - calling this more than once doesn't matter */
-    init_daemon();
-
     return 0;
 }
 //#endif
@@ -518,11 +515,6 @@ int unmount_dblspace(struct super_block *sb)
     Dblsb *dblsb = MSDOS_SB(sb)->private_data;
 
     LOG_REST("DMSDOS: CVF on device 0x%x unmounted.\n", sb->s_dev);
-
-    /* discard/write cached clusters */
-    free_ccache_dev(sb);
-    /* the same for the daemon if it is running */
-    clear_list_dev(sb);
 
     /* mark stacker bitfat as up to date and unmounted */
     if (dblsb->s_cvf_version >= STAC3) {
@@ -571,7 +563,6 @@ int unmount_dblspace(struct super_block *sb)
     MSDOS_SB(sb)->private_data = NULL;
     /*MSDOS_SB(sb)->cvf_format=NULL;*/ /*this causes a segfault in
                                          dec_cvf_format_use_count_by_version*/
-    exit_daemon();
     MOD_DEC_USE_COUNT;
     return 0;
 }
@@ -909,9 +900,6 @@ int mount_stacker(struct super_block *sb, char *options)
     /* if not regulary unmounted, it must be repaired before */
     /* next write access */
     if ((sb->s_flags & MS_RDONLY) == 0) { stac_bitfat_state(sb, 2); }
-
-    /* we allow using the daemon - calling this more than once doesn't matter */
-    init_daemon();
 
     return 0;
 }

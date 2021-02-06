@@ -201,7 +201,7 @@ typedef uint16_t hash_t;
 INLINE unsigned dbl_hash(uint8_t *p)
 {
     return (((uint16_t)p[0] << 4) ^ ((uint16_t)p[1] << 0)) & 0x3FF;
-};
+}
 
 /* adds new hash and returns previous occurence */
 INLINE hash_t dbl_newhash(uint8_t *clusterd, int pos,
@@ -581,8 +581,6 @@ guess_ok:
             ksize = size;
         }
     } else {
-        if ((ucflag == UC_DIRECT) ? 0 : try_daemon(sb, clusternr, length, method)) { goto wr_uc; }
-
         clusterk = (unsigned char *)MALLOC(size * SECTOR_SIZE);
 
         if (clusterk == NULL) {
@@ -714,14 +712,6 @@ int dmsdos_write_cluster(struct super_block *sb,
 
     LOG_CLUST("DMSDOS: write_cluster clusternr=%d length=%d near_sector=%d\n",
               clusternr, length, near_sector);
-
-    /* ensure the daemon doesn't use old data and overwrites our data again
-       but don't do this when called by the daemon itself :-/ uuhhh deadlock */
-    /* also don't do it for simulated writes - they change nothing.... */
-    if (ucflag >= 0 && ucflag != 2) { remove_from_daemon_list(sb, clusternr); }
-
-    /* check whether using the daemon is not desired due to speedup bits */
-    if (ucflag == 0 && (dmsdos_speedup & SP_USE_DAEMON) == 0) { ucflag = 3; }
 
     check_free_sectors(sb);
 

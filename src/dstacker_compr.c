@@ -35,6 +35,7 @@ See file COPYING for details.
 #include <malloc.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
 #ifdef __GNUC__
 #define INLINE static inline
@@ -840,7 +841,7 @@ return_error:
     if (work_mem != NULL) { FREE(work_mem); }
 
     return (0);
-};
+}
 
 /*************** end code from sd4_bs1.c *********************************/
 
@@ -854,7 +855,7 @@ INLINE void sd3b_wri(bits_t *pbits, void *pin, unsigned lin)
     pbits->pb = 32;
     pbits->pd = (uint16_t *)pin;
     pbits->pe = pbits->pd + ((lin + 1) >> 1);
-};
+}
 
 INLINE void sd3b_wrn(bits_t *pbits, int cod, int n)
 {
@@ -866,7 +867,7 @@ INLINE void sd3b_wrn(bits_t *pbits, int cod, int n)
         pbits->buf <<= 16;
         pbits->pb += 16;
     };
-};
+}
 
 INLINE uint8_t sd3_xorsum(uint8_t *data, int len)
 {
@@ -875,12 +876,12 @@ INLINE uint8_t sd3_xorsum(uint8_t *data, int len)
     while (len--) { sum ^= *(data++); }
 
     return (sum);
-};
+}
 
 INLINE unsigned sd3_hash(uint8_t *p)
 {
     return (((uint16_t)p[0] << 4) ^ ((uint16_t)p[1] << 0)) & 0x3FF;
-};
+}
 
 INLINE hash_t sd3_newhash(uint8_t *p, hash_t *hash_tab, hash_t *hash_hist, unsigned hash_mask)
 {
@@ -891,7 +892,7 @@ INLINE hash_t sd3_newhash(uint8_t *p, hash_t *hash_tab, hash_t *hash_hist, unsig
     *hash_ptr = p;
     *(hash_hist + ((intptr_t)p & hash_mask)) = hash_cur;
     return (hash_cur);
-};
+}
 
 int sd3_comp(void *pin, int lin, void *pout, int lout, int flg)
 {
@@ -1025,7 +1026,7 @@ single_char:
     FREE(hash_tab);
     return ((uint8_t *)bits.pd - (uint8_t *)pout);
 
-};
+}
 
 /*************** end code from sd4_bs0.c *********************************/
 
@@ -1133,7 +1134,7 @@ int stac_write_cluster(struct super_block *sb,
                        int near_sector, int ucflag)
 {
     int method;
-    unsigned char *clusterk;
+    unsigned char *clusterk = NULL;
     int size;
     int sect, count;
     int i, val;
@@ -1193,8 +1194,7 @@ int stac_write_cluster(struct super_block *sb,
         clusterk = clusterd;
     } else if (method != UNCOMPRESSED) {
         /* ucflag==3 test added - Frank */
-        if ((ucflag == UC_DIRECT) ? 0 : try_daemon(sb, clusternr, length, method)) { clusterk = NULL; }
-        else if ((clusterk = (unsigned char *)MALLOC(max_clen)) == NULL) {
+        if ((clusterk = (unsigned char *)MALLOC(max_clen)) == NULL) {
             printk(KERN_WARNING "DMSDOS: stac_write_cluster: no memory for compression, writing uncompressed!\n");
         }
 
@@ -1231,11 +1231,12 @@ int stac_write_cluster(struct super_block *sb,
             if ((i <= 0) || (i >= length) || (i > max_clen - SECTOR_SIZE)) {
                 method = UNCOMPRESSED;
                 FREE(clusterk);
+                clusterk = NULL;
             } else { length = i; }
         }
     }
 
-    if (method == UNCOMPRESSED) { clusterk = clusterd; }
+    if (method == UNCOMPRESSED) { clusterk = clusterd; clusterk = NULL; }
 
     /* Now we have data and must decide where to write them */
     val = stac_cwalk_init(&cw, sb, clusternr, 3);
@@ -1310,9 +1311,11 @@ int stac_write_cluster(struct super_block *sb,
                 };
 
                 if (count + cw.bytes <= length) {
+                    assert(clusterk != NULL);
                     memcpy(bh->b_data + cw.offset, clusterk + count, cw.bytes);
                 } else {
                     if ((i = length - count) > 0) {
+                        assert(clusterk != NULL);
                         memcpy(bh->b_data + cw.offset, clusterk + count, i);
                         memset(bh->b_data + cw.offset + i, 0, cw.bytes - i);
                     } else { memset(bh->b_data + cw.offset, 0, cw.bytes); }

@@ -246,11 +246,6 @@ void dblspace_reada(struct super_block *sb, int sector, int count)
     /* dummy */
 }
 
-int try_daemon(struct super_block *sb, int clusternr, int length, int method)
-{
-    return 0;
-}
-
 typedef struct _change {
     void *data;
     off_t pos;
@@ -980,31 +975,6 @@ c_err:
     MSDOS_SB(sb)->fat_lock = 0;
     MSDOS_SB(sb)->prev_free = 0;
     return sb;
-}
-
-void init_daemon(void)
-{
-    /*dummy*/
-}
-
-void exit_daemon(void)
-{
-    /*dummy*/
-}
-
-void clear_list_dev(struct super_block *sb)
-{
-    /*dummy*/
-}
-
-void free_ccache_dev(struct super_block *sb)
-{
-    /*dummy*/
-}
-
-void remove_from_daemon_list(struct super_block *sb, int clusternr)
-{
-    /* dummy */
 }
 
 static int _wascalled = 0;
