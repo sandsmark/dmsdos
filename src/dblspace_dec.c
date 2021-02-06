@@ -33,6 +33,7 @@ See file COPYING for details.
 #include<malloc.h>
 #include<string.h>
 #include<errno.h>
+#include<assert.h>
 
 #ifdef __GNUC__
 #define INLINE static inline
@@ -388,8 +389,10 @@ int dbl_decompress(unsigned char *clusterd, unsigned char *clusterk,
     lin = (mde->size_lo_minus_1 + 1) * SECTOR_SIZE;
     lout = (mde->size_hi_minus_1 + 1) * SECTOR_SIZE;
 
-    switch (clusterk[0] + ((int)clusterk[1] << 8) +
-            ((int)clusterk[2] << 16) + ((int)clusterk[3] << 24)) {
+//    const unsigned method = clusterk[0] + ((unsigned)clusterk[1] << 8) +
+//            ((unsigned)clusterk[2] << 16) + ((unsigned)clusterk[3] << 24);
+    const unsigned method = CHL(clusterk);
+    switch (method) {
     case DS_0_0:
     case DS_0_1:
     case DS_0_2:
@@ -433,7 +436,7 @@ int dbl_decompress(unsigned char *clusterd, unsigned char *clusterk,
 //#endif
 
     default:
-        printk(KERN_ERR "DMSDOS: compression method not recognized.\n");
+        printk(KERN_ERR "DMSDOS: compression method (0x%x) not recognized.\n", method);
         return -1;
 
     } /* end switch */
@@ -682,6 +685,7 @@ int dbl_read_cluster(struct super_block *sb,
             return -2;
         }
 
+        assert(nr_of_sectors > 0);
         for (i = 0; i < nr_of_sectors; ++i) {
             bh = raw_bread(sb, sector + i);
 

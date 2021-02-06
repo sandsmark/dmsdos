@@ -83,7 +83,10 @@ int display_cluster(int nr, int mode)
     if (nr == 0) {
         data = get_root_dir(dblsb, sb);
 
-        if (data == NULL) { return -1; }
+        if (data == NULL) {
+            perror("Failed to get root dir");
+            return -1;
+        }
 
         i = dblsb->s_rootdirentries * 32;
     } else {
@@ -93,7 +96,11 @@ int display_cluster(int nr, int mode)
 
         i = dmsdos_read_cluster(sb, data, nr);
 
-        if (i < 0) {free(data); return -1;}
+        if (i < 0) {
+            fprintf(stderr, "Failed to read cluster\n");
+            free(data);
+            return -1;
+        }
     }
 
     if (mode & M_VERBOSE) { fprintf(stderr, "cluster %d has length %d\n", nr, i); }
@@ -229,8 +236,15 @@ int display_chain(int start, int mode)
     int i, next;
 
     if (start == 0) { return display_cluster(0, mode); }
+    if (start == 1) {
+        fprintf(stderr, "Can't display cluster 1\n");
+        return -1;
+    }
 
-    if (start == 1 || start < 0 || start > dblsb->s_max_cluster) { return -1; }
+    if (start < 0 || start > dblsb->s_max_cluster) {
+        fprintf(stderr, "Start cluster %d is out of range (max is %d)\n", start, dblsb->s_max_cluster);
+        return -1;
+    }
 
     do {
         next = dbl_fat_nextcluster(sb, start, NULL);

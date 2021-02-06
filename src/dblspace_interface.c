@@ -228,10 +228,10 @@ void free_dblsb(Dblsb *dblsb)
     kfree(dblsb);
 }
 
-int mount_dblspace(struct super_block *sb, char *options)
+int mount_dblspace(struct super_block *superBlock, char *options)
 {
     struct buffer_head *bh;
-    struct buffer_head *bh2;
+    struct buffer_head *bufferHead2;
     int i, mdfatb, fatb;
     unsigned int version_flag;
     unsigned char *pp;
@@ -250,7 +250,7 @@ int mount_dblspace(struct super_block *sb, char *options)
         return -1;
     }
 
-    MSDOS_SB(sb)->private_data = dblsb;
+    MSDOS_SB(superBlock)->private_data = dblsb;
 
 
     dblsb->s_comp = GUESS;
@@ -258,36 +258,36 @@ int mount_dblspace(struct super_block *sb, char *options)
 
     if (parse_dmsdos_options(options, dblsb, &repair)) {
         free_dblsb(dblsb);
-        MSDOS_SB(sb)->private_data = NULL;
+        MSDOS_SB(superBlock)->private_data = NULL;
         MOD_DEC_USE_COUNT;
         return -1;
     }
 
     dblsb->s_dataend = blk_size[MAJOR(sb->s_dev)][MINOR(sb->s_dev)] * 2;
 
-    bh = raw_bread(sb, 0);
+    bh = raw_bread(superBlock, 0);
 
     if (bh == NULL) {
         printk(KERN_ERR "DMSDOS: unable to read super block\n");
         free_dblsb(dblsb);
-        MSDOS_SB(sb)->private_data = NULL;
+        MSDOS_SB(superBlock)->private_data = NULL;
         MOD_DEC_USE_COUNT;
         return -1;
     }
 
     if (strncmp(bh->b_data + 3, "MSDBL6.0", 8) && strncmp(bh->b_data + 3, "MSDSP6.0", 8)) {
         printk(KERN_ERR "DMSDOS: MSDBL/MSDSP signature not found, CVF skipped\n");
-        raw_brelse(sb, bh);
+        raw_brelse(superBlock, bh);
         free_dblsb(dblsb);
-        MSDOS_SB(sb)->private_data = NULL;
+        MSDOS_SB(superBlock)->private_data = NULL;
         MOD_DEC_USE_COUNT;
         return -1;
     }
 
-    if (sb->s_flags & MS_RDONLY) { dblsb->s_comp = READ_ONLY; }
+    if (superBlock->s_flags & MS_RDONLY) { dblsb->s_comp = READ_ONLY; }
 
     printk(KERN_INFO "DMSDOS: mounting CVF on device 0x%x %s...\n",
-           sb->s_dev,
+           superBlock->s_dev,
            dblsb->s_comp == READ_ONLY ? "read-only" : "read-write");
 
     /* dblspace correction was relocated. Pavel */
@@ -324,27 +324,27 @@ int mount_dblspace(struct super_block *sb, char *options)
     if (version_flag > 3)printk(KERN_WARNING "DMSDOS: strange version flag %d, assuming 0.\n",
                                     version_flag);
 
-    bh2 = raw_bread(sb, dblsb->s_bootblock);
+    bufferHead2 = raw_bread(superBlock, dblsb->s_bootblock);
 
-    if (bh2 == NULL) {
+    if (bufferHead2 == NULL) {
         printk(KERN_ERR "DMSDOS: unable to read emulated boot block\n");
-        raw_brelse(sb, bh);
+        raw_brelse(superBlock, bh);
         free_dblsb(dblsb);
-        MSDOS_SB(sb)->private_data = NULL;
+        MSDOS_SB(superBlock)->private_data = NULL;
         MOD_DEC_USE_COUNT;
         return -1;
     }
 
-    pp = &(bh2->b_data[57]);
+    pp = &(bufferHead2->b_data[57]);
 
     if (CHL(pp) == 0x20203631) { dblsb->s_16bitfat = 1; }
     else if (CHL(pp) == 0x20203231) { dblsb->s_16bitfat = 0; }
     else if (CHL(pp) == 0x20203233) {
         printk(KERN_ERR "DMSDOS: CVF has FAT32 signature, not mounted. Please report this.\n");
-        raw_brelse(sb, bh2);
-        raw_brelse(sb, bh);
+        raw_brelse(superBlock, bufferHead2);
+        raw_brelse(superBlock, bh);
         free_dblsb(dblsb);
-        MSDOS_SB(sb)->private_data = NULL;
+        MSDOS_SB(superBlock)->private_data = NULL;
         MOD_DEC_USE_COUNT;
         return -1;
     } else {
@@ -358,26 +358,26 @@ int mount_dblspace(struct super_block *sb, char *options)
                );
     }
 
-    raw_brelse(sb, bh2);
+    raw_brelse(superBlock, bufferHead2);
 
     /* try to verify correct end of CVF */
     mdrc = 0;
 
     for (i = -1; i <= 1; ++i) {
-        bh2 = raw_bread(sb, dblsb->s_dataend + i);
+        bufferHead2 = raw_bread(superBlock, dblsb->s_dataend + i);
 
-        if (bh2 == NULL) {
+        if (bufferHead2 == NULL) {
             LOG_REST("DMSDOS: MDR test breaks at i=%d\n", i);
             break;
         }
 
-        if (strcmp(bh2->b_data, "MDR") == 0) {
+        if (strncmp(bufferHead2->b_data, "MDR", 3) == 0) {
             ++mdrc;
             m_sector = dblsb->s_dataend + i;
             LOG_REST("DMSDOS: MDR signature found at sector %d\n", m_sector);
         }
 
-        raw_brelse(sb, bh2);
+        raw_brelse(superBlock, bufferHead2);
     }
 
     if (mdrc != 1)
@@ -443,7 +443,7 @@ int mount_dblspace(struct super_block *sb, char *options)
 
     /* error test (counts sectors) */
     if (repair != -1) { /* repair==-1 means do not even check */
-        i = simple_check(sb, repair & 1);
+        i = simple_check(superBlock, repair & 1);
 
         if (i == -1 || i == -2) {
             printk(KERN_WARNING "DMSDOS: CVF has serious errors or compatibility problems, setting to read-only.\n");
@@ -461,7 +461,7 @@ int mount_dblspace(struct super_block *sb, char *options)
     }
 
     /* if still unknown then count now */
-    if (dblsb->s_free_sectors < 0) { check_free_sectors(sb); }
+    if (dblsb->s_free_sectors < 0) { check_free_sectors(superBlock); }
 
     /* print doublespace version */
     if (dblsb->s_cvf_version == DBLSP && dblsb->s_sectperclust == 16) {
@@ -478,20 +478,20 @@ int mount_dblspace(struct super_block *sb, char *options)
         dblsb->s_comp = READ_ONLY;
     }
 
-    raw_brelse(sb, bh);
+    raw_brelse(superBlock, bh);
 
     /* set some msdos fs important stuff */
-    MSDOS_SB(sb)->dir_start = FAKED_ROOT_DIR_OFFSET;
-    MSDOS_SB(sb)->dir_entries = dblsb->s_rootdirentries;
-    MSDOS_SB(sb)->data_start = FAKED_DATA_START_OFFSET; /*begin of virtual cluster 2*/
-    MSDOS_SB(sb)->clusters = dblsb->s_max_cluster;
+    MSDOS_SB(superBlock)->dir_start = FAKED_ROOT_DIR_OFFSET;
+    MSDOS_SB(superBlock)->dir_entries = dblsb->s_rootdirentries;
+    MSDOS_SB(superBlock)->data_start = FAKED_DATA_START_OFFSET; /*begin of virtual cluster 2*/
+    MSDOS_SB(superBlock)->clusters = dblsb->s_max_cluster;
 
-    if (MSDOS_SB(sb)->fat_bits != (dblsb->s_16bitfat ? 16 : 12)) {
+    if (MSDOS_SB(superBlock)->fat_bits != (dblsb->s_16bitfat ? 16 : 12)) {
         LOG_REST("DMSDOS: fat bit size mismatch in fat driver, trying to correct\n");
-        MSDOS_SB(sb)->fat_bits = dblsb->s_16bitfat ? 16 : 12;
+        MSDOS_SB(superBlock)->fat_bits = dblsb->s_16bitfat ? 16 : 12;
     }
 
-    MSDOS_SB(sb)->cluster_size = dblsb->s_sectperclust;
+    MSDOS_SB(superBlock)->cluster_size = dblsb->s_sectperclust;
 #ifdef HAS_SB_CLUSTER_BITS
 
     for (MSDOS_SB(sb)->cluster_bits = 0;
@@ -503,7 +503,7 @@ int mount_dblspace(struct super_block *sb, char *options)
 #endif
 
     /* these *must* always match */
-    if (dblsb->s_comp == READ_ONLY) { sb->s_flags |= MS_RDONLY; }
+    if (dblsb->s_comp == READ_ONLY) { superBlock->s_flags |= MS_RDONLY; }
 
     return 0;
 }

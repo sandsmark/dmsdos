@@ -155,7 +155,7 @@ struct buffer_head *raw_bread(struct super_block *sb, int block)
         return NULL;
     }
 
-    bh->b_data = malloc(512);
+    bh->b_data = calloc(512, 1);
 
     if (bh->b_data == NULL) {
         free(bh);
@@ -294,7 +294,7 @@ static void check_fat_state_bit(DOS_FS * fs, void *b)
         struct boot_sector *b32 = b;
 
         if (b32->reserved3 & FAT_STATE_DIRTY) {
-            printf("0x41: ");
+            printk("0x41: ");
             //if (print_fat_dirty_state() == 1) {
             //    b32->reserved3 &= ~FAT_STATE_DIRTY;
             //    fs_write(0, sizeof(*b32), b32);
@@ -304,7 +304,7 @@ static void check_fat_state_bit(DOS_FS * fs, void *b)
         struct boot_sector_16 *b16 = b;
 
         if (b16->reserved2 & FAT_STATE_DIRTY) {
-            printf("0x25: ");
+            printk("0x25: ");
             //if (print_fat_dirty_state() == 1) {
             //    b16->reserved2 &= ~FAT_STATE_DIRTY;
             //    fs_write(0, sizeof(*b16), b16);
@@ -318,7 +318,7 @@ static void read_fsinfo(DOS_FS * fs, struct boot_sector *b, unsigned int lss)
     struct info_sector i;
 
     if (!b->info_sector) {
-        printf("No FSINFO sector\n");
+        printk("No FSINFO sector\n");
         //if (get_choice(2, "  Not automatically creating it.",
         //            2,
         //            1, "Create one",
@@ -340,7 +340,7 @@ static void read_fsinfo(DOS_FS * fs, struct boot_sector *b, unsigned int lss)
         //                    offsetof(struct boot_sector, info_sector),
         //                    sizeof(b->info_sector), &b->info_sector);
         //    } else {
-        //        printf("No free reserved sector found -- "
+        //        printk("No free reserved sector found -- "
         //                "no space for FSINFO sector!\n");
         //        return;
         //    }
@@ -353,17 +353,17 @@ static void read_fsinfo(DOS_FS * fs, struct boot_sector *b, unsigned int lss)
 
     if (i.magic != htole32(0x41615252) ||
             i.signature != htole32(0x61417272) || i.boot_sign != htole32(0xaa550000)) {
-        printf("FSINFO sector has bad magic number(s):\n");
+        printk("FSINFO sector has bad magic number(s):\n");
         if (i.magic != htole32(0x41615252))
-            printf("  Offset %llu: 0x%08x != expected 0x%08x\n",
+            printk("  Offset %llu: 0x%08x != expected 0x%08x\n",
                     (unsigned long long)offsetof(struct info_sector, magic),
                     le32toh(i.magic), 0x41615252);
         if (i.signature != htole32(0x61417272))
-            printf("  Offset %llu: 0x%08x != expected 0x%08x\n",
+            printk("  Offset %llu: 0x%08x != expected 0x%08x\n",
                     (unsigned long long)offsetof(struct info_sector, signature),
                     le32toh(i.signature), 0x61417272);
         if (i.boot_sign != htole32(0xaa550000))
-            printf("  Offset %llu: 0x%08x != expected 0x%08x\n",
+            printk("  Offset %llu: 0x%08x != expected 0x%08x\n",
                     (unsigned long long)offsetof(struct info_sector, boot_sign),
                     le32toh(i.boot_sign), 0xaa550000);
         //if (get_choice(1, "  Auto-correcting it.",
@@ -387,9 +387,9 @@ static void check_backup_boot(DOS_FS * fs_, struct boot_sector *b, unsigned int 
     struct boot_sector b2;
 
     if (!fs->backupboot_start) {
-        printf("There is no backup boot sector.\n");
+        printk("There is no backup boot sector.\n");
         if (le16toh(b->reserved) < 3) {
-            printf("And there is no space for creating one!\n");
+            printk("And there is no space for creating one!\n");
             return;
         }
         //if (get_choice(1, "  Auto-creating backup boot block.",
@@ -411,7 +411,7 @@ static void check_backup_boot(DOS_FS * fs_, struct boot_sector *b, unsigned int 
         //    fs_write(fs->backupboot_start, sizeof(*b), b);
         //    fs_write(offsetof(struct boot_sector, backup_boot),
         //	     sizeof(b->backup_boot), &b->backup_boot);
-        //    printf("Created backup of boot sector in sector %d\n", bbs);
+        //    printk("Created backup of boot sector in sector %d\n", bbs);
         //    return;
         //} else
         return;
@@ -424,8 +424,8 @@ static void check_backup_boot(DOS_FS * fs_, struct boot_sector *b, unsigned int 
         //    int i, pos, first = 1;
         //    char buf[32];
 
-        //    printf("There are differences between boot sector and its backup.\n");
-        //    printf("This is mostly harmless. Differences: (offset:original/backup)\n  ");
+        //    printk("There are differences between boot sector and its backup.\n");
+        //    printk("This is mostly harmless. Differences: (offset:original/backup)\n  ");
         //    pos = 2;
         //    for (p = (uint8_t *) b, q = (uint8_t *) & b2, i = 0; i < sizeof(b2);
         //            ++p, ++q, ++i) {
@@ -433,13 +433,13 @@ static void check_backup_boot(DOS_FS * fs_, struct boot_sector *b, unsigned int 
         //            sprintf(buf, "%s%u:%02x/%02x", first ? "" : ", ",
         //                    (unsigned)(p - (uint8_t *) b), *p, *q);
         //            if (pos + strlen(buf) > 78)
-        //                printf("\n  "), pos = 2;
-        //            printf("%s", buf);
+        //                printk("\n  "), pos = 2;
+        //            printk("%s", buf);
         //            pos += strlen(buf);
         //            first = 0;
         //        }
         //    }
-        //    printf("\n");
+        //    printk("\n");
 
         //    //switch (get_choice(3, "  Not automatically fixing this.",
         //    //            3,
@@ -609,7 +609,7 @@ int setup_translation(struct super_block *sb, char *ext)
 
     /* scan the root directory for a CVF */
 
-    printf("%hu / %lu loops, offset %p\n", MSDOS_SB(sb)->dir_entries, MSDOS_DPS, MSDOS_SB(sb));
+    printk("%hu / %lu loops, offset %p\n", MSDOS_SB(sb)->dir_entries, MSDOS_DPS, MSDOS_SB(sb));
 
     for (i = 0; i < MSDOS_SB(sb)->dir_entries / MSDOS_DPS; ++i) {
         bh = raw_bread(sb, MSDOS_SB(sb)->dir_start + i);
@@ -696,53 +696,53 @@ static void dump_boot(DOS_FS * fs, struct boot_sector *b, unsigned lss)
 {
     unsigned short sectors;
 
-    printf("Boot sector contents:\n");
+    printk("Boot sector contents:\n");
     if (1) { //!atari_format) {
         char id[9];
         strncpy(id, (const char *)b->system_id, 8);
         id[8] = 0;
-        printf("System ID \"%s\"\n", id);
+        printk("System ID \"%s\"\n", id);
     } else {
         /* On Atari, a 24 bit serial number is stored at offset 8 of the boot
          * sector */
-        printf("Serial number 0x%x\n",
+        printk("Serial number 0x%x\n",
                 b->system_id[5] | (b->system_id[6] << 8) | (b->
                     system_id[7] << 16));
     }
-    printf("Media byte 0x%02x (%s)\n", b->media, get_media_descr(b->media));
-    printf("%10d bytes per logical sector\n", GET_UNALIGNED_W(b->sector_size));
-    printf("%10d bytes per cluster\n", fs->cluster_size);
-    printf("%10d reserved sector%s\n", le16toh(b->reserved),
+    printk("Media byte 0x%02x (%s)\n", b->media, get_media_descr(b->media));
+    printk("%10d bytes per logical sector\n", GET_UNALIGNED_W(b->sector_size));
+    printk("%10d bytes per cluster\n", fs->cluster_size);
+    printk("%10d reserved sector%s\n", le16toh(b->reserved),
             le16toh(b->reserved) == 1 ? "" : "s");
-    printf("First FAT starts at byte %llu (sector %llu)\n",
+    printk("First FAT starts at byte %llu (sector %llu)\n",
             (unsigned long long)fs->fat_start,
             (unsigned long long)fs->fat_start / lss);
-    printf("%10d FATs, %d bit entries\n", b->fats, fs->fat_bits);
-    printf("%10lld bytes per FAT (= %llu sectors)\n", (long long)fs->fat_size,
+    printk("%10d FATs, %d bit entries\n", b->fats, fs->fat_bits);
+    printk("%10lld bytes per FAT (= %llu sectors)\n", (long long)fs->fat_size,
             (long long)fs->fat_size / lss);
     if (!fs->root_cluster) {
-        printf("Root directory starts at byte %llu (sector %llu)\n",
+        printk("Root directory starts at byte %llu (sector %llu)\n",
                 (unsigned long long)fs->root_start,
                 (unsigned long long)fs->root_start / lss);
-        printf("%10d root directory entries\n", fs->root_entries);
+        printk("%10d root directory entries\n", fs->root_entries);
     } else {
-        printf("Root directory start at cluster %lu (arbitrary size)\n",
+        printk("Root directory start at cluster %lu (arbitrary size)\n",
                 (unsigned long)fs->root_cluster);
     }
-    printf("Data area starts at byte %llu (sector %llu)\n",
+    printk("Data area starts at byte %llu (sector %llu)\n",
             (unsigned long long)fs->data_start,
             (unsigned long long)fs->data_start / lss);
-    printf("%10lu data clusters (%llu bytes)\n",
+    printk("%10lu data clusters (%llu bytes)\n",
             (unsigned long)fs->data_clusters,
             (unsigned long long)fs->data_clusters * fs->cluster_size);
-    printf("%u sectors/track, %u heads\n", le16toh(b->secs_track),
+    printk("%u sectors/track, %u heads\n", le16toh(b->secs_track),
             le16toh(b->heads));
-    printf("%10u hidden sectors\n",// atari_format ?
+    printk("%10u hidden sectors\n",// atari_format ?
             /* On Atari, the hidden field is only 16 bit wide and unused */
             /*(((unsigned char *)&b->hidden)[0] |
              ((unsigned char *)&b->hidden)[1] << 8) :*/ le32toh(b->hidden));
     sectors = GET_UNALIGNED_W(b->sectors);
-    printf("%10u sectors total\n", sectors ? sectors : le32toh(b->total_sect));
+    printk("%10u sectors total\n", sectors ? sectors : le32toh(b->total_sect));
 }
 
 
@@ -837,7 +837,6 @@ retry:
         */
     }
 
-    raw_brelse(sb, bh);
 
     fs->cluster_size = b->cluster_size * logical_sector_size;
     fs->nfats = b->fats;
@@ -866,16 +865,16 @@ retry:
              * (root_entries != 0), we handle the root dir the old way. Give a
              * warning, but convertig to a root dir in a cluster chain seems
              * to complex for now... */
-            printf("Warning: FAT32 root dir not in cluster chain! "
+            printk("Warning: FAT32 root dir not in cluster chain! "
                     "Compatibility mode...\n");
         else if (!fs->root_cluster && !fs->root_entries)
             panic("No root directory!");
         else if (fs->root_cluster && fs->root_entries)
-            printf("Warning: FAT32 root dir is in a cluster chain, but "
+            printk("Warning: FAT32 root dir is in a cluster chain, but "
                     "a separate root dir\n"
                     "  area is defined. Cannot fix this easily.\n");
         if (fs->data_clusters < FAT16_THRESHOLD)
-            printf("Warning: Filesystem is FAT32 according to fat_length "
+            printk("Warning: Filesystem is FAT32 according to fat_length "
                     "and fat32_length fields,\n"
                     "  but has only %lu clusters, less than the required "
                     "minimum of %d.\n"
@@ -896,7 +895,9 @@ retry:
                     (unsigned long)fs->data_clusters);
         check_fat_state_bit(fs, &b);
     }
-        dump_boot(fs, b, logical_sector_size);
+    dump_boot(fs, b, logical_sector_size);
+
+    raw_brelse(sb, bh);
 
     if (error) { goto c_err; }
 
