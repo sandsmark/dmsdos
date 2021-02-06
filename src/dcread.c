@@ -75,35 +75,13 @@ int scan(char *text)
     return v;
 }
 
-unsigned char *get_root_dir(void)
-{
-    unsigned char *data;
-    struct buffer_head *bh;
-    int i;
-
-    data = malloc(dblsb->s_rootdirentries * 32);
-
-    if (data == NULL) { return NULL; }
-
-    for (i = 0; i < dblsb->s_rootdirentries * 32 / 512; ++i) {
-        bh = raw_bread(sb, dblsb->s_rootdir + i);
-
-        if (bh == NULL) {free(data); return NULL;}
-
-        memcpy(data + i * 512, bh->b_data, 512);
-        raw_brelse(sb, bh);
-    }
-
-    return data;
-}
-
 int display_cluster(int nr, int mode)
 {
     unsigned char *data;
     int i, j;
 
     if (nr == 0) {
-        data = get_root_dir();
+        data = get_root_dir(dblsb, sb);
 
         if (data == NULL) { return -1; }
 
@@ -306,7 +284,7 @@ int scan_dir(char *entry, int start)
         printf("scan_dir: searching for %s in %d\n", buf, start);
 
         if (start == 0) {
-            data = get_root_dir();
+            data = get_root_dir(dblsb, sb);
             size = dblsb->s_rootdirentries;
             next = -1;
         } else {

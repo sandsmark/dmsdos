@@ -39,6 +39,7 @@ See file COPYING for details.
 #endif
 #include <fcntl.h>
 #include <errno.h>
+#include <assert.h>
 
 /* some interface hacks */
 #include "lib_interface.h"
@@ -1139,4 +1140,26 @@ void close_cvf(struct super_block *sb)
     if (sb->directlen) { free(sb->directlen); }
 
     free(sb);
+}
+
+unsigned char *get_root_dir(Dblsb *dblsp, struct super_block *superblock)
+{
+    unsigned char *data;
+    int i;
+
+    data = malloc(dblsp->s_rootdirentries * 32);
+
+    if (data == NULL) { return NULL; }
+    assert(dblsp->s_rootdirentries * 32 / 512 > 0);
+
+    for (i = 0; i < dblsp->s_rootdirentries * 32 / 512; ++i) {
+        struct buffer_head *bh = raw_bread(superblock, dblsp->s_rootdir + i);
+
+        if (bh == NULL) {free(data); return NULL;}
+
+        memcpy(data + i * 512, bh->b_data, 512);
+        raw_brelse(superblock, bh);
+    }
+
+    return data;
 }

@@ -469,6 +469,8 @@ int detect_dblspace(struct super_block *sb);
 int detect_stacker(struct super_block *sb);
 int unmount_dblspace(struct super_block *sb);
 
+unsigned char *get_root_dir(Dblsb *dblsp, struct super_block *superblock);
+
 typedef struct {
     int clusternr;
     struct super_block *sb;
